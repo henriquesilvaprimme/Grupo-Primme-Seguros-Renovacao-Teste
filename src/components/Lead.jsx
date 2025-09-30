@@ -61,10 +61,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
 
     // Cria um objeto de data a partir da string e ajusta para o fuso horário local
     const selectedDate = new Date(scheduledDate + 'T00:00:00'); // Adiciona T00:00:00 para garantir que a data seja interpretada como local
-    
-    // Formata a data para a string de status
-    const formattedDate = selectedDate.toLocaleDateString('pt-BR');
-    const newStatus = `Agendado - ${formattedDate}`;
 
     enviarLeadAtualizado(lead.id, newStatus, lead.phone);
     setStatus(newStatus);
