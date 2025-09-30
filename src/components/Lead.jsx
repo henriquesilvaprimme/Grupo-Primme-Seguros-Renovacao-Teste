@@ -100,27 +100,27 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       console.error('Erro ao enviar lead:', error);
     }
   };
-  
-  // Função auxiliar para formatar datas (YYYY-MM-DD para DD/MM/YYYY)
-  const formatDateDisplay = (dateStr) => {
-    if (!dateStr) return '';
-    // Assume YYYY-MM-DD
-    const [year, month, day] = dateStr.split('-');
-    if (year && month && day) {
-        return `${day}/${month}/${year}`;
-    }
-    return dateStr;
-  };
-  
-  // Função auxiliar para formatar moeda
-  const formatCurrency = (value) => {
-    if (value === null || value === undefined || value === "") return 'R$ 0,00';
-    if (typeof value === 'string') {
-        value = parseFloat(value.replace('R$', '').replace('.', '').replace(',', '.'));
-    }
-    if (isNaN(value)) return 'R$ 0,00';
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
+  
+  // Função auxiliar para formatar datas (YYYY-MM-DD para DD/MM/YYYY)
+  const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return '';
+    // Assume YYYY-MM-DD
+    const [year, month, day] = dateStr.split('-');
+    if (year && month && day) {
+        return `${day}/${month}/${year}`;
+    }
+    return dateStr;
+  };
+  
+  // Função auxiliar para formatar moeda
+  const formatCurrency = (value) => {
+    if (value === null || value === undefined || value === "") return 'R$ 0,00';
+    if (typeof value === 'string') {
+        value = parseFloat(value.replace('R$', '').replace('.', '').replace(',', '.'));
+    }
+    if (isNaN(value)) return 'R$ 0,00';
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
 
 
   return (
@@ -134,8 +134,10 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         position: 'relative'
       }}
     >
-      {/* Exibe o status atual no canto superior direito se o status estiver confirmado */}
-      {isStatusConfirmed && (
+      {/* REMOVIDO: A pílula de status no canto superior direito foi removida
+        para evitar a duplicação com a pílula colorida que está na div externa.
+      */}
+      {/* {isStatusConfirmed && (
         <div
           style={{
             position: 'absolute',
@@ -151,20 +153,20 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         >
           {status}
         </div>
-      )}
+      )} */}
 
       {/* CAMPOS ATUALIZADOS AQUI */}
       <p><strong>Nome:</strong> {lead.name}</p>
       <p><strong>Modelo do veículo:</strong> {lead.vehicleModel}</p>
       <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
-      <p><strong>Telefone:</strong> {lead.phone}</p>
-      <p><strong>Seguradora:</strong> {lead.Seguradora || 'N/A'}</p>
-      <p><strong>Prêmio Líquido:</strong> {formatCurrency(lead.PremioLiquido)}</p>
-      <p><strong>Comissão:</strong> {lead.Comissao}%</p>
-      <p><strong>Parcelamento:</strong> {lead.Parcelamento || 'N/A'}</p>
-      <p><strong>Vigência Final:</strong> {formatDateDisplay(lead.VigenciaFinal) || 'N/A'}</p>
+      <p><strong>Telefone:</strong> {lead.phone}</p>
+      <p><strong>Seguradora:</strong> {lead.Seguradora || 'N/A'}</p>
+      <p><strong>Prêmio Líquido:</strong> {formatCurrency(lead.PremioLiquido)}</p>
+      <p><strong>Comissão:</strong> {lead.Comissao}%</p>
+      <p><strong>Parcelamento:</strong> {lead.Parcelamento || 'N/A'}</p>
+      <p><strong>Vigência Final:</strong> {formatDateDisplay(lead.VigenciaFinal) || 'N/A'}</p>
       {/* FIM DOS CAMPOS ATUALIZADOS */}
-      
+      
       {/* <p><strong>Cidade:</strong> {lead.city}</p> - REMOVIDO, POIS NÃO ESTAVA NA SUA LISTA */}
       {/* <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p> - REMOVIDO, POIS NÃO ESTAVA NA SUA LISTA */}
 
