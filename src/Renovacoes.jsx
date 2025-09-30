@@ -362,7 +362,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4 mb-4">
                     <h1 className="text-4xl font-extrabold text-gray-900 flex items-center">
                         <Bell size={32} className="text-indigo-500 mr-3" />
-                        Renovações Pendentes
+                        Renovações
                     </h1>
                     
                     {/* Sino de Notificação (Mantido) */}
@@ -444,7 +444,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             <div className="space-y-5">
                 {gerais.length === 0 && !isLoading ? (
                     <div className="text-center p-12 bg-white rounded-xl shadow-md text-gray-600 text-lg">
-                        <p>🎉 Nenhuma renovação encontrada para os filtros aplicados. 🎉</p>
+                        <p> Você não tem nenhuma renovação no momento. </p>
                     </div>
                 ) : (
                     leadsPagina.map((lead) => {
