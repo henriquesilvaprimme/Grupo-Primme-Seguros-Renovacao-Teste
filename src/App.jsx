@@ -154,7 +154,7 @@ function App() {
           insuranceType: item.insurancetype || '',
           data: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
-          status: item.status || 'Em Contato',
+          status: item.status || '',
           // Campos de Edição (K, L, M)
           editado: item.editado || '',
           observacao: item.observacao || '', // Coluna L - Índice 11 (no GAS)
