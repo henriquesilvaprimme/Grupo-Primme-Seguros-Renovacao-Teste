@@ -38,7 +38,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const ano = today.getFullYear();
     const mes = String(today.getMonth() + 1).padStart(2, '0');
     const mesAnoAtual = `${ano}-${mes}`;
-    
+    
     // Define o filtro de data e o valor do input para o mês/ano atual
     setDataInput(mesAnoAtual);
     setFiltroData(mesAnoAtual);
