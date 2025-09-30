@@ -290,21 +290,12 @@ function App() {
               Data: leadParaAdicionar.createdAt || new Date().toISOString(),
               Responsavel: leadParaAdicionar.responsavel || "",
               Status: "Fechado",
-              Seguradora: leadParaAdicionar.Seguradora || "",
+              Seguradora: leadParaAdicionar.insurer || "",
               PremioLiquido: leadParaAdicionar.premioLiquido || "",
               Comissao: leadParaAdicionar.Comissao || "",
               Parcelamento: leadParaAdicionar.Parcelamento || "",
               VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
               VigenciaInicial: leadParaAdicionar.VigenciaInicial || "",
-              id: leadParaAdicionar.id || null,
-              usuario: leadParaAdicionar.usuario || "",
-              nome: leadParaAdicionar.nome || "",
-              email: leadParaAdicionar.email || "",
-              senha: leadParaAdicionar.senha || "",
-              status: leadParaAdicionar.status || "Ativo",
-              tipo: leadParaAdicionar.tipo || "Usuario",
-              "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
-              confirmado: true,
               observacao: leadParaAdicionar.observacao || ''
             };
             return [...prev, novoRenovado]; // VARIÁVEL RENOMEADA
