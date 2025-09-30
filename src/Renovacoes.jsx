@@ -67,7 +67,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [filtroNome, setFiltroNome] = useState('');
     const [filtroStatus, setFiltroStatus] = useState(null); 
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
-    const [showNotification, setShowNotification] = useState(false); // Mantido o estado do sino
+    const [showNotification, setShowNotification] = useState(false); 
 
     // --- LÓGICAS (MANTIDAS/AJUSTADAS) ---
     useEffect(() => {
@@ -78,7 +78,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         const mesAnoAtual = `${ano}-${mes}`;
         setDataInput(mesAnoAtual);
         setFiltroData(mesAnoAtual);
-        setFiltroStatus('Todos'); // Começa com 'Todos'
+        setFiltroStatus('Todos'); 
 
         // Inicializa observações e estado de edição
         const initialObservacoes = {};
@@ -332,8 +332,15 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         fetchLeadsFromSheet(SHEET_NAME);
     };
 
+    /**
+     * Retorna a string de status completa (com a data se for Agendado)
+     */
+    const getFullStatus = (status) => {
+        return status || 'Novo';
+    }
 
-    // --- Renderização do Layout (Opção 3.3 - Com status único e colunas invertidas) ---
+
+    // --- Renderização do Layout (Opção 3.4) ---
     return (
         <div className="p-4 md:p-6 lg:p-8 relative min-h-screen bg-gray-100 font-sans">
             
@@ -449,9 +456,14 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                 key={lead.id}
                                 className="bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 p-5 grid grid-cols-1 lg:grid-cols-3 gap-6 relative border-t-4 border-indigo-500"
                             >
-                                {/* COLUNA 1: Informações do Lead (Com apenas o componente Lead e data de criação) */}
+                                {/* COLUNA 1: Informações do Lead */}
                                 <div className="col-span-1 border-r lg:pr-6">
-                                    {/* A pílula de status única é assumida como renderizada DENTRO do componente Lead */}
+                                    {/* PÍLULA DE STATUS RESTAURADA (com a data) */}
+                                    <div className="mb-3">
+                                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${lead.status.startsWith('Agendado') ? 'bg-cyan-100 text-cyan-800' : lead.status === 'Em Contato' ? 'bg-yellow-100 text-yellow-800' : lead.status === 'Sem Contato' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
+                                            {getFullStatus(lead.status)} {/* Pílula completa, mantida como a exibição primária */}
+                                        </span>
+                                    </div>
                                     <Lead 
                                         lead={lead} 
                                         onUpdateStatus={handleConfirmStatus} 
@@ -463,14 +475,14 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     </p>
                                 </div>
 
-                                {/* COLUNA 2: Observações (Condicional e Sem Título) */}
+                                {/* COLUNA 2: Observações (à esquerda) */}
                                 <div className="col-span-1 border-r lg:px-6">
                                     {shouldShowObs && (
                                         <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
-                                            {/* Título "Observações" removido conforme solicitação */}
+                                            {/* Título "Observações" removido */}
                                             <textarea
                                                 value={observacoes[lead.id] || ''}
-                                                onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
+                                                onChange={(e) => handleObservacaoChange(lead.target.value)}
                                                 rows="4"
                                                 placeholder="Adicione suas observações aqui..."
                                                 disabled={!isEditingObservacao[lead.id]}
@@ -498,7 +510,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     )}
                                 </div>
 
-                                {/* COLUNA 3: Atribuição */}
+                                {/* COLUNA 3: Atribuição (à direita) */}
                                 <div className="col-span-1 lg:pl-6">
                                     <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
                                         <User size={18} className="mr-2 text-indigo-500" />
