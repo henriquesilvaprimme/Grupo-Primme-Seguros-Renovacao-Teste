@@ -6,37 +6,41 @@ import { RefreshCcw, Bell } from 'lucide-react';
 // ===============================================
 const SHEET_NAME = 'Renovações';
 
-// URL base do seu Google Apps Script (MANTIDA DO CÓDIGO FORNECIDO)
+// URL base do seu Google Apps Script (MANTIDA)
 const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 
-// URLs com o parâmetro 'sheet' adicionado para apontar para a nova aba
-const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar_atribuido&sheet=${SHEET_NAME}`;
+// URLs com o parâmetro 'sheet' adicionado e ACTIONS específicas
+const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=alterar_atribuido&sheet=${SHEET_NAME}`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
+const ALTERAR_STATUS_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarStatus&sheet=${SHEET_NAME}`;
 
 // Opções de Status (Padronizadas)
 const STATUS_OPTIONS = [
-    'Aguardando Contato',
+    'Selecione o status',
     'Em Contato',
+    'Sem Contato',
     'Agendado',
     'Fechado',
-    'Perdido'
+    'Perdido',
 ];
 
 // ===============================================
 // 2. COMPONENTE RENOVACOES
 // ===============================================
-const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, scrollContainerRef }) => {
+const Renovacoes = ({ leads, usuarios, transferirLead, usuarioLogado, fetchLeadsFromSheet, scrollContainerRef }) => {
     
     // -------------------------------------------------------------------------
-    // ESTADOS (BASEADOS NA LÓGICA ANTIGA)
+    // ESTADOS
     // -------------------------------------------------------------------------
     const [selecionados, setSelecionados] = useState({}); 
     const [paginaAtual, setPaginaAtual] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
     const [observacoes, setObservacoes] = useState({}); 
     const [isEditingObservacao, setIsEditingObservacao] = useState({}); 
-    // ESTADO ONDE O NOVO STATUS É SELECIONADO PELO USUÁRIO NO DROPDOWN
+    // Armazena o status selecionado do dropdown (ex: 'Agendado' ou 'Em Contato')
     const [statusSelecionado, setStatusSelecionado] = useState({}); 
+    // Armazena a data selecionada para agendamento, por leadId
+    const [dataAgendamento, setDataAgendamento] = useState({});
     const [dataInput, setDataInput] = useState('');
     const [filtroData, setFiltroData] = useState('');
     const [nomeInput, setNomeInput] = useState('');
@@ -50,7 +54,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     // -------------------------------------------------------------------------
 
     useEffect(() => {
-        // Inicialização de filtros e estados
         const today = new Date();
         const ano = today.getFullYear();
         const mes = String(today.getMonth() + 1).padStart(2, '0');
@@ -62,32 +65,43 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         const initialObservacoes = {};
         const initialIsEditingObservacao = {};
         const initialStatusSelecionado = {};
+        const initialDataAgendamento = {};
 
         leads.forEach(lead => {
             initialObservacoes[lead.id] = lead.observacao || '';
-            // Lógica do código antigo: permite edição se não houver observação ou se estiver vazia
             initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === ''; 
-            // Inicializa o dropdown com o status atual do lead
-            initialStatusSelecionado[lead.id] = lead.status || STATUS_OPTIONS[0]; 
+            
+            // Inicializa o status selecionado com o prefixo, se for Agendado com data.
+            if (lead.status && lead.status.startsWith('Agendado - ')) {
+                initialStatusSelecionado[lead.id] = 'Agendado';
+                // Extrai a data e converte para o formato yyyy-mm-dd para o input
+                const dateStr = lead.status.split(' - ')[1];
+                if (dateStr) {
+                    const [day, month, year] = dateStr.split('/');
+                    initialDataAgendamento[lead.id] = `${year}-${month}-${day}`;
+                }
+            } else {
+                initialStatusSelecionado[lead.id] = lead.status || STATUS_OPTIONS[0]; 
+            }
         });
 
         setObservacoes(initialObservacoes);
         setIsEditingObservacao(initialIsEditingObservacao);
         setStatusSelecionado(initialStatusSelecionado);
+        setDataAgendamento(initialDataAgendamento);
     }, [leads]);
 
     useEffect(() => {
-        // Lógica de Agendamentos de Hoje (Notificação) - MANTIDA
+        // Lógica de Agendamentos de Hoje (Notificação)
         const today = new Date();
         const todayFormatted = today.toLocaleDateString('pt-BR');
 
         const todayAppointments = leads.filter(lead => {
-            if (!lead.status?.startsWith('Agendado')) return false;
+            if (!lead.status?.startsWith('Agendado - ')) return false;
             const statusDateStr = lead.status.split(' - ')[1];
             if (!statusDateStr) return false;
 
             const [dia, mes, ano] = statusDateStr.split('/');
-            // A data do status já é formatada para pt-BR, então a comparação deve funcionar
             const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`); 
             const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
 
@@ -111,35 +125,81 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             setIsLoading(false);
         }
     };
+    
+    // Função Auxiliar para formatar yyyy-mm-dd para dd/mm/yyyy
+    const formatarDataInputParaSheet = (dateStr) => {
+        if (!dateStr) return null;
+        const [year, month, day] = dateStr.split('-');
+        return `${day}/${month}/${year}`;
+    };
 
-    const handleConfirmStatus = (leadId) => {
-        const novoStatus = statusSelecionado[leadId];
+    const handleConfirmStatus = async (leadId) => {
+        const novoStatusPrefix = statusSelecionado[leadId];
         const lead = leads.find(l => l.id === leadId);
 
-        if (!novoStatus || !lead) return;
+        if (!novoStatusPrefix || !lead) return;
 
-        // **CHAMADA DE STATUS CORRIGIDA**
-        // Chamando a função prop para atualizar o status no componente pai (e Sheets)
-        onUpdateStatus(leadId, novoStatus, lead.phone); 
-        
-        // Lógica para controle do campo de observação (MANTIDA DO CÓDIGO ANTIGO)
-        // Usamos o lead do estado global `leads` para verificar observação, mas o 
-        // `onUpdateStatus` garante que o novo status seja enviado.
-        const currentLead = leads.find(l => l.id === leadId);
-        const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
+        let statusFinal = novoStatusPrefix;
 
-        const statusPrefix = novoStatus.split(' - ')[0];
-
-        if ((statusPrefix === 'Em Contato' || statusPrefix === 'Sem Contato' || statusPrefix === 'Agendado') && hasNoObservacao) {
-            setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-        } else {
-            // Se já tiver observação ou o status for Fechado/Perdido/Aguardando, desabilita a edição
-            setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+        if (novoStatusPrefix === 'Agendado') {
+            const dataSelecionada = dataAgendamento[leadId];
+            if (!dataSelecionada) {
+                alert('Selecione uma data para o agendamento.');
+                return;
+            }
+            const dataFormatada = formatarDataInputParaSheet(dataSelecionada);
+            statusFinal = `Agendado - ${dataFormatada}`;
         }
+        
+        // Validação adicional: Se o status final for igual ao status atual do lead, não faz nada
+        if (statusFinal === lead.status) return;
 
-        // Rebusca leads para refletir a atualização, como no código anterior
-        // Este fetch é crucial para buscar os dados atualizados do Sheet.
-        fetchLeadsFromSheet(SHEET_NAME);
+        setIsLoading(true);
+        try {
+            // **CHAMADA DIRETA PARA SALVAR O STATUS**
+            await fetch(ALTERAR_STATUS_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({
+                    leadId: leadId,
+                    newStatus: statusFinal, // Envia o novo status completo (ex: "Agendado - 20/12/2023")
+                }),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            // Rebusca leads para refletir a atualização
+            await fetchLeadsFromSheet(SHEET_NAME); 
+            
+            // Lógica de controle do campo de observação
+            const currentLead = leads.find(l => l.id === leadId);
+            const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
+
+            if ((novoStatusPrefix === 'Em Contato' || novoStatusPrefix === 'Sem Contato' || novoStatusPrefix === 'Agendado') && hasNoObservacao) {
+                setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+            } else {
+                setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+            }
+
+        } catch (error) {
+            console.error('Erro ao salvar status:', error);
+            alert('Erro ao salvar status. Por favor, verifique o Google Apps Script.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleStatusChange = (leadId, value) => {
+        setStatusSelecionado(prev => ({ ...prev, [leadId]: value }));
+        // Se o status mudar de Agendado para outro, limpa a data
+        if (value !== 'Agendado') {
+            setDataAgendamento(prev => ({ ...prev, [leadId]: '' }));
+        }
+    };
+
+    const handleDateChange = (leadId, value) => {
+        setDataAgendamento(prev => ({ ...prev, [leadId]: value }));
     };
 
     const handleObservacaoChange = (leadId, text) => {
@@ -158,7 +218,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
         setIsLoading(true);
         try {
-            // Chamada POST para o Google Apps Script para salvar a observação (MANTIDA)
             await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -171,7 +230,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 },
             });
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-            // Recarrega os leads para exibir a observação salva (MANTIDA)
             fetchLeadsFromSheet(SHEET_NAME); 
         } catch (error) {
             console.error('Erro ao salvar observação:', error);
@@ -200,24 +258,20 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         }
         
         const lead = leads.find((l) => l.id === leadId);
-        // O nome do responsável é salvo na coluna 'Responsavel' do Sheet
         const responsavelUsuario = usuarios.find(u => u.id === userId)?.nome || '';
 
-        // 1. Atualiza o estado local (LÓGICA ANTIGA)
         transferirLead(leadId, responsavelUsuario);
 
-        // 2. Prepara e envia para o Google Apps Script
         const leadAtualizado = { 
-            id: lead.id, // ID é crucial
+            id: lead.id, 
             usuarioId: userId, 
-            Responsavel: responsavelUsuario // Envia o nome do responsável
+            Responsavel: responsavelUsuario 
         };
         enviarLeadAtualizado(leadAtualizado);
     };
 
     const enviarLeadAtualizado = async (lead) => {
         try {
-            // Chamada POST para o Google Apps Script (MANTIDA)
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -237,7 +291,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             ...prev,
             [leadId]: '',
         }));
-        transferirLead(leadId, null); // Remove o responsável localmente
+        transferirLead(leadId, null);
     };
 
     // -------------------------------------------------------------------------
@@ -295,12 +349,12 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     };
 
     const gerais = leads.filter((lead) => {
-        // Ignora Fechado/Perdido se nenhum filtro de status estiver ativo
-        if (lead.status === 'Fechado' || lead.status === 'Perdido') {
+        if (lead.status?.startsWith('Fechado') || lead.status?.startsWith('Perdido')) {
             return false;
         }
 
         if (filtroStatus) {
+            // Filtro rápido para agendados de hoje
             if (filtroStatus === 'Agendado') {
                 const today = new Date();
                 const todayFormatted = today.toLocaleDateString('pt-BR');
@@ -311,11 +365,11 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
                 return lead.status.startsWith('Agendado') && statusDateFormatted === todayFormatted;
             }
-            return lead.status === filtroStatus;
+            // Filtro por outros status (apenas o prefixo)
+            return lead.status?.startsWith(filtroStatus);
         }
 
         if (filtroData) {
-            // Assumindo que a data de criação é 'createdAt' no objeto lead
             const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : ''; 
             return leadMesAno === filtroData;
         }
@@ -373,7 +427,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const leadsPagina = gerais.slice(inicio, fim);
 
     // -------------------------------------------------------------------------
-    // 6. Renderização (NOVO LAYOUT TAILWIND)
+    // 6. Renderização
     // -------------------------------------------------------------------------
 
     return (
@@ -507,10 +561,19 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                         {leadsPagina.map((lead) => {
                             // Lógica de Responsável
                             const responsavel = usuarios.find((u) => u.nome === lead.responsavel); 
-                            const currentStatus = statusSelecionado[lead.id] || lead.status || STATUS_OPTIONS[0];
-                            // Compara o prefixo (Ignora a data se for 'Agendado - 20/12/2023')
-                            const isStatusUnchanged = currentStatus.split(' - ')[0] === (lead.status?.split(' - ')[0] || STATUS_OPTIONS[0]);
+                            const novoStatusPrefix = statusSelecionado[lead.id];
                             const isResponsavelAssigned = !!lead.responsavel;
+
+                            // Verifica se o status selecionado é diferente do status do lead (considerando o prefixo Agendado)
+                            const isStatusUnchanged = 
+                                novoStatusPrefix === (lead.status?.split(' - ')[0] || STATUS_OPTIONS[0].split(' - ')[0]) ||
+                                !novoStatusPrefix; // Desabilitar se nada estiver selecionado
+
+                            // Se o status for Agendado e a data não foi selecionada, o botão de confirmar deve estar desabilitado
+                            const isAgendadoMissingDate = novoStatusPrefix === 'Agendado' && !dataAgendamento[lead.id];
+                            
+                            // Apenas permite a ação se houver responsável, não estiver carregando e o status ou a data do agendamento tiverem mudado
+                            const isConfirmDisabled = isLoading || !isResponsavelAssigned || isAgendadoMissingDate;
 
 
                             return (
@@ -557,36 +620,49 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     {/* Seções de Interação: Status, Atribuição e Observações */}
                                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4">
 
-                                        {/* Bloco de Status (2) - LÓGICA DO CÓDIGO ANTIGO */}
+                                        {/* Bloco de Status (2) */}
                                         <div className='lg:col-span-1 p-3 bg-gray-50 rounded-lg border border-gray-100'>
                                             <label htmlFor={`status-${lead.id}`} className="block mb-2 font-bold text-sm text-gray-700">
                                                 Alterar Status Atual: 
-                                                <span className={`ml-2 text-base font-extrabold ${lead.status === 'Fechado' ? 'text-green-600' : 'text-indigo-600'}`}>
-                                                    {lead.status}
+                                                <span className={`ml-2 text-base font-extrabold ${lead.status?.startsWith('Fechado') ? 'text-green-600' : 'text-indigo-600'}`}>
+                                                    {lead.status || 'N/A'}
                                                 </span>
                                             </label>
-                                            <div className="flex gap-2">
+                                            <div className="flex flex-col gap-2">
+                                                {/* Dropdown de Status */}
                                                 <select
                                                     id={`status-${lead.id}`}
-                                                    // O valor selecionado no dropdown
-                                                    value={currentStatus}
-                                                    onChange={(e) => setStatusSelecionado(prev => ({ ...prev, [lead.id]: e.target.value }))}
+                                                    value={novoStatusPrefix || ''}
+                                                    onChange={(e) => handleStatusChange(lead.id, e.target.value)}
                                                     className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500"
                                                 >
+                                                    <option value="" disabled>Selecione um status...</option>
                                                     {STATUS_OPTIONS.map((status) => (
                                                         <option key={status} value={status}>
                                                             {status}
                                                         </option>
                                                     ))}
                                                 </select>
+                                                
+                                                {/* Input de Data (aparece apenas para Agendado) */}
+                                                {novoStatusPrefix === 'Agendado' && (
+                                                    <input
+                                                        type="date"
+                                                        value={dataAgendamento[lead.id] || ''}
+                                                        onChange={(e) => handleDateChange(lead.id, e.target.value)}
+                                                        className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500"
+                                                        title="Selecione a data do agendamento"
+                                                    />
+                                                )}
+
+                                                {/* Botão de Confirmação */}
                                                 <button
-                                                    // O botão só fica ativo se o status for diferente E houver responsável
                                                     onClick={() => handleConfirmStatus(lead.id)}
-                                                    disabled={isStatusUnchanged || isLoading || !isResponsavelAssigned}
+                                                    disabled={isConfirmDisabled || isStatusUnchanged}
                                                     className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm whitespace-nowrap"
-                                                    title={!isResponsavelAssigned ? "Atribua um responsável primeiro" : (isStatusUnchanged ? "Status já é o atual" : "Confirmar novo status")}
+                                                    title={!isResponsavelAssigned ? "Atribua um responsável primeiro" : (isAgendadoMissingDate ? "Selecione a data" : (isStatusUnchanged ? "Status não alterado" : "Confirmar novo status"))}
                                                 >
-                                                    Confirmar
+                                                    Confirmar Status
                                                 </button>
                                             </div>
                                         </div>
@@ -633,7 +709,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             )}
                                         </div>
                                         
-                                        {/* Bloco de Observações (4) - LÓGICA DO CÓDIGO ANTIGO */}
+                                        {/* Bloco de Observações (4) */}
                                         <div className='lg:col-span-1 p-3 bg-gray-50 rounded-lg border border-gray-100'>
                                             <label htmlFor={`observacao-${lead.id}`} className="block mb-2 font-bold text-sm text-gray-700">
                                                 Observações:
@@ -644,7 +720,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                                 onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
                                                 placeholder="Adicione suas observações aqui..."
                                                 rows="3"
-                                                // Desabilitado se não estiver em edição ou se estiver carregando
                                                 disabled={!isEditingObservacao[lead.id] || isLoading}
                                                 className={`w-full p-2 border rounded-lg resize-y text-sm transition-colors focus:outline-none ${
                                                     isEditingObservacao[lead.id] ? 'bg-white border-indigo-300 focus:ring-indigo-500' : 'bg-gray-200 border-gray-300 cursor-not-allowed'
@@ -654,7 +729,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                                 {isEditingObservacao[lead.id] ? (
                                                     <button
                                                         onClick={() => handleSalvarObservacao(lead.id)}
-                                                        // Desabilitado se estiver carregando OU se a observação estiver vazia
                                                         disabled={isLoading || !observacoes[lead.id]?.trim()}
                                                         className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 disabled:bg-gray-400 text-sm"
                                                     >
