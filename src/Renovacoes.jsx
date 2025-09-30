@@ -2,11 +2,23 @@ import React, { useState, useEffect } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw, Bell } from 'lucide-react';
 
-const GOOGLE_SHEETS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
-const ALTERAR_ATRIBUIDO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=alterar_atribuido';
-const SALVAR_OBSERVACAO_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?action=salvarObservacao';
+// ===============================================
+// 1. CONFIGURAÇÃO PARA A ABA 'Renovações'
+// ===============================================
+const SHEET_NAME = 'Renovações';
 
-const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, scrollContainerRef }) => {
+// URL base do seu Google Apps Script
+const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
+
+// URLs com o parâmetro 'sheet' adicionado para apontar para a nova aba
+const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?sheet=${SHEET_NAME}`;
+const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar_atribuido&sheet=${SHEET_NAME}`;
+const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
+
+// ===============================================
+// 2. COMPONENTE RENOMEADO PARA 'Renovacoes'
+// ===============================================
+const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, scrollContainerRef }) => {
   const [selecionados, setSelecionados] = useState({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,7 +65,8 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   const handleRefreshLeads = async () => {
     setIsLoading(true);
     try {
-      await fetchLeadsFromSheet();
+      // Usando fetchLeadsFromSheet, que deve ser ajustada no componente pai
+      await fetchLeadsFromSheet(SHEET_NAME); 
       const refreshedIsEditingObservacao = {};
       leads.forEach(lead => {
         refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
@@ -185,7 +198,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
           'Content-Type': 'application/json',
         },
       });
-      fetchLeadsFromSheet();
+      fetchLeadsFromSheet(SHEET_NAME); // Passando SHEET_NAME
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
     }
@@ -270,7 +283,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         },
       });
       setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-      fetchLeadsFromSheet();
+      fetchLeadsFromSheet(SHEET_NAME); // Passando SHEET_NAME
     } catch (error) {
       console.error('Erro ao salvar observação:', error);
       alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -295,7 +308,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
     } else {
         setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
     }
-    fetchLeadsFromSheet();
+    fetchLeadsFromSheet(SHEET_NAME); // Passando SHEET_NAME
   };
 
   return (
@@ -303,7 +316,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       {isLoading && (
         <div className="absolute inset-0 bg-white flex justify-center items-center z-10" style={{ opacity: 0.8 }}>
           <div className="animate-spin rounded-full h-20 w-20 border-t-2 border-b-2 border-indigo-500"></div>
-          <p className="ml-4 text-lg text-gray-700">Carregando LEADS...</p>
+          <p className="ml-4 text-lg text-gray-700">Carregando RENOVAÇÕES...</p>
         </div>
       )}
 
@@ -318,7 +331,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ margin: 0 }}>Leads</h1>
+          <h1 style={{ margin: 0 }}>Renovações</h1> 
           <button
             title='Clique para atualizar os dados'
             onClick={handleRefreshLeads}
@@ -378,7 +391,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               width: '220px',
               maxWidth: '100%',
             }}
-            title="Filtrar leads pelo nome (contém)"
+            title="Filtrar renovações pelo nome (contém)"
           />
         </div>
 
@@ -472,7 +485,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
               border: '1px solid #ccc',
               cursor: 'pointer',
             }}
-            title="Filtrar leads pelo mês e ano de criação"
+            title="Filtrar renovações pelo mês e ano de criação"
           />
         </div>
       </div>
@@ -540,7 +553,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
       {isLoading ? (
         null
       ) : gerais.length === 0 ? (
-        <p>Não há leads pendentes para os filtros aplicados.</p>
+        <p>Não há renovações pendentes para os filtros aplicados.</p>
       ) : (
         <>
           {leadsPagina.map((lead) => {
@@ -701,6 +714,7 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
                     fontSize: '12px',
                     color: '#888',
                     fontStyle: 'italic',
+                    
                   }}
                   title={`Criado em: ${formatarData(lead.createdAt)}`}
                 >
@@ -754,4 +768,4 @@ const Leads = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado,
   );
 };
 
-export default Leads;
+export default Renovacoes;
