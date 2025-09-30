@@ -333,16 +333,14 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     };
     
     /**
-     * Ajuste para mostrar apenas a tag de status, sem a data extra.
-     * Retorna a string de status limpa.
+     * Retorna a string de status completa (com a data se for Agendado)
      */
-    const getCleanStatus = (status) => {
-        if (!status) return 'Novo';
-        return status.split(' - ')[0];
+    const getFullStatus = (status) => {
+        return status || 'Novo';
     }
 
 
-    // --- Renderização do Layout (Opção 3.1) ---
+    // --- Renderização do Layout (Opção 3.2 - Com colunas invertidas) ---
     return (
         <div className="p-4 md:p-6 lg:p-8 relative min-h-screen bg-gray-100 font-sans">
             
@@ -461,8 +459,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                 {/* COLUNA 1: Informações do Lead */}
                                 <div className="col-span-1 border-r lg:pr-6">
                                     <div className="mb-3">
-                                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${lead.status === 'Em Contato' ? 'bg-yellow-100 text-yellow-800' : lead.status === 'Sem Contato' ? 'bg-red-100 text-red-800' : lead.status.startsWith('Agendado') ? 'bg-cyan-100 text-cyan-800' : 'bg-gray-100 text-gray-800'}`}>
-                                            {getCleanStatus(lead.status)} {/* Status sem a data */}
+                                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${lead.status.startsWith('Agendado') ? 'bg-cyan-100 text-cyan-800' : lead.status === 'Em Contato' ? 'bg-yellow-100 text-yellow-800' : lead.status === 'Sem Contato' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
+                                            {getFullStatus(lead.status)} {/* Status completo (com data, se houver) */}
                                         </span>
                                     </div>
                                     <Lead 
@@ -476,8 +474,46 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     </p>
                                 </div>
 
-                                {/* COLUNA 2: Atribuição */}
+                                {/* COLUNA 2: Observações (Condicional e Sem Título) - POSIÇÃO NOVA */}
                                 <div className="col-span-1 border-r lg:px-6">
+                                    {shouldShowObs && (
+                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+                                            <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
+                                                <Edit size={18} className="mr-2 text-indigo-500" />
+                                                Observações
+                                            </h3>
+                                            <textarea
+                                                value={observacoes[lead.id] || ''}
+                                                onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
+                                                rows="4"
+                                                placeholder="Adicione suas observações aqui..."
+                                                disabled={!isEditingObservacao[lead.id]}
+                                                className={`w-full p-2 text-sm rounded-lg border resize-none transition duration-150 ${isEditingObservacao[lead.id] ? 'border-indigo-300 bg-white focus:ring-indigo-500 focus:border-indigo-500' : 'border-gray-200 bg-gray-100 cursor-text'}`}
+                                            />
+                                            <div className="flex justify-end gap-2 mt-2">
+                                                {isEditingObservacao[lead.id] ? (
+                                                    <button
+                                                        onClick={() => handleSalvarObservacao(lead.id)}
+                                                        className="flex items-center px-3 py-1 bg-green-500 text-white text-sm rounded-full hover:bg-green-600 disabled:opacity-50 transition duration-150"
+                                                        disabled={isLoading}
+                                                    >
+                                                        <Save size={14} className="mr-1" /> Salvar
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleAlterarObservacao(lead.id)}
+                                                        className="flex items-center px-3 py-1 bg-gray-400 text-white text-sm rounded-full hover:bg-gray-500 transition duration-150"
+                                                    >
+                                                        <Edit size={14} className="mr-1" /> Editar
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* COLUNA 3: Atribuição - POSIÇÃO NOVA */}
+                                <div className="col-span-1 lg:pl-6">
                                     <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
                                         <User size={18} className="mr-2 text-indigo-500" />
                                         Atribuição
@@ -515,40 +551,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             >
                                                 <Send size={16} className="mr-1" /> Enviar
                                             </button>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* COLUNA 3: Observações (Condicional e Sem Título) */}
-                                <div className="col-span-1 lg:pl-6">
-                                    {shouldShowObs && (
-                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
-                                            <textarea
-                                                value={observacoes[lead.id] || ''}
-                                                onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
-                                                rows="4"
-                                                placeholder="Adicione suas observações aqui..."
-                                                disabled={!isEditingObservacao[lead.id]}
-                                                className={`w-full p-2 text-sm rounded-lg border resize-none transition duration-150 ${isEditingObservacao[lead.id] ? 'border-indigo-300 bg-white focus:ring-indigo-500 focus:border-indigo-500' : 'border-gray-200 bg-gray-100 cursor-text'}`}
-                                            />
-                                            <div className="flex justify-end gap-2 mt-2">
-                                                {isEditingObservacao[lead.id] ? (
-                                                    <button
-                                                        onClick={() => handleSalvarObservacao(lead.id)}
-                                                        className="flex items-center px-3 py-1 bg-green-500 text-white text-sm rounded-full hover:bg-green-600 disabled:opacity-50 transition duration-150"
-                                                        disabled={isLoading}
-                                                    >
-                                                        <Save size={14} className="mr-1" /> Salvar
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => handleAlterarObservacao(lead.id)}
-                                                        className="flex items-center px-3 py-1 bg-gray-400 text-white text-sm rounded-full hover:bg-gray-500 transition duration-150"
-                                                    >
-                                                        <Edit size={14} className="mr-1" /> Editar
-                                                    </button>
-                                                )}
-                                            </div>
                                         </div>
                                     )}
                                 </div>
