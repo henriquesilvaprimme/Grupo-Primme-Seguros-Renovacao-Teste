@@ -451,9 +451,10 @@ function App() {
   const onAbrirLead = (lead) => {
     setLeadSelecionado(lead);
 
-    let path = '/renovacoes'; // ROTA ATUALIZADA
-    if (lead.status === 'Fechado') path = '/renovados'; // ROTA ATUALIZADA
-    else if (lead.status === 'Perdido') path = '/renovacoes-perdidas'; // ROTA ATUALIZADA
+    // CORREÇÃO CRUCIAL: As rotas aqui DEVEM refletir as novas rotas.
+    let path = '/renovacoes'; 
+    if (lead.status === 'Fechado') path = '/renovados'; 
+    else if (lead.status === 'Perdido') path = '/renovacoes-perdidas'; 
 
     navigate(path);
   };
@@ -576,7 +577,7 @@ function App() {
             }
           />
           <Route
-            path="/renovacoes" // ROTA CORRIGIDA: /leads para /renovacoes
+            path="/renovacoes" // ROTA CORRIGIDA
             element={
               <Renovacoes // COMPONENTE ATUALIZADO
                 leads={isAdmin ? renovacoes : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome)} // ESTADO ATUALIZADO
@@ -594,7 +595,7 @@ function App() {
             }
           />
           <Route
-            path="/renovados" // ROTA CORRIGIDA: /leads-fechados para /renovados
+            path="/renovados" // ROTA CORRIGIDA
             element={
               <Renovados // COMPONENTE ATUALIZADO
                 leads={isAdmin ? renovados : renovados.filter((lead) => lead.Responsavel === usuarioLogado.nome)} // ESTADO ATUALIZADO
@@ -614,7 +615,7 @@ function App() {
             }
           />
           <Route
-            path="/renovacoes-perdidas" // ROTA CORRIGIDA: /leads-perdidos para /renovacoes-perdidas
+            path="/renovacoes-perdidas" // ROTA CORRIGIDA
             element={
               <RenovacoesPerdidas // COMPONENTE ATUALIZADO
                 leads={isAdmin ? renovacoes.filter((lead) => lead.status === 'Perdido') : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome && lead.status === 'Perdido')} // ESTADO ATUALIZADO
