@@ -8,7 +8,7 @@ import { RefreshCcw, Bell } from 'lucide-react';
 const SHEET_NAME = 'Renovações';
 
 // URL base do seu Google Apps Script
-const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
+const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99aA/exec';
 
 // URLs com o parâmetro 'sheet' adicionado para apontar para a nova aba
 const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?sheet=${SHEET_NAME}`;
@@ -32,9 +32,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [showNotification, setShowNotification] = useState(false);
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
 
-    // 💡 AJUSTE NO useEffect INICIAL: Define o filtro de data padrão (mês/ano atual)
+    // 💡 Ajuste no useEffect INICIAL para definir o filtro de data padrão (mês/ano atual)
     useEffect(() => {
-        // Calcula o mês/ano atual no formato YYYY-MM
         const today = new Date();
         const ano = today.getFullYear();
         const mes = String(today.getMonth() + 1).padStart(2, '0');
@@ -42,7 +41,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         
         // Define o filtro de data e o valor do input para o mês/ano atual
         setDataInput(mesAnoAtual);
-        setFiltroData(mesAnoAtual); // 👈 Define o filtro inicial para o mês/ano atual
+        setFiltroData(mesAnoAtual); // Define o filtro inicial para o mês/ano atual
 
         const initialObservacoes = {};
         const initialIsEditingObservacao = {};
@@ -76,10 +75,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const handleRefreshLeads = async () => {
         setIsLoading(true);
         try {
-            // Usando fetchLeadsFromSheet, que deve ser ajustada no componente pai
             await fetchLeadsFromSheet(SHEET_NAME);
             const refreshedIsEditingObservacao = {};
-            // Certifica-se de que leads é um array antes de iterar
             (Array.isArray(leads) ? leads : []).forEach(lead => {
                 refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
             });
@@ -182,7 +179,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         // 4. Filtro de Vigência Final (Prioridade 3 ou Padrão)
         // Se nenhum filtro de Status ou Nome estiver ativo, usamos o filtroData
         if (filtroData) {
-            // 💡 LOGICA AJUSTADA PARA O FILTRO PADRÃO/VIGÊNCIA FINAL:
+            // 💡 LOGICA CENTRAL: Usa a VigenciaFinal e o filtroMesAno
             return isSameMonthAndYearVigencia(lead.VigenciaFinal, filtroData);
         }
 
