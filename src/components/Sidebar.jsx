@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Users, Search, Trophy, UserPlus, UserCircle, FilePlus } from 'lucide-react'; // Importando FilePlus para Criar Lead
+// Alterei a importação para incluir ícones mais relevantes (RefreshCw para Renovação e CheckCircle/XCircle para Fechados/Perdidos)
+import { Home, Search, Trophy, UserPlus, UserCircle, FilePlus, RefreshCw, CheckCircle, XCircle } from 'lucide-react'; 
 
 const Sidebar = ({ nomeUsuario }) => {
 
@@ -26,39 +27,39 @@ const Sidebar = ({ nomeUsuario }) => {
         </NavLink>
 
         <NavLink
-          to="/leads"
+          to="/renovacoes" // ROTA CORRIGIDA
           className={({ isActive }) =>
             `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
               isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
             }`
           }
         >
-          <Users size={20} />
-          Leads
+          <RefreshCw size={20} /> {/* Ícone mais adequado para 'Renovações' */}
+          Renovações
         </NavLink>
 
         <NavLink
-          to="/leads-fechados"
+          to="/renovados" // ROTA CORRIGIDA
           className={({ isActive }) =>
             `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
               isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
             }`
           }
         >
-          <Users size={20} /> {/* Você pode querer um ícone diferente aqui, como CheckCircle */}
-          Leads Fechados
+          <CheckCircle size={20} /> {/* Ícone mais adequado para 'Fechados' */}
+          Renovados
         </NavLink>
 
         <NavLink
-          to="/leads-perdidos"
+          to="/renovacoes-perdidas" // ROTA CORRIGIDA
           className={({ isActive }) =>
             `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
               isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
             }`
           }
         >
-          <Users size={20} /> {/* Você pode querer um ícone diferente aqui, como XCircle */}
-          Leads Perdidos
+          <XCircle size={20} /> {/* Ícone mais adequado para 'Perdidos' */}
+          Renovações Perdidas
         </NavLink>
 
         <NavLink
@@ -87,7 +88,6 @@ const Sidebar = ({ nomeUsuario }) => {
 
         {isAdmin && (
           <>
-            {/* Novo link para Criar Lead */}
             <NavLink
               to="/criar-lead"
               className={({ isActive }) =>
@@ -96,7 +96,7 @@ const Sidebar = ({ nomeUsuario }) => {
                 }`
               }
             >
-              <FilePlus size={20} /> {/* Ícone para "Criar Lead" */}
+              <FilePlus size={20} />
               Criar Lead
             </NavLink>
 
