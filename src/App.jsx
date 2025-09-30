@@ -119,7 +119,7 @@ function App() {
       const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
       const ano = dateObj.getFullYear();
       const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-                         "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
       const mesExtenso = nomeMeses[dateObj.getMonth()];
       const anoCurto = String(ano).substring(2);
 
@@ -190,9 +190,9 @@ function App() {
   useEffect(() => {
     if (!isEditing) {
       // Chama sem parâmetro para buscar da aba padrão (provavelmente 'Renovações')
-      fetchRenovacoesFromSheet('Renovações'); 
+      fetchRenovacoesFromSheet('Renovações');  
       const interval = setInterval(() => {
-        fetchRenovacoesFromSheet('Renovações'); 
+        fetchRenovacoesFromSheet('Renovações');  
       }, 60000);
       return () => clearInterval(interval);
     }
@@ -576,7 +576,7 @@ function App() {
             }
           />
           <Route
-            path="/renovacoes" // ROTA ATUALIZADA
+            path="/renovacoes" // ROTA CORRIGIDA: de /leads para /renovacoes
             element={
               <Renovacoes // COMPONENTE ATUALIZADO
                 leads={isAdmin ? renovacoes : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome)} // ESTADO ATUALIZADO
@@ -594,7 +594,7 @@ function App() {
             }
           />
           <Route
-            path="/renovados" // ROTA ATUALIZADA
+            path="/renovados" // ROTA CORRIGIDA: de /leads-fechados para /renovados
             element={
               <Renovados // COMPONENTE ATUALIZADO
                 leads={isAdmin ? renovados : renovados.filter((lead) => lead.Responsavel === usuarioLogado.nome)} // ESTADO ATUALIZADO
@@ -614,7 +614,7 @@ function App() {
             }
           />
           <Route
-            path="/renovacoes-perdidas" // ROTA ATUALIZADA
+            path="/renovacoes-perdidas" // ROTA CORRIGIDA: de /leads-perdidos para /renovacoes-perdidas
             element={
               <RenovacoesPerdidas // COMPONENTE ATUALIZADO
                 leads={isAdmin ? renovacoes.filter((lead) => lead.status === 'Perdido') : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome && lead.status === 'Perdido')} // ESTADO ATUALIZADO
