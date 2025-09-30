@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Lead from './components/Lead';
 import { RefreshCcw, Bell } from 'lucide-react';
-import PageContentLayout from './Layouts/PageContentLayout/PageContentLayout';
 
 // ===============================================
 // 1. CONFIGURAÇÃO PARA A ABA 'Renovações'
