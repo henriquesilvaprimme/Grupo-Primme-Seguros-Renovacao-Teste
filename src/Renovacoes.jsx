@@ -6,15 +6,14 @@ import { RefreshCcw, Bell } from 'lucide-react';
 // ===============================================
 const SHEET_NAME = 'Renovações';
 
-// URL base do seu Google Apps Script
-const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGP9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99a/exec';
+// URL base do seu Google Apps Script (MANTIDA DO CÓDIGO FORNECIDO)
+const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 
 // URLs com o parâmetro 'sheet' adicionado para apontar para a nova aba
-// A URL de alteração do atribuído e de observação é ajustada para incluir o nome da sheet
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar_atribuido&sheet=${SHEET_NAME}`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
 
-// Opções de Status necessárias para o novo layout
+// Opções de Status (Padronizadas)
 const STATUS_OPTIONS = [
     'Aguardando Contato',
     'Em Contato',
@@ -28,15 +27,15 @@ const STATUS_OPTIONS = [
 // ===============================================
 const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, scrollContainerRef }) => {
     
-    // Estados de Interatividade
-    const [statusSelecionado, setStatusSelecionado] = useState({}); // Necessário para o dropdown de status
-    const [selecionados, setSelecionados] = useState({}); // Para atribuição de leads
-    const [observacoes, setObservacoes] = useState({}); // Texto da observação
-    const [isEditingObservacao, setIsEditingObservacao] = useState({}); // Estado de edição do textarea
-    
-    // Estados de UI e Filtro
+    // -------------------------------------------------------------------------
+    // ESTADOS (BASEADOS NA LÓGICA ANTIGA)
+    // -------------------------------------------------------------------------
+    const [selecionados, setSelecionados] = useState({}); 
     const [paginaAtual, setPaginaAtual] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
+    const [observacoes, setObservacoes] = useState({}); 
+    const [isEditingObservacao, setIsEditingObservacao] = useState({}); 
+    const [statusSelecionado, setStatusSelecionado] = useState({}); // NOVO: Necessário para o dropdown de status
     const [dataInput, setDataInput] = useState('');
     const [filtroData, setFiltroData] = useState('');
     const [nomeInput, setNomeInput] = useState('');
@@ -50,7 +49,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     // -------------------------------------------------------------------------
 
     useEffect(() => {
-        // Inicialização de filtros
+        // Inicialização de filtros e estados
         const today = new Date();
         const ano = today.getFullYear();
         const mes = String(today.getMonth() + 1).padStart(2, '0');
@@ -59,16 +58,15 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         setDataInput(mesAnoAtual);
         setFiltroData(mesAnoAtual);
 
-        // Inicialização de estados por lead
         const initialObservacoes = {};
         const initialIsEditingObservacao = {};
         const initialStatusSelecionado = {};
 
         leads.forEach(lead => {
             initialObservacoes[lead.id] = lead.observacao || '';
-            // Permite edição se não houver observação ou se estiver vazia
+            // Lógica do código antigo: permite edição se não houver observação ou se estiver vazia
             initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === ''; 
-            initialStatusSelecionado[lead.id] = lead.status || STATUS_OPTIONS[0];
+            initialStatusSelecionado[lead.id] = lead.status || STATUS_OPTIONS[0]; // Inicializa o dropdown
         });
 
         setObservacoes(initialObservacoes);
@@ -77,7 +75,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     }, [leads]);
 
     useEffect(() => {
-        // Lógica de Agendamentos de Hoje (Notificação)
+        // Lógica de Agendamentos de Hoje (Notificação) - MANTIDA
         const today = new Date();
         const todayFormatted = today.toLocaleDateString('pt-BR');
 
@@ -117,21 +115,24 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
         if (!novoStatus) return;
 
-        // Chama a função passada por prop para atualizar e salvar no Sheets
+        // **CHAMA A FUNÇÃO PROP QUE SALVA NO SHEETS** (LÓGICA DO CÓDIGO ANTIGO)
         onUpdateStatus(leadId, novoStatus, lead.phone); 
         
-        // Lógica para controle do campo de observação
+        // Lógica para controle do campo de observação (MANTIDA DO CÓDIGO ANTIGO)
         const currentLead = leads.find(l => l.id === leadId);
         const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
         if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) && hasNoObservacao) {
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
         } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) {
-            // Se já tiver observação, desabilita a edição para forçar o clique em 'Editar'
+            // Se já tiver observação, desabilita a edição (para forçar o clique em 'Editar')
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
         } else {
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
         }
+
+        // Rebusca leads para refletir a atualização, como no código anterior
+        fetchLeadsFromSheet(SHEET_NAME);
     };
 
     const handleObservacaoChange = (leadId, text) => {
@@ -150,7 +151,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
         setIsLoading(true);
         try {
-            // Chamada POST para o Google Apps Script para salvar a observação
+            // Chamada POST para o Google Apps Script para salvar a observação (MANTIDA)
             await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -163,7 +164,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 },
             });
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-            // Recarrega os leads para exibir a observação salva
+            // Recarrega os leads para exibir a observação salva (MANTIDA)
             fetchLeadsFromSheet(SHEET_NAME); 
         } catch (error) {
             console.error('Erro ao salvar observação:', error);
@@ -194,7 +195,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         const lead = leads.find((l) => l.id === leadId);
         const responsavelUsuario = usuarios.find(u => u.id === userId)?.nome || '';
 
-        // 1. Atualiza o estado local temporariamente
+        // 1. Atualiza o estado local (LÓGICA ANTIGA)
         transferirLead(leadId, responsavelUsuario);
 
         // 2. Prepara e envia para o Google Apps Script
@@ -208,7 +209,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
     const enviarLeadAtualizado = async (lead) => {
         try {
-            // Chamada POST para o Google Apps Script para alterar o atribuído
+            // Chamada POST para o Google Apps Script (MANTIDA)
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -232,10 +233,13 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     };
 
     // -------------------------------------------------------------------------
-    // 5. Lógica de Filtros e Paginação
+    // 5. Lógica de Filtros e Paginação (MANTIDA)
     // -------------------------------------------------------------------------
     
-    // Funções de filtro, paginação e formatação (Mantidas do código anterior, com refinamento)
+    const leadsPorPagina = 10;
+    const isAdmin = usuarioLogado?.tipo === 'Admin';
+    const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
+
 
     const normalizarTexto = (texto = '') => {
         return texto
@@ -285,9 +289,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const gerais = leads.filter((lead) => {
         // Ignora Fechado/Perdido se nenhum filtro de status estiver ativo
         if (lead.status === 'Fechado' || lead.status === 'Perdido') {
-             if (filtroStatus === 'Fechado' || filtroStatus === 'Perdido') {
-                return lead.status === filtroStatus;
-            }
             return false;
         }
 
@@ -318,11 +319,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         return true;
     });
 
-    const leadsPorPagina = 10;
     const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
     const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
-    const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
-    const isAdmin = usuarioLogado?.tipo === 'Admin';
 
     const scrollToTop = () => {
         if (scrollContainerRef && scrollContainerRef.current) {
@@ -367,7 +365,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const leadsPagina = gerais.slice(inicio, fim);
 
     // -------------------------------------------------------------------------
-    // 6. Renderização (Novo Layout Tailwind)
+    // 6. Renderização (NOVO LAYOUT TAILWIND)
     // -------------------------------------------------------------------------
 
     return (
@@ -486,18 +484,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 >
                     Agendados
                 </button>
-                <button
-                    onClick={() => aplicarFiltroStatus('Fechado')}
-                    className={`px-4 py-2 font-bold rounded-lg transition-colors ${filtroStatus === 'Fechado' ? 'bg-green-600 text-white shadow-lg' : 'bg-green-400 text-white hover:bg-green-500'}`}
-                >
-                    Fechados
-                </button>
-                <button
-                    onClick={() => aplicarFiltroStatus('Perdido')}
-                    className={`px-4 py-2 font-bold rounded-lg transition-colors ${filtroStatus === 'Perdido' ? 'bg-red-600 text-white shadow-lg' : 'bg-red-400 text-white hover:bg-red-500'}`}
-                >
-                    Perdidos
-                </button>
             </div>
 
 
@@ -505,15 +491,14 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             {isLoading ? (
                 null
             ) : gerais.length === 0 ? (
-                <p className="text-center text-lg text-gray-600 p-10 bg-white rounded-xl shadow-lg">Não há renovações para exibir com os filtros aplicados. 😥</p>
+                <p className="text-center text-lg text-gray-600 p-10 bg-white rounded-xl shadow-lg">Não há renovações pendentes para os filtros aplicados. 😥</p>
             ) : (
                 <>
                     {/* Lista de Renovações (Cards) */}
                     <div className="grid gap-6">
                         {leadsPagina.map((lead) => {
-                            // O campo `responsavel` pode ser o nome (string) ou o ID (number)
-                            // A prop `Responsavel` no JSX deve ser o nome para exibição.
-                            const responsavel = usuarios.find((u) => u.nome === lead.responsavel); // Busca o objeto usuário pelo nome no lead
+                            // Lógica de Responsável
+                            const responsavel = usuarios.find((u) => u.nome === lead.responsavel); 
                             const currentStatus = statusSelecionado[lead.id] || lead.status || STATUS_OPTIONS[0];
                             const isStatusUnchanged = currentStatus === lead.status;
                             const isResponsavelAssigned = !!lead.responsavel;
@@ -543,7 +528,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                         <div className="md:col-span-1 border-l pl-4 border-gray-100">
                                             <p className="text-xs font-semibold uppercase text-gray-500">Veículo / Seguradora</p>
                                             <p className="text-base text-gray-800">🚗 {lead.vehicleModel} ({lead.vehicleYearModel})</p>
-                                            {/* Usando a prop Seguradora conforme seu layout original */}
                                             <p className="text-sm text-gray-600">🛡️ {lead.Seguradora}</p> 
                                         </div>
 
@@ -557,7 +541,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                         {/* Vigência Final */}
                                         <div className="md:col-span-1 border-l pl-4 border-gray-100">
                                             <p className="text-xs font-semibold uppercase text-gray-500">Vigência Final</p>
-                                            {/* Usando a prop VigenciaFinal conforme seu layout original */}
                                             <p className="font-bold text-lg text-red-500">🗓️ {formatarData(lead.VigenciaFinal)}</p>
                                         </div>
                                     </div>
@@ -565,7 +548,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     {/* Seções de Interação: Status, Atribuição e Observações */}
                                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-4">
 
-                                        {/* Bloco de Status (2) - Seleção de status e suas funções */}
+                                        {/* Bloco de Status (2) - LÓGICA DO CÓDIGO ANTIGO */}
                                         <div className='lg:col-span-1 p-3 bg-gray-50 rounded-lg border border-gray-100'>
                                             <label htmlFor={`status-${lead.id}`} className="block mb-2 font-bold text-sm text-gray-700">
                                                 Alterar Status Atual: 
@@ -587,6 +570,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                                     ))}
                                                 </select>
                                                 <button
+                                                    // O botão só fica ativo se o status for diferente E houver responsável
                                                     onClick={() => handleConfirmStatus(lead.id)}
                                                     disabled={isStatusUnchanged || isLoading || !isResponsavelAssigned}
                                                     className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm whitespace-nowrap"
@@ -597,7 +581,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             </div>
                                         </div>
 
-                                        {/* Atribuição de Responsável (3) - Caixa de atribuição e suas funções */}
+                                        {/* Atribuição de Responsável (3) */}
                                         <div className='lg:col-span-1 p-3 bg-gray-50 rounded-lg border border-gray-100'>
                                             <label className="block mb-2 font-bold text-sm text-gray-700">Atribuição de Usuário</label>
                                             {isResponsavelAssigned && responsavel ? (
@@ -639,7 +623,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             )}
                                         </div>
                                         
-                                        {/* Bloco de Observações (4) - Caixa de observações e suas funções */}
+                                        {/* Bloco de Observações (4) - LÓGICA DO CÓDIGO ANTIGO */}
                                         <div className='lg:col-span-1 p-3 bg-gray-50 rounded-lg border border-gray-100'>
                                             <label htmlFor={`observacao-${lead.id}`} className="block mb-2 font-bold text-sm text-gray-700">
                                                 Observações:
@@ -650,6 +634,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                                 onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
                                                 placeholder="Adicione suas observações aqui..."
                                                 rows="3"
+                                                // Desabilitado se não estiver em edição ou se estiver carregando
                                                 disabled={!isEditingObservacao[lead.id] || isLoading}
                                                 className={`w-full p-2 border rounded-lg resize-y text-sm transition-colors focus:outline-none ${
                                                     isEditingObservacao[lead.id] ? 'bg-white border-indigo-300 focus:ring-indigo-500' : 'bg-gray-200 border-gray-300 cursor-not-allowed'
@@ -659,6 +644,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                                 {isEditingObservacao[lead.id] ? (
                                                     <button
                                                         onClick={() => handleSalvarObservacao(lead.id)}
+                                                        // Desabilitado se estiver carregando OU se a observação estiver vazia
                                                         disabled={isLoading || !observacoes[lead.id]?.trim()}
                                                         className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 disabled:bg-gray-400 text-sm"
                                                     >
