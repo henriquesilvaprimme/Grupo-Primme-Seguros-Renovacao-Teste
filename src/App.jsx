@@ -145,28 +145,30 @@ function App() {
         
         const formattedRenovacoes = sortedData.map((item, index) => ({
           // Mapeamento do Lead da aba RENOVAÇÕES (Funil)
-        id: item.id ? Number(item.id) : index + 1,
-        name: item.name || '', // Coluna B
-        vehicleModel: item.vehicleModel || '', // Coluna C
-        vehicleYearModel: item.vehicleYearModel || '', // Coluna D
-        city: item.city || '', // Coluna E
-        phone: item.phone || '', // Coluna F
-        insuranceType: item.insurancetype || '', // Coluna G
-        Data: item.Data || '', // Coluna H
-        Status: item.Status || 'Fechado', // Coluna J
-        confirmado: item.confirmado === 'true' || item.confirmado === true,
-        Seguradora: item.insurer || '', // Coluna L (Mapeado no GAS como 'insurer', corrigido para 'Seguradora' no objeto)
-        PremioLiquido: item['Prêmio Líquido'] || null, // Coluna M (Mapeado no GAS como 'Prêmio Líquido')
-        Comissao: item.Comissão || null, // Coluna N (Mapeado no GAS como 'Comissão')
-        Parcelamento: item.parcelamento || '', // Coluna O (Mapeado no GAS como 'parcelamento')
-        VigenciaInicial: item['Vigência Inicial'] || '', // Coluna P
-        VigenciaFinal: item['Vigência Final'] || '', // Coluna Q
-        createdAt: item.data || new Date().toISOString(),
-        responsavel: item.responsavel || '',
-        editado: item.editado || '',
-        observacao: item.observacao || '',
-        agendamento: item.agendamento || '',
-        agendados: item.agendados || '',
+        const formattedRenovacoes = sortedData.map((item, index) => ({
+          id: item.id ? Number(item.id) : index + 1,
+          name: item.name || item.Name || '',
+          vehicleModel: item.vehiclemodel || item.vehicleModel || '',
+          vehicleYearModel: item.vehicleyearmodel || item.vehicleYearModel || '',
+          city: item.city || '',
+          phone: item.phone || item.Telefone || '',
+          insuranceType: item.insurancetype || item.insuranceType || '',
+          status: item.status || 'Selecione o status',
+          confirmado: item.confirmado === 'true' || item.confirmado === true,
+          insurer: item.insurer || '',
+          insurerConfirmed: item.insurerConfirmed === 'true' || item.insurerConfirmed === true,
+          usuarioId: item.usuarioId ? Number(item.usuarioId) : null,
+          premioLiquido: item.premioLiquido || '',
+          comissao: item.comissao || '',
+          parcelamento: item.parcelamento || '',
+          VigenciaFinal: item.VigenciaFinal || '',
+          VigenciaInicial: item.VigenciaInicial || '',
+          createdAt: item.data || new Date().toISOString(),
+          responsavel: item.responsavel || '',
+          editado: item.editado || '',
+          observacao: item.observacao || '',
+          agendamento: item.agendamento || '',
+          agendados: item.agendados || '',
         }));
 
         if (!leadSelecionado) {
