@@ -38,7 +38,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const ano = today.getFullYear();
     const mes = String(today.getMonth() + 1).padStart(2, '0');
     const mesAnoAtual = `${ano}-${mes}`;
-    
+    
     // Define o filtro de data e o valor do input para o mês/ano atual
     setDataInput(mesAnoAtual);
     setFiltroData(mesAnoAtual);
@@ -128,13 +128,21 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     setPaginaAtual(1);
   };
 
-  const isSameMonthAndYear = (leadDateStr, filtroMesAno) => {
+  // Função auxiliar para verificar se a data de Vigência Final corresponde ao filtro YYYY-MM
+  const isSameMonthAndYearVigencia = (vigenciaFinalStr, filtroMesAno) => {
     if (!filtroMesAno) return true;
-    if (!leadDateStr) return false;
-    const leadData = new Date(leadDateStr);
-    const leadAno = leadData.getFullYear();
-    const leadMes = String(leadData.getMonth() + 1).padStart(2, '0');
-    return filtroMesAno === `${leadAno}-${leadMes}`;
+    if (!vigenciaFinalStr) return false;
+    
+    // Tenta converter a string DD/MM/YYYY para o formato YYYY-MM para comparação
+    const partes = vigenciaFinalStr.split('/');
+    if (partes.length === 3) {
+      // Formato da vigência: DD/MM/YYYY
+      const [dia, mes, ano] = partes;
+      const vigenciaMesAno = `${ano}-${mes}`; // YYYY-MM
+      return vigenciaMesAno === filtroMesAno;
+    }
+
+    return false; // Se a data estiver em um formato inesperado
   };
 
   const nomeContemFiltro = (leadNome, filtroNome) => {
@@ -163,8 +171,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     }
 
     if (filtroData) {
-      const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
-      return leadMesAno === filtroData;
+      // 💡 LOGICA DE AJUSTE AQUI: Filtrar pelo Mês/Ano da Vigência Final
+      return isSameMonthAndYearVigencia(lead.vigenciaFinal, filtroData);
     }
 
     if (filtroNome) {
@@ -495,7 +503,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
               border: '1px solid #ccc',
               cursor: 'pointer',
             }}
-            title="Filtrar renovações pelo mês e ano de criação"
+            title="Filtrar renovações pelo mês e ano de Vigência Final"
           />
         </div>
       </div>
