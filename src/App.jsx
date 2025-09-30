@@ -145,7 +145,7 @@ function App() {
         
         const formattedRenovacoes = sortedData.map((item, index) => ({
           // Mapeamento do Lead da aba RENOVAÇÕES (Funil)
-          ID: String(item.ID) || crypto.randomUUID(), // Coluna A
+        id: item.id ? Number(item.id) : index + 1,
         name: item.name || '', // Coluna B
         vehicleModel: item.vehicleModel || '', // Coluna C
         vehicleYearModel: item.vehicleYearModel || '', // Coluna D
@@ -153,18 +153,20 @@ function App() {
         phone: item.phone || '', // Coluna F
         insuranceType: item.insurancetype || '', // Coluna G
         Data: item.Data || '', // Coluna H
-        Responsavel: item.Responsável || '', // Coluna I (A chave no GAS é 'Responsável' com acento)
         Status: item.Status || 'Fechado', // Coluna J
+        confirmado: item.confirmado === 'true' || item.confirmado === true,
         Seguradora: item.insurer || '', // Coluna L (Mapeado no GAS como 'insurer', corrigido para 'Seguradora' no objeto)
         PremioLiquido: item['Prêmio Líquido'] || null, // Coluna M (Mapeado no GAS como 'Prêmio Líquido')
         Comissao: item.Comissão || null, // Coluna N (Mapeado no GAS como 'Comissão')
         Parcelamento: item.parcelamento || '', // Coluna O (Mapeado no GAS como 'parcelamento')
         VigenciaInicial: item['Vigência Inicial'] || '', // Coluna P
         VigenciaFinal: item['Vigência Final'] || '', // Coluna Q
-        observacao: item.observacao || '', // Coluna R
-        // Outras propriedades para controle de UI
-        insurerConfirmed: !!(item.insurer && item['Prêmio Líquido']),
-        confirmado: true,
+        createdAt: item.data || new Date().toISOString(),
+        responsavel: item.responsavel || '',
+        editado: item.editado || '',
+        observacao: item.observacao || '',
+        agendamento: item.agendamento || '',
+        agendados: item.agendados || '',
         }));
 
         if (!leadSelecionado) {
