@@ -155,7 +155,7 @@ function App() {
           insuranceType: item.insurancetype || item.insuranceType || '',
           status: item.status || 'Selecione o status',
           confirmado: item.confirmado === 'true' || item.confirmado === true,
-          insurer: item.insurer || '',
+          Seguradora: item.Seguradora || '',
           insurerConfirmed: item.insurerConfirmed === 'true' || item.insurerConfirmed === true,
           usuarioId: item.usuarioId ? Number(item.usuarioId) : null,
           premioLiquido: item.premioLiquido || '',
