@@ -576,7 +576,7 @@ function App() {
             }
           />
           <Route
-            path="/renovacoes" // ROTA CORRIGIDA: de /leads para /renovacoes
+            path="/renovacoes" // ROTA CORRIGIDA: /leads para /renovacoes
             element={
               <Renovacoes // COMPONENTE ATUALIZADO
                 leads={isAdmin ? renovacoes : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome)} // ESTADO ATUALIZADO
@@ -594,7 +594,7 @@ function App() {
             }
           />
           <Route
-            path="/renovados" // ROTA CORRIGIDA: de /leads-fechados para /renovados
+            path="/renovados" // ROTA CORRIGIDA: /leads-fechados para /renovados
             element={
               <Renovados // COMPONENTE ATUALIZADO
                 leads={isAdmin ? renovados : renovados.filter((lead) => lead.Responsavel === usuarioLogado.nome)} // ESTADO ATUALIZADO
@@ -614,7 +614,7 @@ function App() {
             }
           />
           <Route
-            path="/renovacoes-perdidas" // ROTA CORRIGIDA: de /leads-perdidos para /renovacoes-perdidas
+            path="/renovacoes-perdidas" // ROTA CORRIGIDA: /leads-perdidos para /renovacoes-perdidas
             element={
               <RenovacoesPerdidas // COMPONENTE ATUALIZADO
                 leads={isAdmin ? renovacoes.filter((lead) => lead.status === 'Perdido') : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome && lead.status === 'Perdido')} // ESTADO ATUALIZADO
