@@ -61,6 +61,10 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
 
     // Cria um objeto de data a partir da string e ajusta para o fuso horário local
     const selectedDate = new Date(scheduledDate + 'T00:00:00'); // Adiciona T00:00:00 para garantir que a data seja interpretada como local
+    
+    // Formata a data para a string de status
+    const formattedDate = selectedDate.toLocaleDateString('pt-BR');
+    const newStatus = `Agendado - ${formattedDate}`;
 
     enviarLeadAtualizado(lead.id, newStatus, lead.phone);
     setStatus(newStatus);
@@ -154,11 +158,11 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       <p><strong>Modelo do veículo:</strong> {lead.vehicleModel}</p>
       <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
       <p><strong>Telefone:</strong> {lead.phone}</p>
-      <p><strong>Seguradora:</strong> {lead.Seguradora || 'N/A'}</p>
-      <p><strong>Prêmio Líquido:</strong> {formatCurrency(lead.PremioLiquido)}</p>
-      <p><strong>Comissão:</strong> {lead.Comissao}%</p>
-      <p><strong>Parcelamento:</strong> {lead.Parcelamento || 'N/A'}</p>
-      <p><strong>Vigência Final:</strong> {formatDateDisplay(lead.VigenciaFinal) || 'N/A'}</p>
+      <p><strong>Seguradora:</strong> {lead.insurer || 'N/A'}</p>
+      <p><strong>Prêmio Líquido:</strong> {formatCurrency(lead.premioLiquido)}</p>
+      <p><strong>Comissão:</strong> {lead.comissao}%</p>
+      <p><strong>Parcelamento:</strong> {lead.parcelamento || 'N/A'}</p>
+      <p><strong>Vigência Final:</strong> {formatDateDisplay(lead.vigenciaFinal) || 'N/A'}</p>
       {/* FIM DOS CAMPOS ATUALIZADOS */}
       
       {/* <p><strong>Cidade:</strong> {lead.city}</p> - REMOVIDO, POIS NÃO ESTAVA NA SUA LISTA */}
