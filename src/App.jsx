@@ -50,6 +50,12 @@ function App() {
   const [renovacoes, setRenovacoes] = useState([]); // leads -> renovacoes
   const [renovados, setRenovados] = useState([]); // leadsFechados -> renovados
   const [leadSelecionado, setLeadSelecionado] = useState(null);
+  
+  // NOVO ESTADO PARA O FILTRO DE DATA
+  const [renovacoesDateFilter, setRenovacoesDateFilter] = useState({
+    startDate: '',
+    endDate: ''
+  });
 
   const [usuarios, setUsuarios] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -130,13 +136,19 @@ function App() {
     }
   };
 
-  // FUNÇÃO RENOMEADA
-  const fetchRenovacoesFromSheet = async (sheetName = 'Renovações') => {
-    // Adicionado parâmetro sheetName para compatibilidade, mas usa a URL base (que pega da aba 'Leads' no Apps Script atual)
-    // Se a aba principal de leads for 'Renovações', use GOOGLE_SHEETS_SCRIPT_URL.
-    // Se a aba principal ainda for 'Leads', mantenha GOOGLE_SHEETS_SCRIPT_URL.
-    // Como o Renovacoes.jsx já passa o nome da aba, vamos adaptar a URL aqui para aceitar o parâmetro.
-    const url = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads&sheet=${sheetName}`;
+  // FUNÇÃO ATUALIZADA PARA ACEITAR FILTRO DE DATA
+  const fetchRenovacoesFromSheet = async (sheetName = 'Renovações', dateFilter = renovacoesDateFilter) => {
+    // Adicionado lógica para incluir o filtro de data na URL
+    let url = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads&sheet=${sheetName}`;
+    
+    // Se houver datas no filtro, adiciona-as à URL
+    if (dateFilter.startDate && dateFilter.endDate) {
+      url += `&startDate=${dateFilter.startDate}&endDate=${dateFilter.endDate}`;
+      // NOTA: O Apps Script precisa ser atualizado para:
+      // 1. Receber `startDate` e `endDate` (por exemplo, no formato YYYY-MM-DD)
+      // 2. Filtrar os dados da aba 'Renovações' usando a coluna 'Vigencia Final' (ou o nome real da coluna)
+      // 3. Retornar apenas os leads dentro desse intervalo.
+    }
     
     try {
       const response = await fetch(url);
@@ -161,7 +173,7 @@ function App() {
           PremioLiquido: item.PremioLiquido || '',
           Comissao: item.Comissao || '',
           Parcelamento: item.Parcelamento || '',
-          VigenciaFinal: item.VigenciaFinal || '',
+          VigenciaFinal: item.VigenciaFinal || '', // CHAVE DE FILTRO
           VigenciaInicial: item.VigenciaInicial || '',
           createdAt: item.data || new Date().toISOString(),
           responsavel: item.responsavel || '',
@@ -187,16 +199,28 @@ function App() {
     }
   };
 
+  // FUNÇÃO DE TRATAMENTO DE MUDANÇA DE FILTRO DE DATA
+  const handleRenovacoesDateFilterChange = (newFilter) => {
+    setRenovacoesDateFilter(newFilter);
+  };
+  
+  // FUNÇÃO AUXILIAR PARA O useEffect DE ATUALIZAÇÃO DE DADOS
+  const fetchRenovacoesWithCurrentFilter = (filter) => {
+    fetchRenovacoesFromSheet('Renovações', filter);
+  };
+  
   useEffect(() => {
     if (!isEditing) {
-      // Chama sem parâmetro para buscar da aba padrão (provavelmente 'Renovações')
-      fetchRenovacoesFromSheet('Renovações');  
+      // Chama o fetch com o filtro de data atual
+      fetchRenovacoesWithCurrentFilter(renovacoesDateFilter);  
+      
       const interval = setInterval(() => {
-        fetchRenovacoesFromSheet('Renovações');  
+        fetchRenovacoesWithCurrentFilter(renovacoesDateFilter);  
       }, 60000);
+      
       return () => clearInterval(interval);
     }
-  }, [leadSelecionado, isEditing]);
+  }, [leadSelecionado, isEditing, renovacoesDateFilter.startDate, renovacoesDateFilter.endDate]); // Adicionado as dependências do filtro
 
   // FUNÇÃO RENOMEADA
   const fetchRenovadosFromSheet = async () => {
@@ -322,7 +346,7 @@ function App() {
       });
 
       // Recarrega as renovações para que a nova data apareça
-      await fetchRenovacoesFromSheet(); // FUNÇÃO ATUALIZADA
+      await fetchRenovacoesWithCurrentFilter(renovacoesDateFilter); // FUNÇÃO ATUALIZADA
       
     } catch (error) {
       console.error('Erro ao confirmar agendamento:', error);
@@ -443,9 +467,9 @@ function App() {
     setLeadSelecionado(lead);
 
     // CORREÇÃO CRUCIAL: As rotas aqui DEVEM refletir as novas rotas.
-    let path = '/renovacoes'; 
-    if (lead.status === 'Fechado') path = '/renovados'; 
-    else if (lead.status === 'Perdido') path = '/renovacoes-perdidas'; 
+    let path = '/renovacoes'; 
+    if (lead.status === 'Fechado') path = '/renovados'; 
+    else if (lead.status === 'Perdido') path = '/renovacoes-perdidas'; 
 
     navigate(path);
   };
@@ -480,7 +504,7 @@ function App() {
     
       if (response.ok) {
         console.log('Observação salva com sucesso!');
-        fetchRenovacoesFromSheet(); // FUNÇÃO ATUALIZADA
+        fetchRenovacoesWithCurrentFilter(renovacoesDateFilter); // FUNÇÃO ATUALIZADA
       } else {
         console.error('Erro ao salvar observação:', response.statusText);
       }
@@ -574,7 +598,8 @@ function App() {
                 leads={isAdmin ? renovacoes : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome)} // ESTADO ATUALIZADO
                 usuarios={usuarios}
                 onUpdateStatus={atualizarStatusRenovacao} // FUNÇÃO ATUALIZADA
-                fetchLeadsFromSheet={fetchRenovacoesFromSheet} // FUNÇÃO ATUALIZADA
+                fetchLeadsFromSheet={fetchRenovacoesFromSheet} // FUNÇÃO ATUALIZADA (melhorar se necessário)
+                fetchRenovacoesWithCurrentFilter={fetchRenovacoesWithCurrentFilter} // NOVO: Passando a função com o filtro
                 transferirLead={transferirRenovacao} // FUNÇÃO ATUALIZADA
                 usuarioLogado={usuarioLogado}
                 leadSelecionado={leadSelecionado}
@@ -582,6 +607,9 @@ function App() {
                 scrollContainerRef={mainContentRef}
                 onConfirmAgendamento={handleConfirmAgendamento}
                 salvarObservacao={salvarObservacao}
+                // NOVAS PROPS PARA O FILTRO
+                dateFilter={renovacoesDateFilter}
+                onDateFilterChange={handleRenovacoesDateFilterChange}
               />
             }
           />
@@ -621,7 +649,7 @@ function App() {
           />
           <Route path="/buscar-lead" element={<BuscarLead // COMPONENTE MANTIDO
             leads={renovacoes} // ESTADO ATUALIZADO
-            fetchLeadsFromSheet={fetchRenovacoesFromSheet} // FUNÇÃO ATUALIZADA
+            fetchLeadsFromSheet={fetchRenovacoesWithCurrentFilter} // FUNÇÃO ATUALIZADA
             fetchLeadsFechadosFromSheet={fetchRenovadosFromSheet} // FUNÇÃO ATUALIZADA
             setIsEditing={setIsEditing}
           />} />
