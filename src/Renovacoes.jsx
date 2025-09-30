@@ -172,7 +172,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
     if (filtroData) {
       // 💡 LOGICA DE AJUSTE AQUI: Filtrar pelo Mês/Ano da Vigência Final
-      return isSameMonthAndYearVigencia(lead.vigenciaFinal, filtroData);
+      return isSameMonthAndYearVigencia(lead.VigenciaFinal, filtroData);
     }
 
     if (filtroNome) {
