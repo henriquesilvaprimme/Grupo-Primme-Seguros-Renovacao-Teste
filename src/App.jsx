@@ -155,7 +155,7 @@ function App() {
         Data: item.Data || '', // Coluna H
         Responsavel: item.Responsável || '', // Coluna I (A chave no GAS é 'Responsável' com acento)
         Status: item.Status || 'Fechado', // Coluna J
-        Data Atribui: item.Data || '', // Coluna K (Mapeado no GAS como 'insurer', corrigido para 'Seguradora' no objeto)
+        DataAtribui: item.Data || '', // Coluna K (Mapeado no GAS como 'insurer', corrigido para 'Seguradora' no objeto)
         Seguradora: item.insurer || '', // Coluna L (Mapeado no GAS como 'insurer', corrigido para 'Seguradora' no objeto)
         PremioLiquido: item['Prêmio Líquido'] || null, // Coluna M (Mapeado no GAS como 'Prêmio Líquido')
         Comissao: item.Comissão || null, // Coluna N (Mapeado no GAS como 'Comissão')
