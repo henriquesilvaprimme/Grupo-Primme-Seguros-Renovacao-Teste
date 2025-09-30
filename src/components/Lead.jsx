@@ -158,7 +158,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       <p><strong>Modelo do veículo:</strong> {lead.vehicleModel}</p>
       <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
       <p><strong>Telefone:</strong> {lead.phone}</p>
-      <p><strong>Seguradora:</strong> {lead.insurer || 'N/A'}</p>
+      <p><strong>Seguradora:</strong> {lead.Seguradora || 'N/A'}</p>
       <p><strong>Prêmio Líquido:</strong> {formatCurrency(lead.premioLiquido)}</p>
       <p><strong>Comissão:</strong> {lead.comissao}%</p>
       <p><strong>Parcelamento:</strong> {lead.parcelamento || 'N/A'}</p>
