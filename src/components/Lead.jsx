@@ -160,7 +160,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       <p><strong>Telefone:</strong> {lead.phone}</p>
       <p><strong>Seguradora:</strong> {lead.insurer || 'N/A'}</p>
       <p><strong>Prêmio Líquido:</strong> {formatCurrency(lead.premioLiquido)}</p>
-      <p><strong>Comissão:</strong> {(lead.comissao}%</p>
+      <p><strong>Comissão:</strong> {lead.comissao}%</p>
       <p><strong>Parcelamento:</strong> {lead.parcelamento || 'N/A'}</p>
       <p><strong>Vigência Final:</strong> {formatDateDisplay(lead.vigenciaFinal) || 'N/A'}</p>
       {/* FIM DOS CAMPOS ATUALIZADOS */}
