@@ -35,7 +35,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [isLoading, setIsLoading] = useState(false);
     const [observacoes, setObservacoes] = useState({}); 
     const [isEditingObservacao, setIsEditingObservacao] = useState({}); 
-    const [statusSelecionado, setStatusSelecionado] = useState({}); // NOVO: Necessário para o dropdown de status
+    // ESTADO ONDE O NOVO STATUS É SELECIONADO PELO USUÁRIO NO DROPDOWN
+    const [statusSelecionado, setStatusSelecionado] = useState({}); 
     const [dataInput, setDataInput] = useState('');
     const [filtroData, setFiltroData] = useState('');
     const [nomeInput, setNomeInput] = useState('');
@@ -66,7 +67,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             initialObservacoes[lead.id] = lead.observacao || '';
             // Lógica do código antigo: permite edição se não houver observação ou se estiver vazia
             initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === ''; 
-            initialStatusSelecionado[lead.id] = lead.status || STATUS_OPTIONS[0]; // Inicializa o dropdown
+            // Inicializa o dropdown com o status atual do lead
+            initialStatusSelecionado[lead.id] = lead.status || STATUS_OPTIONS[0]; 
         });
 
         setObservacoes(initialObservacoes);
@@ -85,6 +87,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             if (!statusDateStr) return false;
 
             const [dia, mes, ano] = statusDateStr.split('/');
+            // A data do status já é formatada para pt-BR, então a comparação deve funcionar
             const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`); 
             const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
 
@@ -113,25 +116,29 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         const novoStatus = statusSelecionado[leadId];
         const lead = leads.find(l => l.id === leadId);
 
-        if (!novoStatus) return;
+        if (!novoStatus || !lead) return;
 
-        // **CHAMA A FUNÇÃO PROP QUE SALVA NO SHEETS** (LÓGICA DO CÓDIGO ANTIGO)
+        // **CHAMADA DE STATUS CORRIGIDA**
+        // Chamando a função prop para atualizar o status no componente pai (e Sheets)
         onUpdateStatus(leadId, novoStatus, lead.phone); 
         
         // Lógica para controle do campo de observação (MANTIDA DO CÓDIGO ANTIGO)
+        // Usamos o lead do estado global `leads` para verificar observação, mas o 
+        // `onUpdateStatus` garante que o novo status seja enviado.
         const currentLead = leads.find(l => l.id === leadId);
         const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
-        if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) && hasNoObservacao) {
+        const statusPrefix = novoStatus.split(' - ')[0];
+
+        if ((statusPrefix === 'Em Contato' || statusPrefix === 'Sem Contato' || statusPrefix === 'Agendado') && hasNoObservacao) {
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
-        } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) {
-            // Se já tiver observação, desabilita a edição (para forçar o clique em 'Editar')
-            setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
         } else {
+            // Se já tiver observação ou o status for Fechado/Perdido/Aguardando, desabilita a edição
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
         }
 
         // Rebusca leads para refletir a atualização, como no código anterior
+        // Este fetch é crucial para buscar os dados atualizados do Sheet.
         fetchLeadsFromSheet(SHEET_NAME);
     };
 
@@ -193,6 +200,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         }
         
         const lead = leads.find((l) => l.id === leadId);
+        // O nome do responsável é salvo na coluna 'Responsavel' do Sheet
         const responsavelUsuario = usuarios.find(u => u.id === userId)?.nome || '';
 
         // 1. Atualiza o estado local (LÓGICA ANTIGA)
@@ -500,7 +508,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                             // Lógica de Responsável
                             const responsavel = usuarios.find((u) => u.nome === lead.responsavel); 
                             const currentStatus = statusSelecionado[lead.id] || lead.status || STATUS_OPTIONS[0];
-                            const isStatusUnchanged = currentStatus === lead.status;
+                            // Compara o prefixo (Ignora a data se for 'Agendado - 20/12/2023')
+                            const isStatusUnchanged = currentStatus.split(' - ')[0] === (lead.status?.split(' - ')[0] || STATUS_OPTIONS[0]);
                             const isResponsavelAssigned = !!lead.responsavel;
 
 
@@ -559,6 +568,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             <div className="flex gap-2">
                                                 <select
                                                     id={`status-${lead.id}`}
+                                                    // O valor selecionado no dropdown
                                                     value={currentStatus}
                                                     onChange={(e) => setStatusSelecionado(prev => ({ ...prev, [lead.id]: e.target.value }))}
                                                     className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500"
