@@ -145,20 +145,27 @@ function App() {
         
         const formattedRenovacoes = sortedData.map((item, index) => ({
           // Mapeamento do Lead da aba RENOVAÇÕES (Funil)
-          id: item.id ? Number(item.id) : index + 1, // ID é o número da linha no GAS
-          name: item.name || '',
-          vehicleModel: item.vehiclemodel || '',
-          vehicleYearModel: item.vehicleyearmodel || '',
-          city: item.city || '',
-          phone: item.phone || '',
-          insuranceType: item.insurancetype || '',
-          data: item.data || new Date().toISOString(),
-          responsavel: item.responsavel || '',
-          status: item.status || 'Em Contato',
-          // Campos de Edição (K, L, M)
-          editado: item.editado || '',
-          observacao: item.observacao || '', // Coluna L - Índice 11 (no GAS)
-          agendamento: item.agendamento || '', // Coluna M - Índice 12 (no GAS)
+          ID: String(item.ID) || crypto.randomUUID(), // Coluna A
+        name: item.name || '', // Coluna B
+        vehicleModel: item.vehicleModel || '', // Coluna C
+        vehicleYearModel: item.vehicleYearModel || '', // Coluna D
+        city: item.city || '', // Coluna E
+        phone: item.phone || '', // Coluna F
+        insuranceType: item.insurancetype || '', // Coluna G
+        Data: item.Data || '', // Coluna H
+        Responsavel: item.Responsável || '', // Coluna I (A chave no GAS é 'Responsável' com acento)
+        Status: item.Status || 'Fechado', // Coluna J
+        Data Atribui: item.Data || '', // Coluna K (Mapeado no GAS como 'insurer', corrigido para 'Seguradora' no objeto)
+        Seguradora: item.insurer || '', // Coluna L (Mapeado no GAS como 'insurer', corrigido para 'Seguradora' no objeto)
+        PremioLiquido: item['Prêmio Líquido'] || null, // Coluna M (Mapeado no GAS como 'Prêmio Líquido')
+        Comissao: item.Comissão || null, // Coluna N (Mapeado no GAS como 'Comissão')
+        Parcelamento: item.parcelamento || '', // Coluna O (Mapeado no GAS como 'parcelamento')
+        VigenciaInicial: item['Vigência Inicial'] || '', // Coluna P
+        VigenciaFinal: item['Vigência Final'] || '', // Coluna Q
+        observacao: item.observacao || '', // Coluna R
+        // Outras propriedades para controle de UI
+        insurerConfirmed: !!(item.insurer && item['Prêmio Líquido']),
+        confirmado: true,
         }));
 
         if (!leadSelecionado) {
