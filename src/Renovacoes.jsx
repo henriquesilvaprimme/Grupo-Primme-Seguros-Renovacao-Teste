@@ -66,7 +66,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
       const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
       const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
 
-      return statusDateFormatted === todayFormatted;
+      return lead.status.startsWith('Agendado') && statusDateFormatted === todayFormatted;
     });
 
     setHasScheduledToday(todayAppointments.length > 0);
@@ -586,7 +586,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                   marginBottom: '15px',
                   position: 'relative',
                   display: 'flex',
-                  gap: '0px',
+                  gap: '20px', // Aumentado o gap para separar o lead da observação
                   alignItems: 'flex-start',
                   flexWrap: 'wrap',
                 }}
