@@ -14,11 +14,11 @@ const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=sa
 
 
 // ===============================================
-// 2. COMPONENTE RENOVACIONES (REESTILIZADO - OPÇÃO 3)
+// 2. COMPONENTE RENOVACIONES (AJUSTADO)
 // ===============================================
 
 // --- COMPONENTE AUXILIAR: StatusButton com Contagem ---
-const StatusFilterButton = ({ status, count, currentFilter, onClick, color, isScheduledToday }) => {
+const StatusFilterButton = ({ status, count, currentFilter, onClick, isScheduledToday }) => {
     const isSelected = currentFilter === status;
     let baseClasses = `px-5 py-2 text-sm font-semibold rounded-full shadow-md transition duration-300 flex items-center justify-center whitespace-nowrap`;
     let activeClasses = `ring-2 ring-offset-2`;
@@ -65,8 +65,9 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [filtroData, setFiltroData] = useState('');
     const [nomeInput, setNomeInput] = useState('');
     const [filtroNome, setFiltroNome] = useState('');
-    const [filtroStatus, setFiltroStatus] = useState(null); // 'Todos', 'Em Contato', 'Sem Contato', 'Agendado'
+    const [filtroStatus, setFiltroStatus] = useState(null); 
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
+    const [showNotification, setShowNotification] = useState(false); // Mantido o estado do sino
 
     // --- LÓGICAS (MANTIDAS/AJUSTADAS) ---
     useEffect(() => {
@@ -180,7 +181,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 return nomeContemFiltro(lead.name, filtroNome);
             }
 
-            return true; // Inclui todos se não houver filtro específico (ou se o filtro for 'Todos')
+            return true; 
         });
     }, [leads, filtroStatus, filtroData, filtroNome]);
 
@@ -330,8 +331,18 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         }
         fetchLeadsFromSheet(SHEET_NAME);
     };
+    
+    /**
+     * Ajuste para mostrar apenas a tag de status, sem a data extra.
+     * Retorna a string de status limpa.
+     */
+    const getCleanStatus = (status) => {
+        if (!status) return 'Novo';
+        return status.split(' - ')[0];
+    }
 
-    // --- Renderização do Layout (Opção 3) ---
+
+    // --- Renderização do Layout (Opção 3.1) ---
     return (
         <div className="p-4 md:p-6 lg:p-8 relative min-h-screen bg-gray-100 font-sans">
             
@@ -355,6 +366,25 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                         <Bell size={32} className="text-indigo-500 mr-3" />
                         Renovações Pendentes
                     </h1>
+                    
+                    {/* Sino de Notificação (Mantido) */}
+                    {hasScheduledToday && (
+                        <div
+                            className="relative cursor-pointer"
+                            onClick={() => setShowNotification(!showNotification)}
+                            title="Você tem agendamentos hoje!"
+                        >
+                            <Bell size={32} className="text-red-500 animate-pulse" />
+                            <div className="absolute top-0 right-0 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold ring-2 ring-white">
+                                1
+                            </div>
+                            {showNotification && (
+                                <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-xl p-3 z-10 text-sm">
+                                    Você tem agendamentos marcados para hoje!
+                                </div>
+                            )}
+                        </div>
+                    )}
                     
                     <button
                         title="Atualizar dados"
@@ -404,7 +434,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 </div>
             </div>
             
-            {/* Barra de Filtro de Status (Abas Estilizadas) */}
+            {/* Barra de Filtro de Status (Abas Estilizadas com Contagem) */}
             <div className="flex flex-wrap gap-3 justify-center mb-8">
                 <StatusFilterButton status="Todos" count={gerais.length} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} color="purple" />
                 <StatusFilterButton status="Em Contato" count={statusCounts['Em Contato']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} color="yellow" />
@@ -432,14 +462,14 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                 <div className="col-span-1 border-r lg:pr-6">
                                     <div className="mb-3">
                                         <span className={`text-xs font-bold px-3 py-1 rounded-full ${lead.status === 'Em Contato' ? 'bg-yellow-100 text-yellow-800' : lead.status === 'Sem Contato' ? 'bg-red-100 text-red-800' : lead.status.startsWith('Agendado') ? 'bg-cyan-100 text-cyan-800' : 'bg-gray-100 text-gray-800'}`}>
-                                            {lead.status}
+                                            {getCleanStatus(lead.status)} {/* Status sem a data */}
                                         </span>
                                     </div>
                                     <Lead 
                                         lead={lead} 
                                         onUpdateStatus={handleConfirmStatus} 
                                         disabledConfirm={!lead.responsavel} 
-                                        compact={false} // Mostrar info completa no card
+                                        compact={false}
                                     />
                                     <p className="mt-3 text-xs text-gray-400">
                                         Criado em: {formatarData(lead.createdAt)}
@@ -489,14 +519,9 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     )}
                                 </div>
 
-                                {/* COLUNA 3: Observações (Condicional) */}
+                                {/* COLUNA 3: Observações (Condicional e Sem Título) */}
                                 <div className="col-span-1 lg:pl-6">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
-                                        <Edit size={18} className="mr-2 text-indigo-500" />
-                                        Observações
-                                    </h3>
-                                    
-                                    {shouldShowObs ? (
+                                    {shouldShowObs && (
                                         <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
                                             <textarea
                                                 value={observacoes[lead.id] || ''}
@@ -524,10 +549,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                                     </button>
                                                 )}
                                             </div>
-                                        </div>
-                                    ) : (
-                                        <div className="p-3 text-gray-500 italic">
-                                            Observações são necessárias para status "Em Contato", "Sem Contato" ou "Agendado".
                                         </div>
                                     )}
                                 </div>
