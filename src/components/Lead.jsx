@@ -64,6 +64,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
     
     // Formata a data para a string de status
     const formattedDate = selectedDate.toLocaleDateString('pt-BR');
+    const newStatus = `Agendado - ${formattedDate}`;
 
     enviarLeadAtualizado(lead.id, newStatus, lead.phone);
     setStatus(newStatus);
