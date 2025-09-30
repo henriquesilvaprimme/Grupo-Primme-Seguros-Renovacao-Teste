@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// Não precisamos mais do componente 'Lead', pois os dados são renderizados diretamente no card.
 import { RefreshCcw, Bell } from 'lucide-react';
 
 // ===============================================
@@ -11,7 +10,7 @@ const SHEET_NAME = 'Renovações';
 const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGP9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99a/exec';
 
 // URLs com o parâmetro 'sheet' adicionado para apontar para a nova aba
-const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?sheet=${SHEET_NAME}`;
+// A URL de alteração do atribuído e de observação é ajustada para incluir o nome da sheet
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar_atribuido&sheet=${SHEET_NAME}`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
 
@@ -28,22 +27,16 @@ const STATUS_OPTIONS = [
 // 2. COMPONENTE RENOVACOES
 // ===============================================
 const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, scrollContainerRef }) => {
-    // 💡 Ajustando a desestruturação de leads para o novo layout (ex: lead.Data, lead.Responsavel)
-    // ⚠️ ATENÇÃO: Os nomes das propriedades dos leads (`Responsavel`, `Data`, etc.) foram mantidos
-    // de acordo com a sua estrutura de retorno no JSX, mas podem precisar de ajuste
-    // se diferirem das props reais (`responsavel`, `createdAt`).
-    // Neste código, usarei as novas (Capitalizadas) para o JSX e as antigas (minúsculas)
-    // na lógica, assumindo que `fetchLeadsFromSheet` faz o mapeamento,
-    // ou que você ajustará os nomes no componente pai.
     
-    // 💡 Novo estado para o status selecionado, necessário para o novo layout de dropdown
-    const [statusSelecionado, setStatusSelecionado] = useState({});
-
-    const [selecionados, setSelecionados] = useState({});
+    // Estados de Interatividade
+    const [statusSelecionado, setStatusSelecionado] = useState({}); // Necessário para o dropdown de status
+    const [selecionados, setSelecionados] = useState({}); // Para atribuição de leads
+    const [observacoes, setObservacoes] = useState({}); // Texto da observação
+    const [isEditingObservacao, setIsEditingObservacao] = useState({}); // Estado de edição do textarea
+    
+    // Estados de UI e Filtro
     const [paginaAtual, setPaginaAtual] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
-    const [observacoes, setObservacoes] = useState({});
-    const [isEditingObservacao, setIsEditingObservacao] = useState({});
     const [dataInput, setDataInput] = useState('');
     const [filtroData, setFiltroData] = useState('');
     const [nomeInput, setNomeInput] = useState('');
@@ -52,8 +45,12 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [showNotification, setShowNotification] = useState(false);
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
 
+    // -------------------------------------------------------------------------
+    // 3. Efeitos e Inicialização
+    // -------------------------------------------------------------------------
+
     useEffect(() => {
-        // Inicialização de filtros e estados
+        // Inicialização de filtros
         const today = new Date();
         const ano = today.getFullYear();
         const mes = String(today.getMonth() + 1).padStart(2, '0');
@@ -62,6 +59,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         setDataInput(mesAnoAtual);
         setFiltroData(mesAnoAtual);
 
+        // Inicialização de estados por lead
         const initialObservacoes = {};
         const initialIsEditingObservacao = {};
         const initialStatusSelecionado = {};
@@ -75,7 +73,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
         setObservacoes(initialObservacoes);
         setIsEditingObservacao(initialIsEditingObservacao);
-        setStatusSelecionado(initialStatusSelecionado); // Inicializa o estado de seleção
+        setStatusSelecionado(initialStatusSelecionado);
     }, [leads]);
 
     useEffect(() => {
@@ -99,7 +97,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     }, [leads]);
 
     // -------------------------------------------------------------------------
-    // 3. Funções de Lógica e Dados
+    // 4. Funções de Manipulação (Status, Observação, Atribuição)
     // -------------------------------------------------------------------------
 
     const handleRefreshLeads = async () => {
@@ -119,20 +117,64 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
         if (!novoStatus) return;
 
-        // onUpdateStatus já trata a chamada à API e o refresh, passando o phone
+        // Chama a função passada por prop para atualizar e salvar no Sheets
         onUpdateStatus(leadId, novoStatus, lead.phone); 
         
-        // Lógica para abrir observação se o novo status exigir
+        // Lógica para controle do campo de observação
         const currentLead = leads.find(l => l.id === leadId);
         const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
 
         if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) && hasNoObservacao) {
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
         } else if (novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) {
+            // Se já tiver observação, desabilita a edição para forçar o clique em 'Editar'
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
         } else {
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
         }
+    };
+
+    const handleObservacaoChange = (leadId, text) => {
+        setObservacoes((prev) => ({
+            ...prev,
+            [leadId]: text,
+        }));
+    };
+
+    const handleSalvarObservacao = async (leadId) => {
+        const observacaoTexto = observacoes[leadId] || '';
+        if (!observacaoTexto.trim()) {
+            alert('Por favor, digite uma observação antes de salvar.');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            // Chamada POST para o Google Apps Script para salvar a observação
+            await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({
+                    leadId: leadId,
+                    observacao: observacaoTexto,
+                }),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
+            // Recarrega os leads para exibir a observação salva
+            fetchLeadsFromSheet(SHEET_NAME); 
+        } catch (error) {
+            console.error('Erro ao salvar observação:', error);
+            alert('Erro ao salvar observação. Por favor, tente novamente.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAlterarObservacao = (leadId) => {
+        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
     };
 
     const handleSelect = (leadId, userId) => {
@@ -152,21 +194,21 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         const lead = leads.find((l) => l.id === leadId);
         const responsavelUsuario = usuarios.find(u => u.id === userId)?.nome || '';
 
-        // 1. Atualiza o estado local temporariamente (Opcional)
-        transferirLead(leadId, userId);
+        // 1. Atualiza o estado local temporariamente
+        transferirLead(leadId, responsavelUsuario);
 
         // 2. Prepara e envia para o Google Apps Script
         const leadAtualizado = { 
-            ...lead, 
+            id: lead.id, // ID é crucial
             usuarioId: userId, 
-            // 💡 Usando o nome do responsável, pois é o que o GAS deve esperar.
-            Responsavel: responsavelUsuario 
+            Responsavel: responsavelUsuario // Envia o nome do responsável
         };
         enviarLeadAtualizado(leadAtualizado);
     };
 
     const enviarLeadAtualizado = async (lead) => {
         try {
+            // Chamada POST para o Google Apps Script para alterar o atribuído
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -186,53 +228,14 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             ...prev,
             [leadId]: '',
         }));
-        transferirLead(leadId, null);
-    };
-
-    const handleObservacaoChange = (leadId, text) => {
-        setObservacoes((prev) => ({
-            ...prev,
-            [leadId]: text,
-        }));
-    };
-
-    const handleSalvarObservacao = async (leadId) => {
-        const observacaoTexto = observacoes[leadId] || '';
-        if (!observacaoTexto.trim()) {
-            alert('Por favor, digite uma observação antes de salvar.');
-            return;
-        }
-
-        setIsLoading(true);
-        try {
-            await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify({
-                    leadId: leadId,
-                    observacao: observacaoTexto,
-                }),
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-            fetchLeadsFromSheet(SHEET_NAME); 
-        } catch (error) {
-            console.error('Erro ao salvar observação:', error);
-            alert('Erro ao salvar observação. Por favor, tente novamente.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleAlterarObservacao = (leadId) => {
-        setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
+        transferirLead(leadId, null); // Remove o responsável localmente
     };
 
     // -------------------------------------------------------------------------
-    // 4. Lógica de Filtros e Paginação
+    // 5. Lógica de Filtros e Paginação
     // -------------------------------------------------------------------------
+    
+    // Funções de filtro, paginação e formatação (Mantidas do código anterior, com refinamento)
 
     const normalizarTexto = (texto = '') => {
         return texto
@@ -280,9 +283,9 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     };
 
     const gerais = leads.filter((lead) => {
-        // Ignora Fechado/Perdido, a menos que o filtro de status seja explicitamente um deles.
+        // Ignora Fechado/Perdido se nenhum filtro de status estiver ativo
         if (lead.status === 'Fechado' || lead.status === 'Perdido') {
-            if (filtroStatus === 'Fechado' || filtroStatus === 'Perdido') {
+             if (filtroStatus === 'Fechado' || filtroStatus === 'Perdido') {
                 return lead.status === filtroStatus;
             }
             return false;
@@ -302,10 +305,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             return lead.status === filtroStatus;
         }
 
-        // 💡 Assumindo que o campo de data de criação no lead é `Data` (minúscula) ou `createdAt`
-        // Mantenho a checagem com `createdAt` por coerência com o código anterior, 
-        // mas o layout usa `lead.Data`. Vou manter a lógica com o padrão esperado do backend (`createdAt`).
         if (filtroData) {
+            // Assumindo que a data de criação é 'createdAt' no objeto lead
             const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : ''; 
             return leadMesAno === filtroData;
         }
@@ -345,21 +346,18 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const formatarData = (dataStr) => {
         if (!dataStr) return '';
         let data;
-        // Tenta interpretar o formato DD/MM/YYYY
         if (dataStr.includes('/')) {
             const partes = dataStr.split('/');
             data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
         } else if (dataStr.includes('-') && dataStr.length === 10) {
-            // Formato YYYY-MM-DD
             const partes = dataStr.split('-');
             data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
         } else {
-            // Tenta formato ISO ou outro
             data = new Date(dataStr);
         }
 
         if (isNaN(data.getTime())) {
-            return dataStr; // Retorna string original se a data for inválida
+            return dataStr; 
         }
         return data.toLocaleDateString('pt-BR');
     };
@@ -369,7 +367,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const leadsPagina = gerais.slice(inicio, fim);
 
     // -------------------------------------------------------------------------
-    // 5. Renderização (Novo Layout Tailwind)
+    // 6. Renderização (Novo Layout Tailwind)
     // -------------------------------------------------------------------------
 
     return (
@@ -513,9 +511,13 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                     {/* Lista de Renovações (Cards) */}
                     <div className="grid gap-6">
                         {leadsPagina.map((lead) => {
-                            // 💡 Mapeamento de nomes de campos para o seu layout (usando lead.Responsavel, lead.Data, etc.)
-                            const responsavel = usuarios.find((u) => u.nome === lead.Responsavel);
+                            // O campo `responsavel` pode ser o nome (string) ou o ID (number)
+                            // A prop `Responsavel` no JSX deve ser o nome para exibição.
+                            const responsavel = usuarios.find((u) => u.nome === lead.responsavel); // Busca o objeto usuário pelo nome no lead
                             const currentStatus = statusSelecionado[lead.id] || lead.status || STATUS_OPTIONS[0];
+                            const isStatusUnchanged = currentStatus === lead.status;
+                            const isResponsavelAssigned = !!lead.responsavel;
+
 
                             return (
                                 <div
@@ -541,7 +543,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                         <div className="md:col-span-1 border-l pl-4 border-gray-100">
                                             <p className="text-xs font-semibold uppercase text-gray-500">Veículo / Seguradora</p>
                                             <p className="text-base text-gray-800">🚗 {lead.vehicleModel} ({lead.vehicleYearModel})</p>
-                                            <p className="text-sm text-gray-600">🛡️ {lead.Seguradora}</p>
+                                            {/* Usando a prop Seguradora conforme seu layout original */}
+                                            <p className="text-sm text-gray-600">🛡️ {lead.Seguradora}</p> 
                                         </div>
 
                                         {/* Prêmio Líquido / Comissão */}
@@ -554,6 +557,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                         {/* Vigência Final */}
                                         <div className="md:col-span-1 border-l pl-4 border-gray-100">
                                             <p className="text-xs font-semibold uppercase text-gray-500">Vigência Final</p>
+                                            {/* Usando a prop VigenciaFinal conforme seu layout original */}
                                             <p className="font-bold text-lg text-red-500">🗓️ {formatarData(lead.VigenciaFinal)}</p>
                                         </div>
                                     </div>
@@ -584,9 +588,9 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                                 </select>
                                                 <button
                                                     onClick={() => handleConfirmStatus(lead.id)}
-                                                    disabled={currentStatus === lead.status || isLoading || !lead.Responsavel}
+                                                    disabled={isStatusUnchanged || isLoading || !isResponsavelAssigned}
                                                     className="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm whitespace-nowrap"
-                                                    title={!lead.Responsavel ? "Atribua um responsável primeiro" : (currentStatus === lead.status ? "Status já é o atual" : "Confirmar novo status")}
+                                                    title={!isResponsavelAssigned ? "Atribua um responsável primeiro" : (isStatusUnchanged ? "Status já é o atual" : "Confirmar novo status")}
                                                 >
                                                     Confirmar
                                                 </button>
@@ -596,7 +600,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                         {/* Atribuição de Responsável (3) - Caixa de atribuição e suas funções */}
                                         <div className='lg:col-span-1 p-3 bg-gray-50 rounded-lg border border-gray-100'>
                                             <label className="block mb-2 font-bold text-sm text-gray-700">Atribuição de Usuário</label>
-                                            {lead.Responsavel && responsavel ? (
+                                            {isResponsavelAssigned && responsavel ? (
                                                 <div className="flex items-center justify-between bg-green-100 p-2 rounded-lg border border-green-200">
                                                     <p className="text-green-700 font-semibold text-sm">
                                                         Atribuído a: <strong>{responsavel.nome}</strong>
