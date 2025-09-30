@@ -1,49 +1,55 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Lead from './components/Lead'; // O componente Lead é mantido
-import { RefreshCcw, Bell, Filter, Save, Edit, User, Send, X, Calendar, Search } from 'lucide-react';
+import { RefreshCcw, Bell, Search, Send, Edit, Save, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // ===============================================
-// 1. CONFIGURAÇÃO PARA A ABA 'Renovações' (Mantida)
+// 1. CONFIGURAÇÃO (MANTIDA)
 // ===============================================
 const SHEET_NAME = 'Renovações';
 
-// URL base do seu Google Apps Script
-const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGP9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
-
 // URLs com o parâmetro 'sheet' adicionado para apontar para a nova aba
-const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?sheet=${SHEET_NAME}`;
+const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar_atribuido&sheet=${SHEET_NAME}`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
 
+
 // ===============================================
-// 2. COMPONENTE RENOMEADO PARA 'Renovacoes' (Com Refatoração de Layout - Opção 2)
+// 2. COMPONENTE RENOVACIONES (REESTILIZADO - OPÇÃO 3)
 // ===============================================
 
-// --- COMPONENTE AUXILIAR: Botão de Status Compacto ---
-const StatusBadge = ({ status, onClick, filtroStatus, isScheduledToday }) => {
-    let bgColor = 'bg-gray-100 text-gray-600 border border-gray-300';
-    let ringColor = '';
+// --- COMPONENTE AUXILIAR: StatusButton com Contagem ---
+const StatusFilterButton = ({ status, count, currentFilter, onClick, color, isScheduledToday }) => {
+    const isSelected = currentFilter === status;
+    let baseClasses = `px-5 py-2 text-sm font-semibold rounded-full shadow-md transition duration-300 flex items-center justify-center whitespace-nowrap`;
+    let activeClasses = `ring-2 ring-offset-2`;
+    let nonActiveClasses = `hover:opacity-80`;
 
-    if (status === 'Em Contato') {
-        bgColor = 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200';
-        ringColor = 'ring-yellow-500';
+    // Classes de cores
+    let statusColors = '';
+    if (status === 'Todos') {
+        statusColors = isSelected ? 'bg-indigo-700 text-white ring-indigo-300' : 'bg-indigo-500 text-white hover:bg-indigo-600';
+    } else if (status === 'Em Contato') {
+        statusColors = isSelected ? 'bg-yellow-600 text-white ring-yellow-300' : 'bg-yellow-500 text-white hover:bg-yellow-600';
     } else if (status === 'Sem Contato') {
-        bgColor = 'bg-red-100 text-red-700 hover:bg-red-200';
-        ringColor = 'ring-red-500';
+        statusColors = isSelected ? 'bg-red-600 text-white ring-red-300' : 'bg-red-500 text-white hover:bg-red-600';
     } else if (status === 'Agendado' && isScheduledToday) {
-        bgColor = 'bg-blue-100 text-blue-700 hover:bg-blue-200 font-bold';
-        ringColor = 'ring-blue-500';
+        statusColors = isSelected ? 'bg-cyan-600 text-white ring-cyan-300' : 'bg-cyan-500 text-white hover:bg-cyan-600';
+    } else {
+        statusColors = 'bg-gray-200 text-gray-700 hover:bg-gray-300';
     }
-
-    const isSelected = filtroStatus === status;
-
+    
+    const label = isScheduledToday ? `Agendados` : status;
+    
     return (
         <button
             onClick={() => onClick(status)}
-            className={`px-3 py-1 text-xs font-medium rounded-full transition duration-150 ease-in-out whitespace-nowrap shadow-sm 
-                ${bgColor} ${isSelected ? `ring-2 ${ringColor} ring-offset-2` : ''}`}
+            className={`${baseClasses} ${statusColors} ${isSelected ? activeClasses : nonActiveClasses}`}
+            disabled={status !== 'Todos' && status !== 'Agendado' && count === 0}
         >
-            {isScheduledToday && status === 'Agendado' ? `Agendados Hoje` : status}
+            {label} 
+            {status !== 'Todos' && (
+                <span className="ml-2 px-2 py-0.5 text-xs font-bold bg-white bg-opacity-30 rounded-full">{count}</span>
+            )}
         </button>
     );
 };
@@ -59,11 +65,10 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [filtroData, setFiltroData] = useState('');
     const [nomeInput, setNomeInput] = useState('');
     const [filtroNome, setFiltroNome] = useState('');
-    const [filtroStatus, setFiltroStatus] = useState(null);
-    const [showFiltersDrawer, setShowFiltersDrawer] = useState(false); // NOVO ESTADO: Drawer
+    const [filtroStatus, setFiltroStatus] = useState(null); // 'Todos', 'Em Contato', 'Sem Contato', 'Agendado'
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
-    
-    // --- LÓGICAS (MANTIDAS) ---
+
+    // --- LÓGICAS (MANTIDAS/AJUSTADAS) ---
     useEffect(() => {
         // Inicializa com o mês e ano atual
         const today = new Date();
@@ -72,7 +77,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         const mesAnoAtual = `${ano}-${mes}`;
         setDataInput(mesAnoAtual);
         setFiltroData(mesAnoAtual);
-        
+        setFiltroStatus('Todos'); // Começa com 'Todos'
+
         // Inicializa observações e estado de edição
         const initialObservacoes = {};
         const initialIsEditingObservacao = {};
@@ -100,7 +106,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         setHasScheduledToday(todayAppointments.length > 0);
     }, [leads]);
 
-
     const handleRefreshLeads = async () => {
         setIsLoading(true);
         try {
@@ -125,30 +130,19 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const aplicarFiltroData = () => {
         setFiltroData(dataInput);
         setFiltroNome(''); setNomeInput(''); setFiltroStatus(null); setPaginaAtual(1);
-        setShowFiltersDrawer(false); // Fecha o drawer após aplicar
     };
 
     const aplicarFiltroNome = () => {
         const filtroLimpo = nomeInput.trim();
         setFiltroNome(filtroLimpo);
         setFiltroData(''); setDataInput(''); setFiltroStatus(null); setPaginaAtual(1);
-        setShowFiltersDrawer(false); // Fecha o drawer após aplicar
     };
     
     const aplicarFiltroStatus = (status) => {
         setFiltroStatus(status);
         setFiltroNome(''); setNomeInput(''); setFiltroData(''); setDataInput(''); setPaginaAtual(1);
-        setShowFiltersDrawer(false); // Fecha o drawer após aplicar
     };
     
-    const removerTodosFiltros = () => {
-        setFiltroNome(''); setNomeInput('');
-        setFiltroData(''); setDataInput('');
-        setFiltroStatus(null);
-        setPaginaAtual(1);
-        setShowFiltersDrawer(false);
-    };
-
     const nomeContemFiltro = (leadNome, filtroNome) => {
         if (!filtroNome) return true;
         if (!leadNome) return false;
@@ -160,9 +154,10 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     // --- Lógica de Filtro (useMemo) ---
     const gerais = useMemo(() => {
         return leads.filter((lead) => {
+            // Exclui Fechado e Perdido sempre
             if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
-            if (filtroStatus) {
+            if (filtroStatus && filtroStatus !== 'Todos') {
                 if (filtroStatus === 'Agendado') {
                     const today = new Date();
                     const todayFormatted = today.toLocaleDateString('pt-BR');
@@ -185,11 +180,39 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 return nomeContemFiltro(lead.name, filtroNome);
             }
 
-            return true;
+            return true; // Inclui todos se não houver filtro específico (ou se o filtro for 'Todos')
         });
     }, [leads, filtroStatus, filtroData, filtroNome]);
 
+    // --- Contadores de Status (NOVO) ---
+    const statusCounts = useMemo(() => {
+        const counts = { 'Em Contato': 0, 'Sem Contato': 0, 'Agendado': 0 };
+        const today = new Date();
+        const todayFormatted = today.toLocaleDateString('pt-BR');
 
+        leads.forEach(lead => {
+            if (lead.status === 'Fechado' || lead.status === 'Perdido') return;
+
+            if (lead.status === 'Em Contato') {
+                counts['Em Contato']++;
+            } else if (lead.status === 'Sem Contato') {
+                counts['Sem Contato']++;
+            } else if (lead.status.startsWith('Agendado')) {
+                 const statusDateStr = lead.status.split(' - ')[1];
+                 if (!statusDateStr) return;
+                 const [dia, mes, ano] = statusDateStr.split('/');
+                 const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+                 const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+                 
+                 // Contagem de Agendados para hoje
+                 if (statusDateFormatted === todayFormatted) {
+                    counts['Agendado']++;
+                 }
+            }
+        });
+        return counts;
+    }, [leads]);
+    
     // --- Lógica de Paginação, Transferência e Observação (MANTIDAS) ---
     const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
     const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
@@ -308,9 +331,9 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         fetchLeadsFromSheet(SHEET_NAME);
     };
 
-    // --- Renderização do Layout (Opção 2) ---
+    // --- Renderização do Layout (Opção 3) ---
     return (
-        <div className="p-4 md:p-6 lg:p-8 relative min-h-screen bg-gray-50">
+        <div className="p-4 md:p-6 lg:p-8 relative min-h-screen bg-gray-100 font-sans">
             
             {/* Overlay de Loading */}
             {isLoading && (
@@ -325,247 +348,215 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 </div>
             )}
 
-            {/* Cabeçalho e Ações Principais */}
-            <div className="flex flex-wrap items-center justify-between mb-6 pb-4 border-b border-gray-200">
-                <div className="flex items-center gap-4">
-                    <h1 className="text-3xl font-extrabold text-gray-800">Renovações Pendentes</h1>
+            {/* Cabeçalho Principal (Moderno) */}
+            <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4 mb-4">
+                    <h1 className="text-4xl font-extrabold text-gray-900 flex items-center">
+                        <Bell size={32} className="text-indigo-500 mr-3" />
+                        Renovações Pendentes
+                    </h1>
                     
                     <button
                         title="Atualizar dados"
                         onClick={handleRefreshLeads}
                         disabled={isLoading}
-                        className={`p-2 rounded-full transition duration-300 ${isLoading ? 'text-gray-400 cursor-not-allowed' : 'text-indigo-600 hover:bg-indigo-100'}`}
+                        className={`p-3 rounded-full transition duration-300 ${isLoading ? 'text-gray-400 cursor-not-allowed' : 'text-indigo-600 hover:bg-indigo-100 shadow-sm'}`}
                     >
                         <RefreshCcw size={24} className={isLoading ? '' : 'hover:rotate-180'} />
                     </button>
-                    
-                    <button
-                        title="Abrir Filtros"
-                        onClick={() => setShowFiltersDrawer(true)}
-                        className={`p-2 rounded-full transition duration-300 bg-white shadow-md border ${showFiltersDrawer ? 'text-white bg-indigo-600' : 'text-indigo-600 hover:bg-indigo-100'}`}
-                    >
-                        <Filter size={24} />
-                    </button>
-
                 </div>
-
-                {/* Notificação de Agendamento */}
-                {hasScheduledToday && (
-                    <div className="relative p-2 rounded-full bg-red-50 ring-2 ring-red-200">
-                        <Bell size={24} className="text-red-600" title="Agendamentos para hoje" />
-                        <span className="absolute top-0 right-0 block h-3 w-3 rounded-full ring-2 ring-white bg-red-500 animate-pulse"></span>
-                    </div>
-                )}
-            </div>
-            
-            {/* Barra Lateral de Filtros (Drawer) */}
-            <div className={`fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-40 p-6 transform transition-transform duration-300 ${showFiltersDrawer ? 'translate-x-0' : 'translate-x-full'}`}>
-                <div className="flex justify-between items-center pb-4 border-b mb-4">
-                    <h2 className="text-xl font-bold text-gray-800 flex items-center"><Filter size={20} className="mr-2" /> Opções de Filtro</h2>
-                    <button onClick={() => setShowFiltersDrawer(false)} className="p-1 rounded-full text-gray-500 hover:bg-gray-100"><X size={24} /></button>
-                </div>
-
-                {/* Filtro por Nome */}
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Buscar Nome:</label>
-                    <div className="flex gap-2">
+                
+                {/* Controles de Filtro (Inline) */}
+                <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch">
+                    {/* Filtro de Nome */}
+                    <div className="flex items-center gap-2 flex-1 min-w-[200px]">
                         <input
                             type="text"
-                            placeholder="Nome do cliente"
+                            placeholder="Buscar por nome..."
                             value={nomeInput}
                             onChange={(e) => setNomeInput(e.target.value)}
-                            className="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                            className="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                         />
-                        <button onClick={aplicarFiltroNome} className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition duration-200"><Search size={18} /></button>
+                        <button 
+                            onClick={aplicarFiltroNome}
+                            className="p-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition duration-200 shadow-md"
+                        >
+                            <Search size={20} />
+                        </button>
                     </div>
-                </div>
 
-                {/* Filtro por Data */}
-                <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mês/Ano de Criação:</label>
-                    <div className="flex gap-2">
+                    {/* Filtro de Data */}
+                    <div className="flex items-center gap-2 flex-1 min-w-[200px] justify-end">
                         <input
                             type="month"
                             value={dataInput}
                             onChange={(e) => setDataInput(e.target.value)}
-                            className="flex-grow p-2 border border-gray-300 rounded-lg cursor-pointer text-sm"
+                            className="p-3 border border-gray-300 rounded-lg cursor-pointer text-sm"
+                            title="Filtrar por Mês/Ano de Criação"
                         />
-                        <button onClick={aplicarFiltroData} className="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-lg transition duration-200"><Calendar size={18} /></button>
+                        <button 
+                            onClick={aplicarFiltroData}
+                            className="p-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition duration-200 shadow-md whitespace-nowrap"
+                        >
+                            Filtrar Data
+                        </button>
                     </div>
                 </div>
-
-                {/* Filtro por Status */}
-                <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Filtrar por Status:</label>
-                    <div className="flex flex-wrap gap-2">
-                        <StatusBadge status="Em Contato" filtroStatus={filtroStatus} onClick={aplicarFiltroStatus} />
-                        <StatusBadge status="Sem Contato" filtroStatus={filtroStatus} onClick={aplicarFiltroStatus} />
-                        {hasScheduledToday && <StatusBadge status="Agendado" filtroStatus={filtroStatus} onClick={aplicarFiltroStatus} isScheduledToday={true} />}
-                    </div>
-                </div>
-                
-                {/* Ação: Remover Filtros */}
-                <button 
-                    onClick={removerTodosFiltros}
-                    className="w-full py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition duration-150 font-medium"
-                >
-                    Remover Filtros
-                </button>
             </div>
             
-            {/* Conteúdo Principal (Lista) */}
-            <div className="relative">
-                {/* Tabela/Lista Compacta (Listagem de Alta Densidade) */}
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100 divide-y divide-gray-100">
-                    
-                    {/* Cabeçalho da Tabela (Desktop) */}
-                    <div className="hidden lg:grid grid-cols-6 gap-4 p-4 text-sm font-semibold text-gray-500 border-b">
-                        <div className="col-span-2">Cliente / Detalhes</div>
-                        <div className="col-span-1">Status</div>
-                        <div className="col-span-2">Atribuição / Observações</div>
-                        <div className="col-span-1 text-right">Ações</div>
+            {/* Barra de Filtro de Status (Abas Estilizadas) */}
+            <div className="flex flex-wrap gap-3 justify-center mb-8">
+                <StatusFilterButton status="Todos" count={gerais.length} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} color="purple" />
+                <StatusFilterButton status="Em Contato" count={statusCounts['Em Contato']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} color="yellow" />
+                <StatusFilterButton status="Sem Contato" count={statusCounts['Sem Contato']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} color="red" />
+                {hasScheduledToday && <StatusFilterButton status="Agendado" count={statusCounts['Agendado']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} isScheduledToday={true} color="cyan" />}
+            </div>
+
+            {/* Lista de Cards de Leads */}
+            <div className="space-y-5">
+                {gerais.length === 0 && !isLoading ? (
+                    <div className="text-center p-12 bg-white rounded-xl shadow-md text-gray-600 text-lg">
+                        <p>🎉 Nenhuma renovação encontrada para os filtros aplicados. 🎉</p>
                     </div>
-                    
-                    {/* Mensagem de Ausência de Leads */}
-                    {gerais.length === 0 && !isLoading ? (
-                        <div className="text-center p-8 text-gray-600">
-                            Não há renovações para exibir com os filtros atuais.
-                        </div>
-                    ) : (
-                        leadsPagina.map((lead) => {
-                            const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
-                            const shouldShowObs = lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado');
+                ) : (
+                    leadsPagina.map((lead) => {
+                        const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
+                        const shouldShowObs = lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado');
 
-                            return (
-                                <div 
-                                    key={lead.id}
-                                    className="grid grid-cols-1 lg:grid-cols-6 gap-4 p-4 hover:bg-indigo-50 transition duration-100 relative"
-                                >
-                                    {/* COLUNA 1 & 2: Cliente / Detalhes */}
-                                    <div className="col-span-2 space-y-1">
-                                        <div className="lg:hidden text-xs font-semibold text-gray-500">Cliente</div>
-                                        <Lead lead={lead} onUpdateStatus={handleConfirmStatus} disabledConfirm={!lead.responsavel} compact={true} />
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Criado: {formatarData(lead.createdAt)}
-                                        </p>
+                        return (
+                            <div 
+                                key={lead.id}
+                                className="bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 p-5 grid grid-cols-1 lg:grid-cols-3 gap-6 relative border-t-4 border-indigo-500"
+                            >
+                                {/* COLUNA 1: Informações do Lead */}
+                                <div className="col-span-1 border-r lg:pr-6">
+                                    <div className="mb-3">
+                                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${lead.status === 'Em Contato' ? 'bg-yellow-100 text-yellow-800' : lead.status === 'Sem Contato' ? 'bg-red-100 text-red-800' : lead.status.startsWith('Agendado') ? 'bg-cyan-100 text-cyan-800' : 'bg-gray-100 text-gray-800'}`}>
+                                            {lead.status}
+                                        </span>
                                     </div>
+                                    <Lead 
+                                        lead={lead} 
+                                        onUpdateStatus={handleConfirmStatus} 
+                                        disabledConfirm={!lead.responsavel} 
+                                        compact={false} // Mostrar info completa no card
+                                    />
+                                    <p className="mt-3 text-xs text-gray-400">
+                                        Criado em: {formatarData(lead.createdAt)}
+                                    </p>
+                                </div>
 
-                                    {/* COLUNA 3: Status */}
-                                    <div className="col-span-1 flex flex-col justify-center">
-                                        <div className="lg:hidden text-xs font-semibold text-gray-500">Status Atual</div>
-                                        <StatusBadge status={lead.status} filtroStatus={null} onClick={() => {}} />
-                                    </div>
-
-                                    {/* COLUNA 4 & 5: Atribuição / Observações (Ações em painel único) */}
-                                    <div className="col-span-2 space-y-2">
-                                        <div className="lg:hidden text-xs font-semibold text-gray-500">Atribuição & Obs</div>
-                                        {/* Painel de Atribuição */}
-                                        <div className="p-2 bg-gray-50 rounded-lg">
-                                            {lead.responsavel && responsavel ? (
-                                                <div className="flex justify-between items-center text-sm font-medium text-green-700">
-                                                    <span className="flex items-center"><User size={14} className="mr-1 text-green-500" /> Atribuído a <strong>{responsavel.nome}</strong></span>
-                                                    {isAdmin && (
-                                                        <button
-                                                            onClick={() => handleAlterar(lead.id)}
-                                                            className="px-2 py-1 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600 transition duration-150"
-                                                        >
-                                                            <X size={12} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <div className="flex gap-2 items-center">
-                                                    <select
-                                                        value={selecionados[lead.id] || ''}
-                                                        onChange={(e) => handleSelect(lead.id, e.target.value)}
-                                                        className="flex-grow p-1 text-xs rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    >
-                                                        <option value="">Transferir para...</option>
-                                                        {usuariosAtivos.map((u) => (
-                                                            <option key={u.id} value={u.id}> {u.nome} </option>
-                                                        ))}
-                                                    </select>
-                                                    <button
-                                                        onClick={() => handleEnviar(lead.id)}
-                                                        disabled={!selecionados[lead.id]}
-                                                        className="p-1 bg-indigo-500 text-white text-xs rounded-lg hover:bg-indigo-600 disabled:bg-gray-400"
-                                                    >
-                                                        <Send size={16} />
-                                                    </button>
-                                                </div>
+                                {/* COLUNA 2: Atribuição */}
+                                <div className="col-span-1 border-r lg:px-6">
+                                    <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
+                                        <User size={18} className="mr-2 text-indigo-500" />
+                                        Atribuição
+                                    </h3>
+                                    {lead.responsavel && responsavel ? (
+                                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg shadow-sm">
+                                            <p className="text-sm font-medium text-green-700">
+                                                Atribuído a: <strong>{responsavel.nome}</strong>
+                                            </p>
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={() => handleAlterar(lead.id)}
+                                                    className="mt-2 px-3 py-1 bg-amber-500 text-white text-xs rounded-full hover:bg-amber-600 transition duration-150 shadow-sm"
+                                                >
+                                                    Mudar Atribuição
+                                                </button>
                                             )}
                                         </div>
-                                        
-                                        {/* Painel de Observações */}
-                                        {shouldShowObs && (
-                                            <div className="mt-2 p-2 bg-gray-50 rounded-lg">
-                                                <label className="text-xs font-medium text-gray-700">Observação:</label>
-                                                <textarea
-                                                    value={observacoes[lead.id] || ''}
-                                                    onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
-                                                    rows="2"
-                                                    disabled={!isEditingObservacao[lead.id]}
-                                                    className={`w-full p-2 text-xs rounded-lg border resize-none ${isEditingObservacao[lead.id] ? 'border-indigo-300 bg-white' : 'border-gray-200 bg-gray-100 cursor-not-allowed'}`}
-                                                />
-                                                <div className="flex justify-end gap-2 mt-1">
-                                                    {isEditingObservacao[lead.id] ? (
-                                                        <button
-                                                            onClick={() => handleSalvarObservacao(lead.id)}
-                                                            className="flex items-center px-2 py-1 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600"
-                                                            disabled={isLoading}
-                                                        >
-                                                            <Save size={12} className="mr-1" /> Salvar
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleAlterarObservacao(lead.id)}
-                                                            className="flex items-center px-2 py-1 bg-gray-400 text-white text-xs rounded-lg hover:bg-gray-500"
-                                                        >
-                                                            <Edit size={12} className="mr-1" /> Editar
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    
-                                    {/* COLUNA 6: Ações de Status */}
-                                    <div className="col-span-1 flex flex-col justify-center items-end">
-                                        <div className="lg:hidden text-xs font-semibold text-gray-500">Ações</div>
-                                        {/* Aqui ficariam os botões de Fechado/Perdido se o Lead estivesse refatorado para ser menor */}
-                                    </div>
+                                    ) : (
+                                        <div className="flex flex-col gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+                                            <select
+                                                value={selecionados[lead.id] || ''}
+                                                onChange={(e) => handleSelect(lead.id, e.target.value)}
+                                                className="p-2 text-sm rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
+                                            >
+                                                <option value="">Transferir para...</option>
+                                                {usuariosAtivos.map((u) => (
+                                                    <option key={u.id} value={u.id}> {u.nome} </option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                onClick={() => handleEnviar(lead.id)}
+                                                disabled={!selecionados[lead.id]}
+                                                className="flex items-center justify-center p-2 bg-indigo-500 text-white text-sm rounded-lg hover:bg-indigo-600 disabled:bg-gray-400 transition duration-150"
+                                            >
+                                                <Send size={16} className="mr-1" /> Enviar
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-                            );
-                        })
-                    )}
-                </div>
 
-                {/* Paginação */}
-                <div className="flex justify-center items-center gap-4 mt-6">
-                    <button
-                        onClick={handlePaginaAnterior}
-                        disabled={paginaCorrigida <= 1 || isLoading}
-                        className="px-4 py-2 bg-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 flex items-center"
-                    >
-                        <ChevronLeft size={20} className="mr-1" /> Anterior
-                    </button>
-                    <span className="text-gray-600 font-medium">
-                        Página {paginaCorrigida} de {totalPaginas}
-                    </span>
-                    <button
-                        onClick={handlePaginaProxima}
-                        disabled={paginaCorrigida >= totalPaginas || isLoading}
-                        className="px-4 py-2 bg-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 flex items-center"
-                    >
-                        Próxima <ChevronRight size={20} className="ml-1" />
-                    </button>
-                </div>
+                                {/* COLUNA 3: Observações (Condicional) */}
+                                <div className="col-span-1 lg:pl-6">
+                                    <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
+                                        <Edit size={18} className="mr-2 text-indigo-500" />
+                                        Observações
+                                    </h3>
+                                    
+                                    {shouldShowObs ? (
+                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+                                            <textarea
+                                                value={observacoes[lead.id] || ''}
+                                                onChange={(e) => handleObservacaoChange(lead.id, e.target.value)}
+                                                rows="4"
+                                                placeholder="Adicione suas observações aqui..."
+                                                disabled={!isEditingObservacao[lead.id]}
+                                                className={`w-full p-2 text-sm rounded-lg border resize-none transition duration-150 ${isEditingObservacao[lead.id] ? 'border-indigo-300 bg-white focus:ring-indigo-500 focus:border-indigo-500' : 'border-gray-200 bg-gray-100 cursor-text'}`}
+                                            />
+                                            <div className="flex justify-end gap-2 mt-2">
+                                                {isEditingObservacao[lead.id] ? (
+                                                    <button
+                                                        onClick={() => handleSalvarObservacao(lead.id)}
+                                                        className="flex items-center px-3 py-1 bg-green-500 text-white text-sm rounded-full hover:bg-green-600 disabled:opacity-50 transition duration-150"
+                                                        disabled={isLoading}
+                                                    >
+                                                        <Save size={14} className="mr-1" /> Salvar
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleAlterarObservacao(lead.id)}
+                                                        className="flex items-center px-3 py-1 bg-gray-400 text-white text-sm rounded-full hover:bg-gray-500 transition duration-150"
+                                                    >
+                                                        <Edit size={14} className="mr-1" /> Editar
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="p-3 text-gray-500 italic">
+                                            Observações são necessárias para status "Em Contato", "Sem Contato" ou "Agendado".
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
             </div>
-            
-            {/* Overlay para fechar o Drawer ao clicar fora */}
-            {showFiltersDrawer && (
-                <div onClick={() => setShowFiltersDrawer(false)} className="fixed inset-0 bg-black opacity-30 z-30"></div>
-            )}
+
+            {/* Paginação */}
+            <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
+                <button
+                    onClick={handlePaginaAnterior}
+                    disabled={paginaCorrigida <= 1 || isLoading}
+                    className="px-5 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
+                >
+                    <ChevronLeft size={20} className="mr-1" /> Anterior
+                </button>
+                <span className="text-gray-700 font-medium text-lg">
+                    Página <strong className="text-indigo-600">{paginaCorrigida}</strong> de {totalPaginas}
+                </span>
+                <button
+                    onClick={handlePaginaProxima}
+                    disabled={paginaCorrigida >= totalPaginas || isLoading}
+                    className="px-5 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
+                >
+                    Próxima <ChevronRight size={20} className="ml-1" />
+                </button>
+            </div>
         </div>
     );
 };
