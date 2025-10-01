@@ -8,16 +8,56 @@ import { RefreshCcw, Bell, Search, Send, Edit, Save, User, ChevronLeft, ChevronR
 const SHEET_NAME = 'Renovações';
 
 // URLs com o parâmetro 'sheet' adicionado para apontar para a nova aba
-const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
+const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGP9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar_atribuido&sheet=${SHEET_NAME}`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
+
+// ===============================================
+// FUNÇÃO AUXILIAR PARA O FILTRO DE DATA
+// ===============================================
+
+/**
+ * Normaliza uma string de data (assumindo dd/mm/aaaa, aaaa-mm-dd ou objeto Date) para o formato 'aaaa-mm'.
+ * @param {string | Date} dateValue - O valor da data do lead.
+ * @returns {string} A data formatada como 'aaaa-mm' ou uma string vazia.
+ */
+const getYearMonthFromDate = (dateValue) => {
+    if (!dateValue) return '';
+
+    let date;
+    
+    // Tenta tratar como dd/mm/aaaa (formato Sheets/BR se não for ISO)
+    if (typeof dateValue === 'string' && dateValue.includes('/')) {
+        const parts = dateValue.split('/');
+        // Cria uma data com Ano-Mês-Dia (evita problemas de fuso horário com new Date(string))
+        date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    } 
+    // Tenta tratar como aaaa-mm-dd (formato input[type=month] ou ISO)
+    else if (typeof dateValue === 'string' && dateValue.includes('-') && dateValue.length >= 7) {
+        const parts = dateValue.split('-');
+        date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1); // Apenas mês e ano
+    }
+    // Tenta criar como objeto Date
+    else {
+        date = new Date(dateValue);
+    }
+    
+    if (isNaN(date.getTime())) {
+        return '';
+    }
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    
+    return `${year}-${month}`;
+};
 
 
 // ===============================================
 // 2. COMPONENTE RENOVACIONES (AJUSTADO)
 // ===============================================
 
-// --- COMPONENTE AUXILIAR: StatusButton com Contagem ---
+// --- COMPONENTE AUXILIAR: StatusButton com Contagem (MANTIDO) ---
 const StatusFilterButton = ({ status, count, currentFilter, onClick, isScheduledToday }) => {
     const isSelected = currentFilter === status;
     let baseClasses = `px-5 py-2 text-sm font-semibold rounded-full shadow-md transition duration-300 flex items-center justify-center whitespace-nowrap`;
@@ -69,18 +109,20 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
     const [showNotification, setShowNotification] = useState(false); 
 
-    // --- LÓGICAS (MANTIDAS/AJUSTADAS) ---
+    // --- LÓGICAS (AJUSTADAS) ---
     useEffect(() => {
-        // Inicializa com o mês e ano atual
+        // 🚨 NOVIDADE: Inicializa com o MÊS e ANO ATUAL, focado na VIGENCIA FINAL
         const today = new Date();
         const ano = today.getFullYear();
         const mes = String(today.getMonth() + 1).padStart(2, '0');
         const mesAnoAtual = `${ano}-${mes}`;
+        
+        // Define o input e o filtro da Vigência Final para o Mês/Ano atual
         setDataInput(mesAnoAtual);
         setFiltroData(mesAnoAtual);
         setFiltroStatus('Todos'); 
 
-        // Inicializa observações e estado de edição
+        // Inicializa observações e estado de edição (lógica mantida)
         const initialObservacoes = {};
         const initialIsEditingObservacao = {};
         leads.forEach(lead => {
@@ -92,7 +134,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     }, [leads]);
 
     useEffect(() => {
-        // Verifica agendamentos para hoje (para o sino e o filtro)
+        // Verifica agendamentos para hoje (para o sino e o filtro) - Lógica Mantida
         const today = new Date();
         const todayFormatted = today.toLocaleDateString('pt-BR');
         const todayAppointments = leads.filter(lead => {
@@ -111,10 +153,14 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         setIsLoading(true);
         try {
             await fetchLeadsFromSheet(SHEET_NAME);
+            // Re-inicializa os estados de observação após o refresh
+            const refreshedObservacoes = {};
             const refreshedIsEditingObservacao = {};
             leads.forEach(lead => {
+                refreshedObservacoes[lead.id] = lead.observacao || '';
                 refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
             });
+            setObservacoes(refreshedObservacoes);
             setIsEditingObservacao(refreshedIsEditingObservacao);
         } catch (error) {
             console.error('Erro ao buscar leads atualizados:', error);
@@ -129,6 +175,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     };
 
     const aplicarFiltroData = () => {
+        // Filtro de data aplica o valor do input (AAAA-MM) à variável de filtro
         setFiltroData(dataInput);
         setFiltroNome(''); setNomeInput(''); setFiltroStatus(null); setPaginaAtual(1);
     };
@@ -158,8 +205,10 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             // Exclui Fechado e Perdido sempre
             if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
+            // 1. FILTRO DE STATUS
             if (filtroStatus && filtroStatus !== 'Todos') {
                 if (filtroStatus === 'Agendado') {
+                    // Filtra por Agendados para Hoje (Lógica Mantida)
                     const today = new Date();
                     const todayFormatted = today.toLocaleDateString('pt-BR');
                     const statusDateStr = lead.status.split(' - ')[1];
@@ -172,18 +221,22 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 return lead.status === filtroStatus;
             }
 
+            // 2. FILTRO DE DATA (VIGENCIA FINAL) 🚨 NOVIDADE AQUI!
             if (filtroData) {
-                const leadMesAno = lead.createdAt ? lead.createdAt.substring(0, 7) : '';
-                return leadMesAno === filtroData;
+                // Filtra pelo mês e ano da VIGENCIA FINAL (coluna P)
+                const leadVigenciaMesAno = getYearMonthFromDate(lead.VigenciaFinal);
+                return leadVigenciaMesAno === filtroData;
             }
 
+            // 3. FILTRO DE NOME
             if (filtroNome) {
                 return nomeContemFiltro(lead.name, filtroNome);
             }
 
+            // Se nenhum filtro estiver ativo (o que não deve ocorrer na inicialização devido ao useEffect)
             return true; 
         });
-    }, [leads, filtroStatus, filtroData, filtroNome]);
+    }, [leads, filtroStatus, filtroData, filtroNome]); // Dependências ajustadas para incluir filtroData
 
     // --- Contadores de Status (MANTIDOS) ---
     const statusCounts = useMemo(() => {
@@ -413,14 +466,14 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                         </button>
                     </div>
 
-                    {/* Filtro de Data */}
+                    {/* Filtro de Data (Vigência Final) */}
                     <div className="flex items-center gap-2 flex-1 min-w-[200px] justify-end">
                         <input
                             type="month"
                             value={dataInput}
                             onChange={(e) => setDataInput(e.target.value)}
                             className="p-3 border border-gray-300 rounded-lg cursor-pointer text-sm"
-                            title="Filtrar por Mês/Ano de Criação"
+                            title="Filtrar por Mês/Ano da Vigência Final"
                         />
                         <button 
                             onClick={aplicarFiltroData}
@@ -444,7 +497,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             <div className="space-y-5">
                 {gerais.length === 0 && !isLoading ? (
                     <div className="text-center p-12 bg-white rounded-xl shadow-md text-gray-600 text-lg">
-                        <p> Você não tem nenhuma renovação no momento. </p>
+                        <p> Você não tem nenhuma renovação para o filtro selecionado no momento. </p>
                     </div>
                 ) : (
                     leadsPagina.map((lead) => {
@@ -470,7 +523,11 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                         disabledConfirm={!lead.responsavel} 
                                         compact={false}
                                     />
-                                    <p className="mt-3 text-xs text-gray-400">
+                                    {/* Exibição da Vigência Final com destaque */}
+                                    <p className="mt-3 text-sm font-semibold text-gray-700">
+                                        Vigência Final: <strong className="text-indigo-600">{formatarData(lead.VigenciaFinal)}</strong>
+                                    </p>
+                                    <p className="mt-1 text-xs text-gray-400">
                                         Criado em: {formatarData(lead.createdAt)}
                                     </p>
                                 </div>
@@ -482,7 +539,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             {/* Título "Observações" removido */}
                                             <textarea
                                                 value={observacoes[lead.id] || ''}
-                                                onChange={(e) => handleObservacaoChange(lead.target.value)}
+                                                onChange={(e) => handleObservacaoChange(lead.id, e.target.value)} {/* Corrigido: deve usar lead.id e e.target.value */}
                                                 rows="4"
                                                 placeholder="Adicione suas observações aqui..."
                                                 disabled={!isEditingObservacao[lead.id]}
