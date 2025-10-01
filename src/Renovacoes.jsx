@@ -293,6 +293,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     };
 
     const handleSelect = (leadId, userId) => {
+        // userId vem como string do select, mas é armazenado como Number no estado 'selecionados'
         setSelecionados((prev) => ({ ...prev, [leadId]: Number(userId) }));
     };
 
@@ -308,36 +309,41 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     };
     
     /**
-     * CORREÇÃO: Busca o nome do usuário e o envia no payload para o Sheets Script.
-     * O Sheets Script provavelmente espera o "responsavel" (nome) para salvar na Coluna I.
+     * CORREÇÃO: Garante que o ID do usuário selecionado seja tratado como número 
+     * para buscar corretamente na lista de usuários.
      */
     const handleEnviar = (leadId) => {
-        const userId = selecionados[leadId];
+        // Obtém o ID do usuário (que deve ser Number, pois foi convertido no handleSelect)
+        const userId = selecionados[leadId]; 
+        
         if (!userId) {
             alert('Selecione um usuário antes de enviar.');
             return;
         }
 
         const lead = leads.find((l) => l.id === leadId);
-        // 1. Encontra o objeto do usuário ativo
-        const usuarioSelecionado = usuariosAtivos.find(u => u.id === userId);
+        
+        // CORREÇÃO AQUI: Garante que a busca na lista seja feita com o ID NUMÉRICO.
+        // A lista 'usuariosAtivos' foi criada antes com base no array 'usuarios'
+        const usuarioSelecionado = usuariosAtivos.find(u => u.id === Number(userId)); 
 
         if (!usuarioSelecionado) {
-             alert('Erro: Usuário selecionado não encontrado.');
+             alert('Erro: Usuário selecionado não encontrado. Verifique se o ID está mapeado corretamente ou se o usuário está Ativo.');
+             console.error('Falha na busca pelo usuário. userId:', userId, 'usuariosAtivos:', usuariosAtivos);
              return;
         }
 
-        // 2. Cria o objeto atualizado, incluindo o nome do responsável.
+        // Cria o objeto atualizado, incluindo o nome do responsável.
         const leadAtualizado = { 
             ...lead, 
-            usuarioId: userId, // Mantém para uso interno
-            responsavel: usuarioSelecionado.nome // CHAVE CORRIGIDA: Envia o nome do responsável
+            usuarioId: userId, 
+            responsavel: usuarioSelecionado.nome // CHAVE CORRIGIDA
         };
 
-        // 3. Chama a função de transferência do React (atualiza o estado local/global)
+        // Chama a função de transferência do React
         transferirLead(leadId, userId);
         
-        // 4. Envia a atualização para o Google Sheets Script
+        // Envia a atualização para o Google Sheets Script
         enviarLeadAtualizado(leadAtualizado);
     };
 
