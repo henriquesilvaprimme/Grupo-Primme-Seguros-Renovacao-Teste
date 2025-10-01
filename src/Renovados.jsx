@@ -371,6 +371,20 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     textAlign: 'left',
   };
 
+  // --- NOVO: Função auxiliar para formatar datas (YYYY-MM-DD para DD/MM/YYYY) ---
+  const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    // Assume YYYY-MM-DD ou DD/MM/YYYY (do lead original)
+    if (dateStr.includes('-')) {
+      // YYYY-MM-DD
+      const [year, month, day] = dateStr.split('-');
+      if (year && month && day) {
+          return `${day}/${month}/${year}`;
+      }
+    }
+    return dateStr;
+  };
+
   return (
     <div id="leads-container" style={{ padding: '20px', position: 'relative', minHeight: 'calc(100vh - 100px)' }}>
       {isLoading && (
@@ -386,6 +400,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         <button title='Clique para atualizar os dados'
           onClick={handleRefresh}
           disabled={isLoading}
+          style={{
+            border: 'none',
+            padding: '8px',
+            borderRadius: '50%',
+            backgroundColor: '#e9ecef',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+          }}
         >
           {isLoading ? (
             <svg className="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -406,6 +427,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
           marginBottom: '20px',
           flexWrap: 'wrap',
           gap: '10px',
+          marginTop: '15px'
         }}
       >
         <div
@@ -414,7 +436,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             alignItems: 'center',
             gap: '8px',
             flex: '1',
-            justifyContent: 'center',
+            justifyContent: 'flex-start',
             minWidth: '280px',
           }}
         >
@@ -431,7 +453,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
               height: '36px',
             }}
           >
-            Filtrar
+            Filtrar Nome
           </button>
           <input
             type="text"
@@ -473,7 +495,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
               height: '36px',
             }}
           >
-            Filtrar
+            Filtrar Data
           </button>
           <input
             type="month"
@@ -497,20 +519,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
       ) : (
         <>
           {leadsPagina.map((lead) => {
-            const containerStyle = {
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '15px',
-              marginBottom: '15px',
-              borderRadius: '5px',
-              backgroundColor: lead.Seguradora ? '#e6f4ea' : '#fff',
-              border: lead.Seguradora ? '2px solid #4CAF50' : '1px solid #ddd',
-            };
-
+            const isSeguradoraPreenchida = !!lead.Seguradora;
             const responsavel = usuarios.find((u) => u.nome === lead.Responsavel && isAdmin);
 
-            const isSeguradoraPreenchida = !!lead.Seguradora;
+            // --- NOVO: Estilização do card baseada no status ---
+            const cardColor = isSeguradoraPreenchida ? '#d4edda' : '#fff3cd'; // verde claro se confirmado, laranja claro se pendente
 
             const isButtonDisabled =
               !valores[`${lead.ID}`]?.insurer ||
@@ -524,33 +537,65 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
               !vigencia[`${lead.ID}`]?.final;
 
             return (
-              <div key={lead.ID} style={containerStyle}>
-                <div style={{ flex: 1 }}>
+              // --- NOVO: Container do card com estilo consolidado ---
+              <div
+                key={lead.ID}
+                style={{
+                  border: '1px solid #ddd',
+                  padding: '15px',
+                  marginBottom: '15px',
+                  borderRadius: '5px',
+                  backgroundColor: cardColor,
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  gap: '20px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                {/* --- COLUNA DA ESQUERDA: Detalhes do Lead --- */}
+                <div style={{ flex: '1 1 300px' }}>
                   <h3>{lead.name}</h3>
                   <p><strong>Modelo:</strong> {lead.vehicleModel}</p>
                   <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
-                  <p><strong>Cidade:</strong> {lead.city}</p>
                   <p><strong>Telefone:</strong> {lead.phone}</p>
+                  <p><strong>Cidade:</strong> {lead.city}</p>
                   <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
+                  <p><strong>Data de Fechamento:</strong> {formatDateDisplay(lead.Data)}</p>
 
                   {responsavel && (
                     <p style={{ marginTop: '10px', color: '#007bff' }}>
                       Transferido para <strong>{responsavel.nome}</strong>
                     </p>
                   )}
+
+                  {/* NOVO: Exibe os valores confirmados se existirem */}
+                  {isSeguradoraPreenchida && (
+                    <div style={{ marginTop: '15px', borderTop: '1px dashed #ccc', paddingTop: '10px' }}>
+                      <p><strong>Seguradora:</strong> <span style={{ fontWeight: 'bold', color: '#007bff' }}>{lead.Seguradora}</span></p>
+                      <p><strong>Prêmio Líquido:</strong> <span style={{ fontWeight: 'bold', color: '#007bff' }}>R$ {formatarMoeda(lead.PremioLiquido * 100)}</span></p>
+                      <p><strong>Comissão:</strong> <span style={{ fontWeight: 'bold', color: '#007bff' }}>{lead.Comissao}%</span></p>
+                      <p><strong>Parcelamento:</strong> <span style={{ fontWeight: 'bold', color: '#007bff' }}>{lead.Parcelamento}</span></p>
+                      <p><strong>Vigência:</strong> <span style={{ fontWeight: 'bold', color: '#007bff' }}>{formatDateDisplay(lead.VigenciaInicial)} a {formatDateDisplay(lead.VigenciaFinal)}</span></p>
+                    </div>
+                  )}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '250px' }}>
+                {/* --- COLUNA DA DIREITA: Campos de Confirmação --- */}
+                <div style={{ flex: '1 1 250px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', borderLeft: '1px solid #ddd', paddingLeft: '20px', marginLeft: '-20px' }}>
+                  <h4 style={{ marginTop: 0, marginBottom: '10px', color: '#333' }}>Detalhes do Fechamento</h4>
+
                   <select
                     value={valores[`${lead.ID}`]?.insurer || ''}
                     onChange={(e) => handleInsurerChange(lead.ID, e.target.value)}
                     disabled={isSeguradoraPreenchida}
                     style={{
                       padding: '8px',
-                      border: '2px solid #ccc',
+                      border: isSeguradoraPreenchida ? '1px solid #ccc' : '2px solid #007bff',
                       borderRadius: '4px',
                       width: '100%',
                       marginBottom: '8px',
+                      backgroundColor: isSeguradoraPreenchida ? '#e9ecef' : '#fff',
                     }}
                   >
                     <option value="">Selecione a seguradora</option>
@@ -569,7 +614,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                       onChange={(e) => handlePremioLiquidoChange(lead.ID, e.target.value)}
                       onBlur={() => handlePremioLiquidoBlur(lead.ID)}
                       disabled={isSeguradoraPreenchida}
-                      style={inputWithPrefixStyle}
+                      style={{...inputWithPrefixStyle, backgroundColor: isSeguradoraPreenchida ? '#e9ecef' : '#fff'}}
                     />
                   </div>
 
@@ -581,7 +626,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                       value={valores[`${lead.ID}`]?.Comissao || ''}
                       onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
                       disabled={isSeguradoraPreenchida}
-                      style={inputWithPrefixStyle}
+                      style={{...inputWithPrefixStyle, backgroundColor: isSeguradoraPreenchida ? '#e9ecef' : '#fff'}}
                     />
                   </div>
 
@@ -595,6 +640,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                       borderRadius: '4px',
                       width: '100%',
                       marginBottom: '8px',
+                      backgroundColor: isSeguradoraPreenchida ? '#e9ecef' : '#fff',
                     }}
                   >
                     <option value="">Parcelamento</option>
@@ -614,6 +660,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                       style={{
                         ...inputNoPrefixStyle,
                         marginBottom: '8px',
+                        backgroundColor: isSeguradoraPreenchida ? '#e9ecef' : '#fff',
                       }}
                     />
                   </div>
@@ -658,13 +705,14 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                         borderRadius: '4px',
                         cursor: isButtonDisabled ? 'default' : 'pointer',
                         width: '100%',
+                        marginTop: '8px',
                       }}
                     >
-                      Confirmar Seguradora
+                      Confirmar Detalhes
                     </button>
                   ) : (
-                    <span style={{ marginTop: '8px', color: 'green', fontWeight: 'bold' }}>
-                      Status confirmado
+                    <span style={{ padding: '8px 16px', marginTop: '8px', color: '#fff', backgroundColor: '#4CAF50', fontWeight: 'bold', borderRadius: '4px', width: '100%', textAlign: 'center' }}>
+                      ✅ DETALHES CONFIRMADOS
                     </span>
                   )}
                 </div>
