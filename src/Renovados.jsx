@@ -372,7 +372,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4 mb-4">
                     <h1 className="text-4xl font-extrabold text-gray-900 flex items-center">
                         <CheckCircle size={32} className="text-green-500 mr-3" />
-                        Leads Fechados
+                        Renovados
                     </h1>
                     
                     <button
