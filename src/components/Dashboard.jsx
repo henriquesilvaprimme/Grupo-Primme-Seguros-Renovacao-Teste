@@ -272,13 +272,13 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           }}>
             {/* Contador: Total de Leads */}
             <div style={{ ...compactCardStyle, minWidth: '150px' }}>
-                <p style={titleTextStyle}>Total de Leads</p>
+                <p style={titleTextStyle}>Total de Renovações</p>
                 <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
             </div>
 
             {/* Contador: Vendas */}
             <div style={{ ...compactCardStyle, backgroundColor: '#d1fae5', border: '1px solid #a7f3d0' }}>
-                <p style={{ ...titleTextStyle, color: '#059669' }}>Vendas</p>
+                <p style={{ ...titleTextStyle, color: '#059669' }}>Renovados</p>
                 <p style={{ ...valueTextStyle, color: '#059669' }}>{leadsFechadosCount}</p>
             </div>
 
@@ -295,7 +295,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                 justifyContent: 'center',
                 minWidth: '150px'
             }}>
-                <h3 style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '5px' }}>Taxa de Conversão</h3>
+                <h3 style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '5px' }}>Taxa de Renovação</h3>
                 <CircularProgressChart percentage={porcentagemVendidos} />
             </div>
           </div>
