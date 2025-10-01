@@ -266,7 +266,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         return counts;
     }, [leads]);
     
-    // --- Lógica de Paginação, Transferência e Observação (MANTIDAS) ---
+    // --- Lógica de Paginação, Transferência e Observação (AJUSTADA) ---
     const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
     const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
     const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
@@ -307,15 +307,37 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         }
     };
     
+    /**
+     * CORREÇÃO: Busca o nome do usuário e o envia no payload para o Sheets Script.
+     * O Sheets Script provavelmente espera o "responsavel" (nome) para salvar na Coluna I.
+     */
     const handleEnviar = (leadId) => {
         const userId = selecionados[leadId];
         if (!userId) {
             alert('Selecione um usuário antes de enviar.');
             return;
         }
-        transferirLead(leadId, userId);
+
         const lead = leads.find((l) => l.id === leadId);
-        const leadAtualizado = { ...lead, usuarioId: userId };
+        // 1. Encontra o objeto do usuário ativo
+        const usuarioSelecionado = usuariosAtivos.find(u => u.id === userId);
+
+        if (!usuarioSelecionado) {
+             alert('Erro: Usuário selecionado não encontrado.');
+             return;
+        }
+
+        // 2. Cria o objeto atualizado, incluindo o nome do responsável.
+        const leadAtualizado = { 
+            ...lead, 
+            usuarioId: userId, // Mantém para uso interno
+            responsavel: usuarioSelecionado.nome // CHAVE CORRIGIDA: Envia o nome do responsável
+        };
+
+        // 3. Chama a função de transferência do React (atualiza o estado local/global)
+        transferirLead(leadId, userId);
+        
+        // 4. Envia a atualização para o Google Sheets Script
         enviarLeadAtualizado(leadAtualizado);
     };
 
@@ -601,7 +623,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             <button
                                                 onClick={() => handleEnviar(lead.id)}
                                                 disabled={!selecionados[lead.id]}
-                                                className="flex items-center justify-center p-2 bg-indigo-500 text-white text-sm rounded-lg hover:bg-indigo-600 disabled:bg-gray-400 transition duration-150"
+                                                className="flex items-center justify-center px-4 py-2 bg-indigo-500 text-white text-sm rounded-lg hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 shadow-md"
                                             >
                                                 <Send size={16} className="mr-1" /> Enviar
                                             </button>
