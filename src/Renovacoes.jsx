@@ -13,7 +13,7 @@ const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
 
 // ===============================================
-// FUNÇÃO AUXILIAR PARA O FILTRO DE DATA (Mantida)
+// FUNÇÃO AUXILIAR PARA O FILTRO DE DATA
 // ===============================================
 const getYearMonthFromDate = (dateValue) => {
     if (!dateValue) return '';
@@ -22,9 +22,11 @@ const getYearMonthFromDate = (dateValue) => {
     
     if (typeof dateValue === 'string' && dateValue.includes('/')) {
         const parts = dateValue.split('/');
+        // Assumindo formato DD/MM/AAAA
         date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
     } 
     else if (typeof dateValue === 'string' && dateValue.includes('-') && dateValue.length >= 7) {
+        // Formato YYYY-MM
         const parts = dateValue.split('-');
         date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
     }
@@ -95,7 +97,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [filtroData, setFiltroData] = useState('');
     const [nomeInput, setNomeInput] = useState('');
     const [filtroNome, setFiltroNome] = useState('');
-    const [filtroStatus, setFiltroStatus] = useState('Todos');
+    const [filtroStatus, setFiltroStatus] = useState('Todos'); // Mudado para 'Todos' para iniciar sem filtro de status
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
     const [showNotification, setShowNotification] = useState(false);
 
@@ -121,14 +123,20 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
     useEffect(() => {
         const today = new Date();
-        const todayFormatted = today.toLocaleDateString('pt-BR');
+        // Formata a data de hoje para 'DD/MM/AAAA' para comparação
+        const todayFormatted = today.toLocaleDateString('pt-BR'); 
+
         const todayAppointments = leads.filter(lead => {
             if (!lead.status.startsWith('Agendado')) return false;
             const statusDateStr = lead.status.split(' - ')[1];
             if (!statusDateStr) return false;
+            
+            // Reconstroi a data do status
             const [dia, mes, ano] = statusDateStr.split('/');
-            const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+            // Usamos T00:00:00 para garantir que a comparação seja feita no mesmo dia, ignorando a hora
+            const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`); 
             const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+            
             return statusDateFormatted === todayFormatted;
         });
         setHasScheduledToday(todayAppointments.length > 0);
@@ -160,17 +168,20 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
     const aplicarFiltroData = () => {
         setFiltroData(dataInput);
+        // Reseta outros filtros ao aplicar filtro de data para evitar conflitos
         setFiltroNome(''); setNomeInput(''); setFiltroStatus('Todos'); setPaginaAtual(1);
     };
 
     const aplicarFiltroNome = () => {
         const filtroLimpo = nomeInput.trim();
         setFiltroNome(filtroLimpo);
+        // Reseta outros filtros ao aplicar filtro de nome
         setFiltroData(''); setDataInput(''); setFiltroStatus('Todos'); setPaginaAtual(1);
     };
     
     const aplicarFiltroStatus = (status) => {
         setFiltroStatus(status);
+        // Reseta outros filtros ao aplicar filtro de status
         setFiltroNome(''); setNomeInput(''); setFiltroData(''); setDataInput(''); setPaginaAtual(1);
     };
     
@@ -189,6 +200,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
             if (filtroStatus && filtroStatus !== 'Todos') {
                 if (filtroStatus === 'Agendado') {
+                    // Lógica para filtrar Agendados de Hoje
                     const today = new Date();
                     const todayFormatted = today.toLocaleDateString('pt-BR');
                     const statusDateStr = lead.status.split(' - ')[1];
@@ -202,6 +214,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             }
 
             if (filtroData) {
+                // Filtra pela VigenciaFinal (como a interface sugere)
                 const leadVigenciaMesAno = getYearMonthFromDate(lead.VigenciaFinal);
                 return leadVigenciaMesAno === filtroData;
             }
@@ -209,12 +222,13 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             if (filtroNome) {
                 return nomeContemFiltro(lead.name, filtroNome);
             }
-
+            
+            // Se nenhum filtro estiver ativo, retorna todos os leads não-Fechado/Perdido
             return true; 
         });
     }, [leads, filtroStatus, filtroData, filtroNome]);
 
-    // --- Contadores de Status ---
+    // --- Contadores de Status (useMemo) ---
     const statusCounts = useMemo(() => {
         const counts = { 'Em Contato': 0, 'Sem Contato': 0, 'Agendado': 0 };
         const today = new Date();
@@ -234,6 +248,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                  const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
                  const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
                  
+                 // Contagem só para Agendados de HOJE, para ser útil como filtro
                  if (statusDateFormatted === todayFormatted) {
                     counts['Agendado']++;
                  }
@@ -268,7 +283,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         scrollToTop();
     };
 
-    // Salva o ID como STRING, para manter o tipo consistente com o Sheet
+    // Salva o ID como STRING (que é como o <select> retorna)
     const handleSelect = (leadId, userId) => {
         setSelecionados((prev) => ({ ...prev, [leadId]: String(userId) }));
     };
@@ -278,15 +293,14 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST', mode: 'no-cors', body: JSON.stringify(lead), headers: { 'Content-Type': 'application/json' },
             });
-            // Após o envio, busca os leads para sincronizar o estado global (IMPORTANTE)
-            // Se o transferirLead funcionar, essa chamada só garante a consistência.
+            // O fetch aqui é importante para sincronizar os dados globais APÓS o envio
             fetchLeadsFromSheet(SHEET_NAME); 
         } catch (error) {
             console.error('Erro ao enviar lead:', error);
         }
     };
     
-    // 💥 CORREÇÃO PRINCIPAL: Garante a atualização imediata antes de enviar ao Sheets 💥
+    // 🚀 CORREÇÃO PRINCIPAL: Garante a atualização imediata antes de enviar ao Sheets 🚀
     const handleEnviar = (leadId) => {
         const userId = selecionados[leadId];
         if (!userId) {
@@ -294,18 +308,18 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             return;
         }
 
-        // 1. Encontra o usuário
+        // 1. Encontra o usuário pelo ID (que é uma string no estado `selecionados`)
         const usuarioSelecionado = usuarios.find(u => String(u.id) === String(userId)); 
         if (!usuarioSelecionado) {
             alert('Erro: Usuário selecionado não encontrado. Verifique a lista de usuários.');
             return;
         }
 
-        // 2. SIMULAÇÃO LOCAL/ATUALIZAÇÃO: Atualiza o estado do Lead no componente pai (leads) IMEDIATAMENTE.
-        // Isso fará com que o card seja re-renderizado com o campo 'responsavel' preenchido.
+        // 2. ATUALIZAÇÃO LOCAL IMEDIATA: Chama a prop `transferirLead` com o NOME do usuário.
+        // Isso faz com que o card seja re-renderizado com o campo 'responsavel' preenchido instantaneamente.
         transferirLead(leadId, usuarioSelecionado.nome); 
         
-        // 3. Limpa o select localmente (opcional, mas limpa o campo de seleção)
+        // 3. Limpa o select localmente.
         setSelecionados(prev => {
             const newSelection = { ...prev };
             delete newSelection[leadId];
@@ -316,8 +330,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         const lead = leads.find((l) => l.id === leadId);
         const leadAtualizado = { 
             ...lead, 
-            usuarioId: String(userId),
-            responsavel: usuarioSelecionado.nome 
+            usuarioId: String(userId), // Envia o ID do usuário
+            responsavel: usuarioSelecionado.nome // Envia o nome do responsável
         };
         enviarLeadAtualizado(leadAtualizado);
     };
@@ -339,7 +353,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
         } else if (dataStr.includes('-') && dataStr.length === 10) {
             const partes = dataStr.split('-');
-            data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+            data = new Date(parseInt(partes[0]), parseInt(parates[1]) - 1, parseInt(partes[2]));
         } else {
             data = new Date(dataStr);
         }
@@ -591,12 +605,13 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     ) : (
                                         <div className="flex flex-col gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
                                             <select
+                                                // O valor do select deve ser o ID (string)
                                                 value={selecionados[lead.id] || ''}
                                                 onChange={(e) => handleSelect(lead.id, e.target.value)}
                                                 className="p-2 text-sm rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
                                             >
                                                 <option value="">Transferir para...</option>
-                                                {/* Garante que o valor da opção seja uma string, para consistência */}
+                                                {/* Garante que o valor da opção seja o ID como string */}
                                                 {usuariosAtivos.map((u) => (
                                                     <option key={u.id} value={String(u.id)}> {u.nome} </option>
                                                 ))}
