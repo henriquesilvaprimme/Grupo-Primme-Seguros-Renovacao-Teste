@@ -13,7 +13,7 @@ const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
 
 // ===============================================
-// FUNÇÃO AUXILIAR PARA O FILTRO DE DATA (Mantida)
+// FUNÇÃO AUXILIAR PARA O FILTRO DE DATA
 // ===============================================
 const getYearMonthFromDate = (dateValue) => {
     if (!dateValue) return '';
@@ -98,6 +98,9 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [filtroStatus, setFiltroStatus] = useState('Todos');
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
     const [showNotification, setShowNotification] = useState(false);
+    
+    // NOVO ESTADO: Armazena o responsável recém-atribuído localmente (Lógica Otimista)
+    const [responsavelLocal, setResponsavelLocal] = useState({});
 
     // --- LÓGICAS INICIAIS ---
     useEffect(() => {
@@ -111,12 +114,20 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
         const initialObservacoes = {};
         const initialIsEditingObservacao = {};
+        const initialResponsavelLocal = {};
+        
         leads.forEach(lead => {
             initialObservacoes[lead.id] = lead.observacao || '';
             initialIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
+            // Preenche o estado local com o responsável atual do lead
+            if (lead.responsavel && lead.responsavel !== 'null') {
+                 initialResponsavelLocal[lead.id] = lead.responsavel;
+            }
         });
         setObservacoes(initialObservacoes);
         setIsEditingObservacao(initialIsEditingObservacao);
+        setResponsavelLocal(initialResponsavelLocal); // Inicializa com o estado atual
+
     }, [leads]);
 
     useEffect(() => {
@@ -138,14 +149,22 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         setIsLoading(true);
         try {
             await fetchLeadsFromSheet(SHEET_NAME);
+            // Re-inicializa os estados após o refresh para garantir sincronia
             const refreshedObservacoes = {};
             const refreshedIsEditingObservacao = {};
+            const refreshedResponsavelLocal = {};
+
             leads.forEach(lead => {
                 refreshedObservacoes[lead.id] = lead.observacao || '';
                 refreshedIsEditingObservacao[lead.id] = !lead.observacao || lead.observacao.trim() === '';
+                if (lead.responsavel && lead.responsavel !== 'null') {
+                    refreshedResponsavelLocal[lead.id] = lead.responsavel;
+               }
             });
             setObservacoes(refreshedObservacoes);
             setIsEditingObservacao(refreshedIsEditingObservacao);
+            setResponsavelLocal(refreshedResponsavelLocal);
+            setSelecionados({}); // Limpa qualquer seleção pendente
         } catch (error) {
             console.error('Erro ao buscar leads atualizados:', error);
         } finally {
@@ -228,15 +247,15 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             } else if (lead.status === 'Sem Contato') {
                 counts['Sem Contato']++;
             } else if (lead.status.startsWith('Agendado')) {
-                 const statusDateStr = lead.status.split(' - ')[1];
-                 if (!statusDateStr) return;
-                 const [dia, mes, ano] = statusDateStr.split('/');
-                 const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-                 const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
-                 
-                 if (statusDateFormatted === todayFormatted) {
-                    counts['Agendado']++;
-                 }
+                   const statusDateStr = lead.status.split(' - ')[1];
+                   if (!statusDateStr) return;
+                   const [dia, mes, ano] = statusDateStr.split('/');
+                   const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+                   const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+                   
+                   if (statusDateFormatted === todayFormatted) {
+                      counts['Agendado']++;
+                   }
             }
         });
         return counts;
@@ -268,23 +287,26 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         scrollToTop();
     };
 
-    // CORREÇÃO AQUI: Salva o ID como STRING, para manter o tipo consistente com o Sheet
+    // Salva o ID como STRING
     const handleSelect = (leadId, userId) => {
         setSelecionados((prev) => ({ ...prev, [leadId]: String(userId) }));
     };
 
+    // Funções de Envio Assíncrono
     const enviarLeadAtualizado = async (lead) => {
         try {
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST', mode: 'no-cors', body: JSON.stringify(lead), headers: { 'Content-Type': 'application/json' },
             });
-            fetchLeadsFromSheet(SHEET_NAME); 
+            // Opcional: Re-sincronizar após um tempo para garantir a persistência
         } catch (error) {
-            console.error('Erro ao enviar lead:', error);
+            console.error('Erro ao enviar lead (assíncrono):', error);
+            // Aqui, em caso de falha, você reverteria o estado local para o anterior,
+            // mas manteremos a otimista por enquanto.
         }
     };
     
-    // 💥 CORREÇÃO PRINCIPAL APLICADA AQUI 💥
+    // 💥 FUNÇÃO PRINCIPAL CORRIGIDA PARA LÓGICA OTIMISTA 💥
     const handleEnviar = (leadId) => {
         const userId = selecionados[leadId];
         if (!userId) {
@@ -292,39 +314,59 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             return;
         }
 
-        // 1. Encontra o usuário, GARANTINDO que a comparação seja feita entre STRINGS.
-        // O `u.id` vindo do Sheet é quase sempre uma string, e o `userId` do select também.
+        const lead = leads.find((l) => l.id === leadId);
+        if (!lead) return;
+
         const usuarioSelecionado = usuarios.find(u => String(u.id) === String(userId)); 
         if (!usuarioSelecionado) {
-            // Este alerta é a correção do problema de tipo
-            alert('Erro: Usuário selecionado não encontrado. Verifique a lista de usuários e tipos de ID (String/Number).');
+            alert('Erro: Usuário selecionado não encontrado.');
             return;
         }
+        
+        const novoResponsavelNome = usuarioSelecionado.nome;
 
-        // 2. Atualiza o estado visual
-        transferirLead(leadId, usuarioSelecionado.nome); 
+        // 1. ATUALIZAÇÃO VISUAL NO ESTADO PAI (IMEDIATA)
+        // Isso força o componente pai a atualizar o array 'leads', alterando o campo 'responsavel'
+        transferirLead(leadId, novoResponsavelNome); 
         
-        // 3. Prepara e envia a atualização para o Google Sheets
-        const lead = leads.find((l) => l.id === leadId);
-        const leadAtualizado = { 
-            ...lead, 
-            usuarioId: String(userId), // Garante que o ID do usuário seja enviado como string
-            responsavel: usuarioSelecionado.nome 
-        };
-        enviarLeadAtualizado(leadAtualizado);
+        // 2. ATUALIZAÇÃO VISUAL NO ESTADO LOCAL (Backup e imediatez)
+        // Garante que o nome correto será exibido logo de cara
+        setResponsavelLocal(prev => ({ ...prev, [leadId]: novoResponsavelNome }));
         
-        // 4. Limpa o select
+        // 3. Limpa o select
+        // Isso faz com que a condição de renderização abaixo mude para o bloco "Atribuído a: Nome"
         setSelecionados(prev => {
             const newSelection = { ...prev };
             delete newSelection[leadId];
             return newSelection;
         });
+
+        // 4. ENVIO ASSÍNCRONO PARA O SERVIDOR
+        const leadAtualizado = { 
+            id: leadId,
+            responsavel: novoResponsavelNome,
+            usuarioId: String(userId)
+        };
+        
+        enviarLeadAtualizado(leadAtualizado);
     };
 
     const handleAlterar = (leadId) => {
+        // Coloca o lead no modo de seleção (exibe o select)
         setSelecionados((prev) => ({ ...prev, [leadId]: '' }));
-        transferirLead(leadId, null);
     };
+    
+    // Função para obter o nome do responsável (Prioriza o estado local otimista)
+    const getResponsavelDisplay = (lead) => {
+        // 1. Prioriza o nome no estado local (para a mudança otimista)
+        if (responsavelLocal[lead.id]) {
+            return responsavelLocal[lead.id];
+        }
+        // 2. Volta para o nome vindo do estado global (props)
+        return lead.responsavel;
+    };
+    
+    // --- Outras Funções (Mantidas) ---
 
     const formatarData = (dataStr) => {
         if (!dataStr) return '';
@@ -358,7 +400,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 method: 'POST', mode: 'no-cors', body: JSON.stringify({ leadId: leadId, observacao: observacaoTexto }), headers: { 'Content-Type': 'application/json' },
             });
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-            fetchLeadsFromSheet(SHEET_NAME);
+            await fetchLeadsFromSheet(SHEET_NAME);
         } catch (error) {
             console.error('Erro ao salvar observação:', error);
             alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -374,7 +416,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const handleConfirmStatus = (leadId, novoStatus, phone) => {
         onUpdateStatus(leadId, novoStatus, phone);
         const currentLead = leads.find(l => l.id === leadId);
-        const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
+        const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
 
         if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) && hasNoObservacao) {
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
@@ -408,7 +450,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 </div>
             )}
 
-            {/* Cabeçalho Principal (Ajustado) */}
+            {/* Cabeçalho Principal */}
             <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4 mb-4">
                     <h1 className="text-4xl font-extrabold text-gray-900 flex items-center">
@@ -445,7 +487,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                     </button>
                 </div>
                 
-                {/* Controles de Filtro (Inline) */}
+                {/* Controles de Filtro */}
                 <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch">
                     {/* Filtro de Nome */}
                     <div className="flex items-center gap-2 flex-1 min-w-[200px]">
@@ -499,9 +541,11 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                     </div>
                 ) : (
                     leadsPagina.map((lead) => {
-                        // O problema de tipo é corrigido na busca, garantindo que u.id (string) seja comparado com lead.responsavel (string)
-                        const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
                         const shouldShowObs = lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado');
+                        
+                        // Obtém o nome do responsável (priorizando a mudança otimista)
+                        const responsavelNome = getResponsavelDisplay(lead);
+                        const isAtribuido = responsavelNome && responsavelNome !== 'null';
 
                         return (
                             <div 
@@ -518,7 +562,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     <Lead 
                                         lead={lead} 
                                         onUpdateStatus={handleConfirmStatus} 
-                                        disabledConfirm={!lead.responsavel} 
+                                        disabledConfirm={!isAtribuido} 
                                         compact={false}
                                     />
                                     <p className="mt-3 text-sm font-semibold text-gray-700">
@@ -563,16 +607,18 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     )}
                                 </div>
 
-                                {/* COLUNA 3: Atribuição */}
+                                {/* COLUNA 3: Atribuição - LÓGICA DE EXIBIÇÃO */}
                                 <div className="col-span-1 lg:pl-6">
                                     <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
                                         <User size={18} className="mr-2 text-indigo-500" />
                                         Atribuição
                                     </h3>
-                                    {lead.responsavel && responsavel ? (
+                                    
+                                    {/* Condição: Se está atribuído E NÃO está no modo de seleção */}
+                                    {isAtribuido && !selecionados[lead.id] ? (
                                         <div className="p-3 bg-green-50 border border-green-200 rounded-lg shadow-sm">
                                             <p className="text-sm font-medium text-green-700">
-                                                Atribuído a: <strong>{responsavel.nome}</strong>
+                                                Atribuído a: <strong>{responsavelNome}</strong>
                                             </p>
                                             {isAdmin && (
                                                 <button
@@ -584,6 +630,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             )}
                                         </div>
                                     ) : (
+                                        // Exibe o select e o botão Enviar (Se não está atribuído OU se está no modo de alteração)
                                         <div className="flex flex-col gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
                                             <select
                                                 value={selecionados[lead.id] || ''}
@@ -591,7 +638,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                                 className="p-2 text-sm rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
                                             >
                                                 <option value="">Transferir para...</option>
-                                                {/* Garante que o valor da opção seja uma string, para consistência */}
                                                 {usuariosAtivos.map((u) => (
                                                     <option key={u.id} value={String(u.id)}> {u.nome} </option>
                                                 ))}
@@ -616,20 +662,20 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
                 <button
                     onClick={handlePaginaAnterior}
-                    disabled={paginaCorrigida <= 1 || isLoading}
-                    className="px-5 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
+                    disabled={paginaCorrigida === 1}
+                    className="p-2 bg-gray-300 rounded-full hover:bg-gray-400 disabled:opacity-50 transition duration-150"
                 >
-                    <ChevronLeft size={20} className="mr-1" /> Anterior
+                    <ChevronLeft size={20} />
                 </button>
-                <span className="text-gray-700 font-medium text-lg">
-                    Página <strong className="text-indigo-600">{paginaCorrigida}</strong> de {totalPaginas}
+                <span className="text-sm font-semibold text-gray-700">
+                    Página {paginaCorrigida} de {totalPaginas}
                 </span>
                 <button
                     onClick={handlePaginaProxima}
-                    disabled={paginaCorrigida >= totalPaginas || isLoading}
-                    className="px-5 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
+                    disabled={paginaCorrigida === totalPaginas}
+                    className="p-2 bg-gray-300 rounded-full hover:bg-gray-400 disabled:opacity-50 transition duration-150"
                 >
-                    Próxima <ChevronRight size={20} className="ml-1" />
+                    <ChevronRight size={20} />
                 </button>
             </div>
         </div>
