@@ -1,23 +1,24 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import Lead from './components/Lead'; // O componente Lead é mantido
+import Lead from './components/Lead';
 import { RefreshCcw, Bell, Search, Send, Edit, Save, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // ===============================================
-// 1. CONFIGURAÇÃO (MANTIDA)
+// 1. CONFIGURAÇÃO
 // ===============================================
 const SHEET_NAME = 'Renovações';
 
 // URLs com o parâmetro 'sheet' adicionado para apontar para a nova aba
-const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGP9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
+const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar_atribuido&sheet=${SHEET_NAME}`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
 
 // ===============================================
-// FUNÇÃO AUXILIAR PARA O FILTRO DE DATA
+// FUNÇÃO AUXILIAR PARA O FILTRO DE DATA (Mantida)
 // ===============================================
 
 /**
  * Normaliza uma string de data (assumindo dd/mm/aaaa, aaaa-mm-dd ou objeto Date) para o formato 'aaaa-mm'.
+ * A lógica foi ajustada para buscar a coluna P (VigenciaFinal) que é o filtro correto de renovações.
  * @param {string | Date} dateValue - O valor da data do lead.
  * @returns {string} A data formatada como 'aaaa-mm' ou uma string vazia.
  */
@@ -54,10 +55,8 @@ const getYearMonthFromDate = (dateValue) => {
 
 
 // ===============================================
-// 2. COMPONENTE RENOVACIONES (AJUSTADO)
+// COMPONENTE AUXILIAR: StatusButton com Contagem
 // ===============================================
-
-// --- COMPONENTE AUXILIAR: StatusButton com Contagem (MANTIDO) ---
 const StatusFilterButton = ({ status, count, currentFilter, onClick, isScheduledToday }) => {
     const isSelected = currentFilter === status;
     let baseClasses = `px-5 py-2 text-sm font-semibold rounded-full shadow-md transition duration-300 flex items-center justify-center whitespace-nowrap`;
@@ -94,7 +93,10 @@ const StatusFilterButton = ({ status, count, currentFilter, onClick, isScheduled
     );
 };
 
-// --- COMPONENTE PRINCIPAL: Renovacoes ---
+
+// ===============================================
+// 2. COMPONENTE PRINCIPAL: Renovacoes
+// ===============================================
 const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLogado, fetchLeadsFromSheet, scrollContainerRef }) => {
     const [selecionados, setSelecionados] = useState({});
     const [paginaAtual, setPaginaAtual] = useState(1);
@@ -105,11 +107,11 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [filtroData, setFiltroData] = useState('');
     const [nomeInput, setNomeInput] = useState('');
     const [filtroNome, setFiltroNome] = useState('');
-    const [filtroStatus, setFiltroStatus] = useState(null); 
+    const [filtroStatus, setFiltroStatus] = useState('Todos'); // Começa com 'Todos'
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
     const [showNotification, setShowNotification] = useState(false); 
 
-    // --- LÓGICAS (AJUSTADAS) ---
+    // --- LÓGICAS INICIAIS ---
     useEffect(() => {
         // Inicializa com o MÊS e ANO ATUAL, focado na VIGENCIA FINAL
         const today = new Date();
@@ -120,9 +122,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         // Define o input e o filtro da Vigência Final para o Mês/Ano atual
         setDataInput(mesAnoAtual);
         setFiltroData(mesAnoAtual);
-        setFiltroStatus('Todos'); 
 
-        // Inicializa observações e estado de edição (lógica mantida)
+        // Inicializa observações e estado de edição
         const initialObservacoes = {};
         const initialIsEditingObservacao = {};
         leads.forEach(lead => {
@@ -134,7 +135,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     }, [leads]);
 
     useEffect(() => {
-        // Verifica agendamentos para hoje (para o sino e o filtro) - Lógica Mantida
+        // Verifica agendamentos para hoje (para o sino e o filtro)
         const today = new Date();
         const todayFormatted = today.toLocaleDateString('pt-BR');
         const todayAppointments = leads.filter(lead => {
@@ -177,13 +178,13 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const aplicarFiltroData = () => {
         // Filtro de data aplica o valor do input (AAAA-MM) à variável de filtro
         setFiltroData(dataInput);
-        setFiltroNome(''); setNomeInput(''); setFiltroStatus(null); setPaginaAtual(1);
+        setFiltroNome(''); setNomeInput(''); setFiltroStatus('Todos'); setPaginaAtual(1);
     };
 
     const aplicarFiltroNome = () => {
         const filtroLimpo = nomeInput.trim();
         setFiltroNome(filtroLimpo);
-        setFiltroData(''); setDataInput(''); setFiltroStatus(null); setPaginaAtual(1);
+        setFiltroData(''); setDataInput(''); setFiltroStatus('Todos'); setPaginaAtual(1);
     };
     
     const aplicarFiltroStatus = (status) => {
@@ -208,7 +209,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             // 1. FILTRO DE STATUS
             if (filtroStatus && filtroStatus !== 'Todos') {
                 if (filtroStatus === 'Agendado') {
-                    // Filtra por Agendados para Hoje (Lógica Mantida)
+                    // Filtra por Agendados para Hoje
                     const today = new Date();
                     const todayFormatted = today.toLocaleDateString('pt-BR');
                     const statusDateStr = lead.status.split(' - ')[1];
@@ -235,9 +236,9 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
             return true; 
         });
-    }, [leads, filtroStatus, filtroData, filtroNome]); // Dependências ajustadas para incluir filtroData
+    }, [leads, filtroStatus, filtroData, filtroNome]); // Dependências ajustadas
 
-    // --- Contadores de Status (MANTIDOS) ---
+    // --- Contadores de Status ---
     const statusCounts = useMemo(() => {
         const counts = { 'Em Contato': 0, 'Sem Contato': 0, 'Agendado': 0 };
         const today = new Date();
@@ -266,7 +267,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         return counts;
     }, [leads]);
     
-    // --- Lógica de Paginação, Transferência e Observação (AJUSTADA) ---
+    // --- Lógica de Paginação ---
     const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
     const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
     const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
@@ -301,14 +302,14 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST', mode: 'no-cors', body: JSON.stringify(lead), headers: { 'Content-Type': 'application/json' },
             });
-            // Não chame fetchLeadsFromSheet() aqui para evitar dupla chamada.
-            // A atualização do estado visual é feita no handleEnviar.
+            // Após a chamada à API, busca os leads para garantir a atualização completa (com pequeno delay)
+            fetchLeadsFromSheet(SHEET_NAME); 
         } catch (error) {
             console.error('Erro ao enviar lead:', error);
         }
     };
     
-    // CORREÇÃO: Garante que o estado local seja atualizado com o nome do usuário.
+    // 💥 CORREÇÃO PRINCIPAL APLICADA AQUI 💥
     const handleEnviar = (leadId) => {
         const userId = selecionados[leadId];
         if (!userId) {
@@ -316,18 +317,18 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             return;
         }
 
-        const usuarioSelecionado = usuarios.find(u => u.id === userId);
+        // 1. Encontra o usuário pelo ID para obter o NOME
+        const usuarioSelecionado = usuarios.find(u => u.id === userId); 
         if (!usuarioSelecionado) {
-            alert('Usuário selecionado não encontrado.');
+            alert('Usuário selecionado não encontrado. Verifique a lista de usuários.');
             return;
         }
 
-        // 1. Atualiza o estado visual no componente pai (o estado `leads`)
-        // O `transferirLead` deve atualizar o array `leads` no estado do componente App
-        // com o nome do novo responsável (`usuarioSelecionado.nome`).
+        // 2. Atualiza o estado visual (no componente pai/App) com o NOME do responsável.
+        // Isso garante a atualização visual imediata.
         transferirLead(leadId, usuarioSelecionado.nome); 
         
-        // 2. Prepara e envia a atualização para o Google Sheets
+        // 3. Prepara e envia a atualização para o Google Sheets
         const lead = leads.find((l) => l.id === leadId);
         const leadAtualizado = { 
             ...lead, 
@@ -336,7 +337,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         };
         enviarLeadAtualizado(leadAtualizado);
         
-        // 3. Limpa o select e a seleção
+        // 4. Limpa o select
         setSelecionados(prev => {
             const newSelection = { ...prev };
             delete newSelection[leadId];
@@ -346,7 +347,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
     const handleAlterar = (leadId) => {
         setSelecionados((prev) => ({ ...prev, [leadId]: '' }));
-        // Se a atribuição for alterada, o responsável deve ser limpo localmente
+        // Limpa o responsável localmente para permitir nova seleção
         transferirLead(leadId, null);
     };
 
@@ -410,21 +411,18 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         fetchLeadsFromSheet(SHEET_NAME);
     };
 
-    /**
-     * Retorna a string de status completa (com a data se for Agendado)
-     */
     const getFullStatus = (status) => {
         return status || 'Novo';
     }
 
 
-    // --- Renderização do Layout (Opção 3.4) ---
+    // --- Renderização do Layout (Com Tailwind simplificado) ---
     return (
         <div className="p-4 md:p-6 lg:p-8 relative min-h-screen bg-gray-100 font-sans">
             
             {/* Overlay de Loading */}
             {isLoading && (
-                <div className="absolute inset-0 bg-white bg-opacity-80 flex justify-center items-center z-50">
+                <div className="fixed inset-0 bg-white bg-opacity-80 flex justify-center items-center z-50">
                     <div className="flex items-center">
                         <svg className="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -435,7 +433,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 </div>
             )}
 
-            {/* Cabeçalho Principal (Moderno) */}
+            {/* Cabeçalho Principal (Ajustado) */}
             <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4 mb-4">
                     <h1 className="text-4xl font-extrabold text-gray-900 flex items-center">
@@ -443,7 +441,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                         Renovações
                     </h1>
                     
-                    {/* Sino de Notificação (Mantido) */}
+                    {/* Sino de Notificação */}
                     {hasScheduledToday && (
                         <div
                             className="relative cursor-pointer"
@@ -510,12 +508,12 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 </div>
             </div>
             
-            {/* Barra de Filtro de Status (Abas Estilizadas com Contagem) */}
+            {/* Barra de Filtro de Status */}
             <div className="flex flex-wrap gap-3 justify-center mb-8">
-                <StatusFilterButton status="Todos" count={gerais.length} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} color="purple" />
-                <StatusFilterButton status="Em Contato" count={statusCounts['Em Contato']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} color="yellow" />
-                <StatusFilterButton status="Sem Contato" count={statusCounts['Sem Contato']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} color="red" />
-                {statusCounts['Agendado'] > 0 && <StatusFilterButton status="Agendado" count={statusCounts['Agendado']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} isScheduledToday={true} color="cyan" />}
+                <StatusFilterButton status="Todos" count={gerais.length} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} />
+                <StatusFilterButton status="Em Contato" count={statusCounts['Em Contato']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} />
+                <StatusFilterButton status="Sem Contato" count={statusCounts['Sem Contato']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} />
+                {statusCounts['Agendado'] > 0 && <StatusFilterButton status="Agendado" count={statusCounts['Agendado']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} isScheduledToday={true} />}
             </div>
 
             {/* Lista de Cards de Leads */}
@@ -536,10 +534,9 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                             >
                                 {/* COLUNA 1: Informações do Lead */}
                                 <div className="col-span-1 border-r lg:pr-6">
-                                    {/* PÍLULA DE STATUS RESTAURADA (com a data) */}
                                     <div className="mb-3">
                                         <span className={`text-xs font-bold px-3 py-1 rounded-full ${lead.status.startsWith('Agendado') ? 'bg-cyan-100 text-cyan-800' : lead.status === 'Em Contato' ? 'bg-yellow-100 text-yellow-800' : lead.status === 'Sem Contato' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
-                                            {getFullStatus(lead.status)} {/* Pílula completa, mantida como a exibição primária */}
+                                            {getFullStatus(lead.status)}
                                         </span>
                                     </div>
                                     <Lead 
@@ -548,7 +545,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                         disabledConfirm={!lead.responsavel} 
                                         compact={false}
                                     />
-                                    {/* Exibição da Vigência Final com destaque */}
                                     <p className="mt-3 text-sm font-semibold text-gray-700">
                                         Vigência Final: <strong className="text-indigo-600">{formatarData(lead.VigenciaFinal)}</strong>
                                     </p>
@@ -557,11 +553,10 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     </p>
                                 </div>
 
-                                {/* COLUNA 2: Observações (à esquerda) */}
+                                {/* COLUNA 2: Observações */}
                                 <div className="col-span-1 border-r lg:px-6">
                                     {shouldShowObs && (
                                         <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
-                                            {/* Título "Observações" removido */}
                                             <textarea
                                                 value={observacoes[lead.id] || ''}
                                                 onChange={(e) => handleObservacaoChange(lead.id, e.target.value)} 
@@ -592,7 +587,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     )}
                                 </div>
 
-                                {/* COLUNA 3: Atribuição (à direita) */}
+                                {/* COLUNA 3: Atribuição */}
                                 <div className="col-span-1 lg:pl-6">
                                     <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
                                         <User size={18} className="mr-2 text-indigo-500" />
