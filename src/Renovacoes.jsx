@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import Lead from './components/Lead'; // O componente Lead é mantido
+import Lead from './components/Lead';
 import { RefreshCcw, Bell, Search, Send, Edit, Save, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // ===============================================
@@ -292,9 +292,13 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         scrollToTop();
     };
 
+    /**
+     * AJUSTE CRÍTICO: Armazenar o userId como STRING (valor do <select>) 
+     * para evitar problemas de tipagem se os IDs dos usuários vierem como strings do Sheets.
+     */
     const handleSelect = (leadId, userId) => {
-        // userId vem como string do select, mas é armazenado como Number no estado 'selecionados'
-        setSelecionados((prev) => ({ ...prev, [leadId]: Number(userId) }));
+        // userId vem como string do select. Armazenamos como string.
+        setSelecionados((prev) => ({ ...prev, [leadId]: userId }));
     };
 
     const enviarLeadAtualizado = async (lead) => {
@@ -309,11 +313,11 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     };
     
     /**
-     * CORREÇÃO: Garante que o ID do usuário selecionado seja tratado como número 
-     * para buscar corretamente na lista de usuários.
+     * AJUSTE CRÍTICO: Usar comparação não estrita (==) no find() para 
+     * lidar com a discrepância de tipo entre o ID selecionado (string) e o ID do objeto (number/string).
      */
     const handleEnviar = (leadId) => {
-        // Obtém o ID do usuário (que deve ser Number, pois foi convertido no handleSelect)
+        // userId é a string ou número vinda do estado 'selecionados'
         const userId = selecionados[leadId]; 
         
         if (!userId) {
@@ -323,13 +327,12 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
         const lead = leads.find((l) => l.id === leadId);
         
-        // CORREÇÃO AQUI: Garante que a busca na lista seja feita com o ID NUMÉRICO.
-        // A lista 'usuariosAtivos' foi criada antes com base no array 'usuarios'
-        const usuarioSelecionado = usuariosAtivos.find(u => u.id === Number(userId)); 
+        // CORREÇÃO AQUI: Usamos '==' para que '1' == 1 seja verdadeiro
+        const usuarioSelecionado = usuariosAtivos.find(u => u.id == userId); 
 
         if (!usuarioSelecionado) {
              alert('Erro: Usuário selecionado não encontrado. Verifique se o ID está mapeado corretamente ou se o usuário está Ativo.');
-             console.error('Falha na busca pelo usuário. userId:', userId, 'usuariosAtivos:', usuariosAtivos);
+             console.error('Falha na busca pelo usuário. userId:', userId, 'Tipo de userId:', typeof userId, 'usuariosAtivos (exemplo de ID):', usuariosAtivos.length > 0 ? usuariosAtivos[0].id : 'N/A');
              return;
         }
 
@@ -337,7 +340,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         const leadAtualizado = { 
             ...lead, 
             usuarioId: userId, 
-            responsavel: usuarioSelecionado.nome // CHAVE CORRIGIDA
+            responsavel: usuarioSelecionado.nome // Envia o nome do responsável para a Coluna I
         };
 
         // Chama a função de transferência do React
@@ -623,7 +626,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             >
                                                 <option value="">Transferir para...</option>
                                                 {usuariosAtivos.map((u) => (
-                                                    <option key={u.id} value={u.id}> {u.nome} </option>
+                                                    // O 'value' aqui será o ID exato (string ou número) da fonte de dados
+                                                    <option key={u.id} value={u.id}> {u.nome} </option> 
                                                 ))}
                                             </select>
                                             <button
