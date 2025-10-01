@@ -460,8 +460,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                         <p><strong>Ano/Modelo:</strong> {lead.vehicleYearModel}</p>
                                         <p><strong>Cidade:</strong> {lead.city}</p>
                                         <p><strong>Telefone:</strong> {lead.phone}</p>
-                                        <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p>
-                                        <p><strong>Criado em:</strong> {lead.Data ? new Date(getDataParaComparacao(lead.Data)).toLocaleDateString('pt-BR') : 'N/A'}</p>
                                     </div>
 
                                     {responsavel && isAdmin && (
