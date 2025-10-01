@@ -12,6 +12,9 @@ const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycb
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar_atribuido&sheet=${SHEET_NAME}`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
 
+// Função auxiliar para criar um delay
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 // ===============================================
 // FUNÇÃO AUXILIAR PARA O FILTRO DE DATA
 // ===============================================
@@ -109,20 +112,17 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
     const [showNotification, setShowNotification] = useState(false); 
 
-    // --- LÓGICAS (AJUSTADAS) ---
+    // --- LÓGICAS (MANTIDAS) ---
     useEffect(() => {
-        // Inicializa com o MÊS e ANO ATUAL, focado na VIGENCIA FINAL
         const today = new Date();
         const ano = today.getFullYear();
         const mes = String(today.getMonth() + 1).padStart(2, '0');
         const mesAnoAtual = `${ano}-${mes}`;
         
-        // Define o input e o filtro da Vigência Final para o Mês/Ano atual
         setDataInput(mesAnoAtual);
         setFiltroData(mesAnoAtual);
         setFiltroStatus('Todos'); 
 
-        // Inicializa observações e estado de edição (lógica mantida)
         const initialObservacoes = {};
         const initialIsEditingObservacao = {};
         leads.forEach(lead => {
@@ -134,7 +134,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     }, [leads]);
 
     useEffect(() => {
-        // Verifica agendamentos para hoje (para o sino e o filtro) - Lógica Mantida
         const today = new Date();
         const todayFormatted = today.toLocaleDateString('pt-BR');
         const todayAppointments = leads.filter(lead => {
@@ -144,7 +143,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             const [dia, mes, ano] = statusDateStr.split('/');
             const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
             const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
-            return statusDateFormatted === todayFormatted;
+            return lead.status.startsWith('Agendado') && statusDateFormatted === todayFormatted;
         });
         setHasScheduledToday(todayAppointments.length > 0);
     }, [leads]);
@@ -153,7 +152,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         setIsLoading(true);
         try {
             await fetchLeadsFromSheet(SHEET_NAME);
-            // Re-inicializa os estados de observação após o refresh
             const refreshedObservacoes = {};
             const refreshedIsEditingObservacao = {};
             leads.forEach(lead => {
@@ -175,7 +173,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     };
 
     const aplicarFiltroData = () => {
-        // Filtro de data aplica o valor do input (AAAA-MM) à variável de filtro
         setFiltroData(dataInput);
         setFiltroNome(''); setNomeInput(''); setFiltroStatus(null); setPaginaAtual(1);
     };
@@ -199,16 +196,12 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         return nomeNormalizado.includes(filtroNormalizado);
     };
 
-    // --- Lógica de Filtro (useMemo) ---
     const gerais = useMemo(() => {
         return leads.filter((lead) => {
-            // Exclui Fechado e Perdido sempre
             if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
-            // 1. FILTRO DE STATUS
             if (filtroStatus && filtroStatus !== 'Todos') {
                 if (filtroStatus === 'Agendado') {
-                    // Filtra por Agendados para Hoje (Lógica Mantida)
                     const today = new Date();
                     const todayFormatted = today.toLocaleDateString('pt-BR');
                     const statusDateStr = lead.status.split(' - ')[1];
@@ -221,23 +214,19 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 return lead.status === filtroStatus;
             }
 
-            // 2. FILTRO DE DATA (VIGENCIA FINAL)
             if (filtroData) {
-                // Filtra pelo mês e ano da VIGENCIA FINAL (coluna P)
                 const leadVigenciaMesAno = getYearMonthFromDate(lead.VigenciaFinal);
                 return leadVigenciaMesAno === filtroData;
             }
 
-            // 3. FILTRO DE NOME
             if (filtroNome) {
                 return nomeContemFiltro(lead.name, filtroNome);
             }
 
             return true; 
         });
-    }, [leads, filtroStatus, filtroData, filtroNome]); // Dependências ajustadas para incluir filtroData
+    }, [leads, filtroStatus, filtroData, filtroNome]);
 
-    // --- Contadores de Status (MANTIDOS) ---
     const statusCounts = useMemo(() => {
         const counts = { 'Em Contato': 0, 'Sem Contato': 0, 'Agendado': 0 };
         const today = new Date();
@@ -257,7 +246,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                  const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
                  const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
                  
-                 // Contagem de Agendados para hoje
                  if (statusDateFormatted === todayFormatted) {
                     counts['Agendado']++;
                  }
@@ -266,7 +254,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         return counts;
     }, [leads]);
     
-    // --- Lógica de Paginação, Transferência e Observação (AJUSTADA) ---
     const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
     const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
     const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
@@ -292,32 +279,34 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         scrollToTop();
     };
 
-    /**
-     * AJUSTE CRÍTICO: Armazenar o userId como STRING (valor do <select>) 
-     * para evitar problemas de tipagem se os IDs dos usuários vierem como strings do Sheets.
-     */
     const handleSelect = (leadId, userId) => {
-        // userId vem como string do select. Armazenamos como string.
+        // userId armazenado como string
         setSelecionados((prev) => ({ ...prev, [leadId]: userId }));
     };
 
+    /**
+     * CORREÇÃO CRÍTICA: Mantém 'mode: no-cors' e adiciona um DELAY.
+     */
     const enviarLeadAtualizado = async (lead) => {
         try {
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
-                method: 'POST', mode: 'no-cors', body: JSON.stringify(lead), headers: { 'Content-Type': 'application/json' },
+                method: 'POST', 
+                mode: 'no-cors', // MANTIDO
+                body: JSON.stringify(lead), 
+                headers: { 'Content-Type': 'application/json' },
             });
-            fetchLeadsFromSheet(SHEET_NAME);
+            
+            // DELAY DE 2 SEGUNDOS: Necessário quando usamos 'no-cors' para dar tempo ao Sheets Script de salvar.
+            await delay(2000); 
+            
+            fetchLeadsFromSheet(SHEET_NAME); 
         } catch (error) {
-            console.error('Erro ao enviar lead:', error);
+            console.error('Erro ao enviar lead para o Sheets Script (pode ser erro de rede):', error);
+            alert('Erro ao transferir lead. O salvamento no Sheets pode ter falhado. Tente novamente.');
         }
     };
     
-    /**
-     * AJUSTE CRÍTICO: Usar comparação não estrita (==) no find() para 
-     * lidar com a discrepância de tipo entre o ID selecionado (string) e o ID do objeto (number/string).
-     */
     const handleEnviar = (leadId) => {
-        // userId é a string ou número vinda do estado 'selecionados'
         const userId = selecionados[leadId]; 
         
         if (!userId) {
@@ -327,26 +316,23 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
         const lead = leads.find((l) => l.id === leadId);
         
-        // CORREÇÃO AQUI: Usamos '==' para que '1' == 1 seja verdadeiro
+        // Usa '==' para comparação não estrita (string == number)
         const usuarioSelecionado = usuariosAtivos.find(u => u.id == userId); 
 
         if (!usuarioSelecionado) {
              alert('Erro: Usuário selecionado não encontrado. Verifique se o ID está mapeado corretamente ou se o usuário está Ativo.');
-             console.error('Falha na busca pelo usuário. userId:', userId, 'Tipo de userId:', typeof userId, 'usuariosAtivos (exemplo de ID):', usuariosAtivos.length > 0 ? usuariosAtivos[0].id : 'N/A');
+             console.error('Falha na busca pelo usuário. userId:', userId, 'Tipo de userId:', typeof userId);
              return;
         }
 
-        // Cria o objeto atualizado, incluindo o nome do responsável.
         const leadAtualizado = { 
             ...lead, 
             usuarioId: userId, 
-            responsavel: usuarioSelecionado.nome // Envia o nome do responsável para a Coluna I
+            responsavel: usuarioSelecionado.nome 
         };
 
-        // Chama a função de transferência do React
         transferirLead(leadId, userId);
         
-        // Envia a atualização para o Google Sheets Script
         enviarLeadAtualizado(leadAtualizado);
     };
 
@@ -360,10 +346,10 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         let data;
         if (dataStr.includes('/')) {
             const partes = dataStr.split('/');
-            data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
+            data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(parres[0]));
         } else if (dataStr.includes('-') && dataStr.length === 10) {
             const partes = dataStr.split('-');
-            data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+            data = new Date(parseInt(parres[0]), parseInt(parres[1]) - 1, parseInt(parres[2]));
         } else {
             data = new Date(dataStr);
         }
@@ -384,8 +370,15 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         setIsLoading(true);
         try {
             await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
-                method: 'POST', mode: 'no-cors', body: JSON.stringify({ leadId: leadId, observacao: observacaoTexto }), headers: { 'Content-Type': 'application/json' },
+                method: 'POST',
+                mode: 'no-cors', // MANTIDO
+                body: JSON.stringify({ leadId: leadId, observacao: observacaoTexto }), 
+                headers: { 'Content-Type': 'application/json' },
             });
+            
+            // DELAY DE 2 SEGUNDOS
+            await delay(2000); 
+
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
             fetchLeadsFromSheet(SHEET_NAME);
         } catch (error) {
@@ -415,15 +408,12 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         fetchLeadsFromSheet(SHEET_NAME);
     };
 
-    /**
-     * Retorna a string de status completa (com a data se for Agendado)
-     */
     const getFullStatus = (status) => {
         return status || 'Novo';
     }
 
 
-    // --- Renderização do Layout (Opção 3.4) ---
+    // --- Renderização do Layout ---
     return (
         <div className="p-4 md:p-6 lg:p-8 relative min-h-screen bg-gray-100 font-sans">
             
@@ -626,7 +616,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             >
                                                 <option value="">Transferir para...</option>
                                                 {usuariosAtivos.map((u) => (
-                                                    // O 'value' aqui será o ID exato (string ou número) da fonte de dados
                                                     <option key={u.id} value={u.id}> {u.nome} </option> 
                                                 ))}
                                             </select>
