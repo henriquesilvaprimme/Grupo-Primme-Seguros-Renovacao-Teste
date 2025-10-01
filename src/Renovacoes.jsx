@@ -15,30 +15,19 @@ const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=sa
 // ===============================================
 // FUNÇÃO AUXILIAR PARA O FILTRO DE DATA (Mantida)
 // ===============================================
-
-/**
- * Normaliza uma string de data (assumindo dd/mm/aaaa, aaaa-mm-dd ou objeto Date) para o formato 'aaaa-mm'.
- * A lógica foi ajustada para buscar a coluna P (VigenciaFinal) que é o filtro correto de renovações.
- * @param {string | Date} dateValue - O valor da data do lead.
- * @returns {string} A data formatada como 'aaaa-mm' ou uma string vazia.
- */
 const getYearMonthFromDate = (dateValue) => {
     if (!dateValue) return '';
 
     let date;
     
-    // Tenta tratar como dd/mm/aaaa (formato Sheets/BR se não for ISO)
     if (typeof dateValue === 'string' && dateValue.includes('/')) {
         const parts = dateValue.split('/');
-        // Cria uma data com Ano-Mês-Dia (evita problemas de fuso horário com new Date(string))
         date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
     } 
-    // Tenta tratar como aaaa-mm-dd (formato input[type=month] ou ISO)
     else if (typeof dateValue === 'string' && dateValue.includes('-') && dateValue.length >= 7) {
         const parts = dateValue.split('-');
-        date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1); // Apenas mês e ano
+        date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
     }
-    // Tenta criar como objeto Date
     else {
         date = new Date(dateValue);
     }
@@ -63,7 +52,6 @@ const StatusFilterButton = ({ status, count, currentFilter, onClick, isScheduled
     let activeClasses = `ring-2 ring-offset-2`;
     let nonActiveClasses = `hover:opacity-80`;
 
-    // Classes de cores
     let statusColors = '';
     if (status === 'Todos') {
         statusColors = isSelected ? 'bg-indigo-700 text-white ring-indigo-300' : 'bg-indigo-500 text-white hover:bg-indigo-600';
@@ -107,23 +95,20 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [filtroData, setFiltroData] = useState('');
     const [nomeInput, setNomeInput] = useState('');
     const [filtroNome, setFiltroNome] = useState('');
-    const [filtroStatus, setFiltroStatus] = useState('Todos'); // Começa com 'Todos'
+    const [filtroStatus, setFiltroStatus] = useState('Todos');
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
-    const [showNotification, setShowNotification] = useState(false); 
+    const [showNotification, setShowNotification] = useState(false);
 
     // --- LÓGICAS INICIAIS ---
     useEffect(() => {
-        // Inicializa com o MÊS e ANO ATUAL, focado na VIGENCIA FINAL
         const today = new Date();
         const ano = today.getFullYear();
         const mes = String(today.getMonth() + 1).padStart(2, '0');
         const mesAnoAtual = `${ano}-${mes}`;
         
-        // Define o input e o filtro da Vigência Final para o Mês/Ano atual
         setDataInput(mesAnoAtual);
         setFiltroData(mesAnoAtual);
 
-        // Inicializa observações e estado de edição
         const initialObservacoes = {};
         const initialIsEditingObservacao = {};
         leads.forEach(lead => {
@@ -135,7 +120,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     }, [leads]);
 
     useEffect(() => {
-        // Verifica agendamentos para hoje (para o sino e o filtro)
         const today = new Date();
         const todayFormatted = today.toLocaleDateString('pt-BR');
         const todayAppointments = leads.filter(lead => {
@@ -154,7 +138,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         setIsLoading(true);
         try {
             await fetchLeadsFromSheet(SHEET_NAME);
-            // Re-inicializa os estados de observação após o refresh
             const refreshedObservacoes = {};
             const refreshedIsEditingObservacao = {};
             leads.forEach(lead => {
@@ -176,7 +159,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     };
 
     const aplicarFiltroData = () => {
-        // Filtro de data aplica o valor do input (AAAA-MM) à variável de filtro
         setFiltroData(dataInput);
         setFiltroNome(''); setNomeInput(''); setFiltroStatus('Todos'); setPaginaAtual(1);
     };
@@ -203,13 +185,10 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     // --- Lógica de Filtro (useMemo) ---
     const gerais = useMemo(() => {
         return leads.filter((lead) => {
-            // Exclui Fechado e Perdido sempre
             if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
-            // 1. FILTRO DE STATUS
             if (filtroStatus && filtroStatus !== 'Todos') {
                 if (filtroStatus === 'Agendado') {
-                    // Filtra por Agendados para Hoje
                     const today = new Date();
                     const todayFormatted = today.toLocaleDateString('pt-BR');
                     const statusDateStr = lead.status.split(' - ')[1];
@@ -222,21 +201,18 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 return lead.status === filtroStatus;
             }
 
-            // 2. FILTRO DE DATA (VIGENCIA FINAL)
             if (filtroData) {
-                // Filtra pelo mês e ano da VIGENCIA FINAL (coluna P)
                 const leadVigenciaMesAno = getYearMonthFromDate(lead.VigenciaFinal);
                 return leadVigenciaMesAno === filtroData;
             }
 
-            // 3. FILTRO DE NOME
             if (filtroNome) {
                 return nomeContemFiltro(lead.name, filtroNome);
             }
 
             return true; 
         });
-    }, [leads, filtroStatus, filtroData, filtroNome]); // Dependências ajustadas
+    }, [leads, filtroStatus, filtroData, filtroNome]);
 
     // --- Contadores de Status ---
     const statusCounts = useMemo(() => {
@@ -258,7 +234,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                  const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
                  const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
                  
-                 // Contagem de Agendados para hoje
                  if (statusDateFormatted === todayFormatted) {
                     counts['Agendado']++;
                  }
@@ -293,8 +268,9 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         scrollToTop();
     };
 
+    // CORREÇÃO AQUI: Salva o ID como STRING, para manter o tipo consistente com o Sheet
     const handleSelect = (leadId, userId) => {
-        setSelecionados((prev) => ({ ...prev, [leadId]: Number(userId) }));
+        setSelecionados((prev) => ({ ...prev, [leadId]: String(userId) }));
     };
 
     const enviarLeadAtualizado = async (lead) => {
@@ -302,7 +278,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST', mode: 'no-cors', body: JSON.stringify(lead), headers: { 'Content-Type': 'application/json' },
             });
-            // Após a chamada à API, busca os leads para garantir a atualização completa (com pequeno delay)
             fetchLeadsFromSheet(SHEET_NAME); 
         } catch (error) {
             console.error('Erro ao enviar lead:', error);
@@ -317,23 +292,24 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             return;
         }
 
-        // 1. Encontra o usuário pelo ID para obter o NOME
-        const usuarioSelecionado = usuarios.find(u => u.id === userId); 
+        // 1. Encontra o usuário, GARANTINDO que a comparação seja feita entre STRINGS.
+        // O `u.id` vindo do Sheet é quase sempre uma string, e o `userId` do select também.
+        const usuarioSelecionado = usuarios.find(u => String(u.id) === String(userId)); 
         if (!usuarioSelecionado) {
-            alert('Usuário selecionado não encontrado. Verifique a lista de usuários.');
+            // Este alerta é a correção do problema de tipo
+            alert('Erro: Usuário selecionado não encontrado. Verifique a lista de usuários e tipos de ID (String/Number).');
             return;
         }
 
-        // 2. Atualiza o estado visual (no componente pai/App) com o NOME do responsável.
-        // Isso garante a atualização visual imediata.
+        // 2. Atualiza o estado visual
         transferirLead(leadId, usuarioSelecionado.nome); 
         
         // 3. Prepara e envia a atualização para o Google Sheets
         const lead = leads.find((l) => l.id === leadId);
         const leadAtualizado = { 
             ...lead, 
-            usuarioId: userId,
-            responsavel: usuarioSelecionado.nome // ESSENCIAL: Garante que o script Sheets atualize o nome
+            usuarioId: String(userId), // Garante que o ID do usuário seja enviado como string
+            responsavel: usuarioSelecionado.nome 
         };
         enviarLeadAtualizado(leadAtualizado);
         
@@ -347,7 +323,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
     const handleAlterar = (leadId) => {
         setSelecionados((prev) => ({ ...prev, [leadId]: '' }));
-        // Limpa o responsável localmente para permitir nova seleção
         transferirLead(leadId, null);
     };
 
@@ -416,7 +391,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     }
 
 
-    // --- Renderização do Layout (Com Tailwind simplificado) ---
+    // --- Renderização do Layout ---
     return (
         <div className="p-4 md:p-6 lg:p-8 relative min-h-screen bg-gray-100 font-sans">
             
@@ -524,6 +499,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                     </div>
                 ) : (
                     leadsPagina.map((lead) => {
+                        // O problema de tipo é corrigido na busca, garantindo que u.id (string) seja comparado com lead.responsavel (string)
                         const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
                         const shouldShowObs = lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado');
 
@@ -615,8 +591,9 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                                 className="p-2 text-sm rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
                                             >
                                                 <option value="">Transferir para...</option>
+                                                {/* Garante que o valor da opção seja uma string, para consistência */}
                                                 {usuariosAtivos.map((u) => (
-                                                    <option key={u.id} value={u.id}> {u.nome} </option>
+                                                    <option key={u.id} value={String(u.id)}> {u.nome} </option>
                                                 ))}
                                             </select>
                                             <button
