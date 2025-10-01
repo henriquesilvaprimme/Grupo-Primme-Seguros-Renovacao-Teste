@@ -284,8 +284,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             // Opcional: Aqui você poderia chamar fetchLeadsFromSheet(SHEET_NAME) se quisesse garantir a sincronização após o envio
         } catch (error) {
             console.error('Erro ao enviar lead (assíncrono):', error);
-            // Em caso de falha no backend, o usuário já viu a alteração no frontend.
-            // Uma notificação de erro ou um "undo" seria o ideal para produção.
         }
     };
     
@@ -297,20 +295,22 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             return;
         }
 
+        const lead = leads.find((l) => l.id === leadId);
+        if (!lead) return;
+
+        // Encontra o usuário selecionado para pegar o nome
         const usuarioSelecionado = usuarios.find(u => String(u.id) === String(userId)); 
         if (!usuarioSelecionado) {
             alert('Erro: Usuário selecionado não encontrado.');
             return;
         }
 
-        const lead = leads.find((l) => l.id === leadId);
-        if (!lead) return;
-
         // 1. ATUALIZAÇÃO VISUAL LOCAL IMEDIATA
-        // Isso faz o card sair do <select> e mostrar "Atribuído a: [Nome]"
+        // Chama a função passada via props para atualizar o array de leads no estado pai
+        // Isso faz o leadId ser associado ao nome do novo responsável
         transferirLead(leadId, usuarioSelecionado.nome); 
         
-        // 2. Limpa o select para que ele não mostre a opção selecionada no futuro
+        // 2. Limpa o select para que a UI renderize a nova visualização (Atribuído a: Nome)
         setSelecionados(prev => {
             const newSelection = { ...prev };
             delete newSelection[leadId];
@@ -319,9 +319,9 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
         // 3. ENVIO ASSÍNCRONO PARA O SERVIDOR (NÃO BLOQUEIA A UI)
         const leadAtualizado = { 
-            ...lead, 
-            usuarioId: String(userId),
-            responsavel: usuarioSelecionado.nome 
+            id: leadId, // Usa o ID para identificação no backend
+            responsavel: usuarioSelecionado.nome,
+            usuarioId: String(userId)
         };
         
         // Dispara o envio. A interface já está atualizada!
@@ -329,9 +329,10 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     };
 
     const handleAlterar = (leadId) => {
-        // Limpa a seleção e define o responsável como null, voltando o card para o estado de seleção.
-        setSelecionados((prev) => ({ ...prev, [leadId]: '' }));
+        // Define o responsável como null/vazio no estado pai para voltar ao modo de seleção
         transferirLead(leadId, null);
+        // Garante que o select será exibido, adicionando uma seleção vazia
+        setSelecionados((prev) => ({ ...prev, [leadId]: '' }));
     };
 
     // --- Outras Funções (Mantidas) ---
@@ -580,11 +581,11 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                         <User size={18} className="mr-2 text-indigo-500" />
                                         Atribuição
                                     </h3>
-                                    {/* Exibe o nome do responsável se lead.responsavel e responsavel existirem */}
-                                    {lead.responsavel && responsavel ? (
+                                    {/* Verifica se lead.responsavel existe (mesmo que seja null) OU se o lead foi marcado para ser alterado (selecionados[lead.id] === '') */}
+                                    {lead.responsavel && lead.responsavel !== 'null' && !selecionados[lead.id] ? (
                                         <div className="p-3 bg-green-50 border border-green-200 rounded-lg shadow-sm">
                                             <p className="text-sm font-medium text-green-700">
-                                                Atribuído a: <strong>{responsavel.nome}</strong>
+                                                Atribuído a: <strong>{lead.responsavel}</strong>
                                             </p>
                                             {isAdmin && (
                                                 <button
@@ -596,7 +597,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             )}
                                         </div>
                                     ) : (
-                                        // Exibe o select e o botão Enviar se o lead não estiver atribuído
+                                        // Exibe o select e o botão Enviar se o lead não estiver atribuído ou se estiver no modo de alteração
                                         <div className="flex flex-col gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
                                             <select
                                                 value={selecionados[lead.id] || ''}
