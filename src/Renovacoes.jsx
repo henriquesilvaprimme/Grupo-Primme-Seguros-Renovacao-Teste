@@ -3,7 +3,7 @@ import Lead from './components/Lead';
 import { RefreshCcw, Bell, Search, Send, Edit, Save, User, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // ===============================================
-// 1. CONFIGURAÇÃO
+// 1. CONFIGURAÇÃO (Mantida)
 // ===============================================
 const SHEET_NAME = 'Renovações';
 
@@ -44,7 +44,7 @@ const getYearMonthFromDate = (dateValue) => {
 
 
 // ===============================================
-// COMPONENTE AUXILIAR: StatusButton com Contagem
+// COMPONENTE AUXILIAR: StatusButton com Contagem (Mantido)
 // ===============================================
 const StatusFilterButton = ({ status, count, currentFilter, onClick, isScheduledToday }) => {
     const isSelected = currentFilter === status;
@@ -99,7 +99,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
     const [showNotification, setShowNotification] = useState(false);
 
-    // --- LÓGICAS INICIAIS ---
+    // --- LÓGICAS INICIAIS (Mantidas) ---
     useEffect(() => {
         const today = new Date();
         const ano = today.getFullYear();
@@ -182,7 +182,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         return nomeNormalizado.includes(filtroNormalizado);
     };
 
-    // --- Lógica de Filtro (useMemo) ---
+    // --- Lógica de Filtro (useMemo) (Mantida) ---
     const gerais = useMemo(() => {
         return leads.filter((lead) => {
             if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
@@ -214,7 +214,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         });
     }, [leads, filtroStatus, filtroData, filtroNome]);
 
-    // --- Contadores de Status ---
+    // --- Contadores de Status (Mantido) ---
     const statusCounts = useMemo(() => {
         const counts = { 'Em Contato': 0, 'Sem Contato': 0, 'Agendado': 0 };
         const today = new Date();
@@ -228,21 +228,21 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             } else if (lead.status === 'Sem Contato') {
                 counts['Sem Contato']++;
             } else if (lead.status.startsWith('Agendado')) {
-                 const statusDateStr = lead.status.split(' - ')[1];
-                 if (!statusDateStr) return;
-                 const [dia, mes, ano] = statusDateStr.split('/');
-                 const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-                 const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
-                 
-                 if (statusDateFormatted === todayFormatted) {
-                    counts['Agendado']++;
-                 }
+                   const statusDateStr = lead.status.split(' - ')[1];
+                   if (!statusDateStr) return;
+                   const [dia, mes, ano] = statusDateStr.split('/');
+                   const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+                   const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+                   
+                   if (statusDateFormatted === todayFormatted) {
+                      counts['Agendado']++;
+                   }
             }
         });
         return counts;
     }, [leads]);
     
-    // --- Lógica de Paginação ---
+    // --- Lógica de Paginação (Mantida) ---
     const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
     const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
     const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
@@ -268,23 +268,30 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         scrollToTop();
     };
 
-    // CORREÇÃO AQUI: Salva o ID como STRING, para manter o tipo consistente com o Sheet
+    // CORREÇÃO AQUI: Salva o ID como STRING, para manter o tipo consistente com o Sheet (Mantida)
     const handleSelect = (leadId, userId) => {
         setSelecionados((prev) => ({ ...prev, [leadId]: String(userId) }));
     };
 
+    // Funções de Envio (Ajustadas para o "fire-and-forget" que simula a atualização instantânea)
+
+    // A função assíncrona apenas envia, sem travar a interface
     const enviarLeadAtualizado = async (lead) => {
         try {
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST', mode: 'no-cors', body: JSON.stringify(lead), headers: { 'Content-Type': 'application/json' },
             });
-            fetchLeadsFromSheet(SHEET_NAME); 
+            // Não chame fetchLeadsFromSheet(SHEET_NAME) aqui para evitar a atualização completa
+            // A atualização visual já foi feita no handleEnviar
+            // Opcionalmente, você pode fazer uma busca completa mais tarde (ex: a cada 5 minutos)
         } catch (error) {
-            console.error('Erro ao enviar lead:', error);
+            console.error('Erro ao enviar lead (assíncrono):', error);
+            // Em um ambiente de produção, você pode querer reverter a alteração visual ou notificar o usuário de um erro.
+            alert('Erro ao enviar a atribuição, os dados locais podem estar incorretos. Por favor, atualize a página.');
         }
     };
     
-    // 💥 CORREÇÃO PRINCIPAL APLICADA AQUI 💥
+    // 💥 NOVA LÓGICA PRINCIPAL: Atualização local e Envio em segundo plano 💥
     const handleEnviar = (leadId) => {
         const userId = selecionados[leadId];
         if (!userId) {
@@ -293,38 +300,46 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         }
 
         // 1. Encontra o usuário, GARANTINDO que a comparação seja feita entre STRINGS.
-        // O `u.id` vindo do Sheet é quase sempre uma string, e o `userId` do select também.
         const usuarioSelecionado = usuarios.find(u => String(u.id) === String(userId)); 
         if (!usuarioSelecionado) {
-            // Este alerta é a correção do problema de tipo
             alert('Erro: Usuário selecionado não encontrado. Verifique a lista de usuários e tipos de ID (String/Number).');
             return;
         }
 
-        // 2. Atualiza o estado visual
+        const lead = leads.find((l) => l.id === leadId);
+        if (!lead) return;
+
+
+        // 2. 🚀 ATUALIZAÇÃO LOCAL (SIMULAÇÃO DE "APERTO DO BOTÃO E ATUALIZAÇÃO") 🚀
+        // Chama a função que atualiza o estado `leads` no componente pai (App/Root)
+        // Isso remove o lead da lista "sem responsável" e o atribui visualmente.
         transferirLead(leadId, usuarioSelecionado.nome); 
         
-        // 3. Prepara e envia a atualização para o Google Sheets
-        const lead = leads.find((l) => l.id === leadId);
-        const leadAtualizado = { 
-            ...lead, 
-            usuarioId: String(userId), // Garante que o ID do usuário seja enviado como string
-            responsavel: usuarioSelecionado.nome 
-        };
-        enviarLeadAtualizado(leadAtualizado);
-        
-        // 4. Limpa o select
+        // 3. Limpa o select para feedback visual imediato
         setSelecionados(prev => {
             const newSelection = { ...prev };
             delete newSelection[leadId];
             return newSelection;
         });
+
+        // 4. Prepara e dispara a atualização para o Google Sheets em segundo plano
+        const leadAtualizado = { 
+            ...lead, 
+            usuarioId: String(userId), // Garante que o ID do usuário seja enviado como string
+            responsavel: usuarioSelecionado.nome 
+        };
+        
+        // Chamada assíncrona, "fire-and-forget", para não travar a UI
+        enviarLeadAtualizado(leadAtualizado);
     };
 
     const handleAlterar = (leadId) => {
         setSelecionados((prev) => ({ ...prev, [leadId]: '' }));
+        // Adicionando a atualização local imediata também para o Alterar
         transferirLead(leadId, null);
     };
+
+    // --- Outras Funções (Mantidas) ---
 
     const formatarData = (dataStr) => {
         if (!dataStr) return '';
@@ -358,7 +373,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 method: 'POST', mode: 'no-cors', body: JSON.stringify({ leadId: leadId, observacao: observacaoTexto }), headers: { 'Content-Type': 'application/json' },
             });
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-            fetchLeadsFromSheet(SHEET_NAME);
+            // A busca completa aqui é mais importante do que no envio de responsabilidade
+            await fetchLeadsFromSheet(SHEET_NAME);
         } catch (error) {
             console.error('Erro ao salvar observação:', error);
             alert('Erro ao salvar observação. Por favor, tente novamente.');
@@ -374,7 +390,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const handleConfirmStatus = (leadId, novoStatus, phone) => {
         onUpdateStatus(leadId, novoStatus, phone);
         const currentLead = leads.find(l => l.id === leadId);
-        const hasNoObservacao = !currentLead.observacao || currentLead.observacao.trim() === '';
+        const hasNoObservacao = !currentLead?.observacao || currentLead.observacao.trim() === '';
 
         if ((novoStatus === 'Em Contato' || novoStatus === 'Sem Contato' || novoStatus.startsWith('Agendado')) && hasNoObservacao) {
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: true }));
@@ -391,7 +407,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     }
 
 
-    // --- Renderização do Layout ---
+    // --- Renderização do Layout (Mantida) ---
     return (
         <div className="p-4 md:p-6 lg:p-8 relative min-h-screen bg-gray-100 font-sans">
             
@@ -616,20 +632,20 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
                 <button
                     onClick={handlePaginaAnterior}
-                    disabled={paginaCorrigida <= 1 || isLoading}
-                    className="px-5 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
+                    disabled={paginaCorrigida === 1}
+                    className="p-2 bg-gray-300 rounded-full hover:bg-gray-400 disabled:opacity-50 transition duration-150"
                 >
-                    <ChevronLeft size={20} className="mr-1" /> Anterior
+                    <ChevronLeft size={20} />
                 </button>
-                <span className="text-gray-700 font-medium text-lg">
-                    Página <strong className="text-indigo-600">{paginaCorrigida}</strong> de {totalPaginas}
+                <span className="text-sm font-semibold text-gray-700">
+                    Página {paginaCorrigida} de {totalPaginas}
                 </span>
                 <button
                     onClick={handlePaginaProxima}
-                    disabled={paginaCorrigida >= totalPaginas || isLoading}
-                    className="px-5 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
+                    disabled={paginaCorrigida === totalPaginas}
+                    className="p-2 bg-gray-300 rounded-full hover:bg-gray-400 disabled:opacity-50 transition duration-150"
                 >
-                    Próxima <ChevronRight size={20} className="ml-1" />
+                    <ChevronRight size={20} />
                 </button>
             </div>
         </div>
