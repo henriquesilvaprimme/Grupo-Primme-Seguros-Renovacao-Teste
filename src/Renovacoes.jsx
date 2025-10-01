@@ -278,13 +278,14 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST', mode: 'no-cors', body: JSON.stringify(lead), headers: { 'Content-Type': 'application/json' },
             });
+            // Após o envio, busca os leads para sincronizar o estado global (IMPORTANTE)
             fetchLeadsFromSheet(SHEET_NAME); 
         } catch (error) {
             console.error('Erro ao enviar lead:', error);
         }
     };
     
-    // 💥 CORREÇÃO PRINCIPAL APLICADA AQUI 💥
+    // 💥 REFORÇO DA SIMULAÇÃO LOCAL AQUI 💥
     const handleEnviar = (leadId) => {
         const userId = selecionados[leadId];
         if (!userId) {
@@ -299,7 +300,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             return;
         }
 
-        // 2. Simulação local para atualização imediata (REINTRODUZIDO)
+        // 2. Simulação local para atualização imediata: Muda o estado do lead no componente pai (leads)
+        // Isso força o card a re-renderizar imediatamente com o novo "responsavel" (REFORÇADO)
         transferirLead(leadId, usuarioSelecionado.nome); 
         
         // 3. Prepara e envia a atualização para o Google Sheets
@@ -311,7 +313,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         };
         enviarLeadAtualizado(leadAtualizado);
         
-        // 4. Limpa o select
+        // 4. Limpa o select localmente
         setSelecionados(prev => {
             const newSelection = { ...prev };
             delete newSelection[leadId];
@@ -319,7 +321,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         });
     };
 
-    // Reintroduzida a simulação local
+    // Reintroduzida e reforçada a simulação local
     const handleAlterar = (leadId) => {
         // Simulação local para remoção imediata
         transferirLead(leadId, null);
@@ -497,11 +499,11 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             <div className="space-y-5">
                 {gerais.length === 0 && !isLoading ? (
                     <div className="text-center p-12 bg-white rounded-xl shadow-md text-gray-600 text-lg">
-                        <p> Você não possui nenhuma renovação no momento. </p>
+                        <p> Você não tem nenhuma renovação para o filtro selecionado no momento. </p>
                     </div>
                 ) : (
                     leadsPagina.map((lead) => {
-                        // Busca o usuário apenas para exibir o nome, baseado no nome (o nome na lista de usuários deve ser único)
+                        // Busca o usuário para exibir o nome, baseado no nome do responsável do lead.
                         const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
                         const shouldShowObs = lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado');
 
@@ -574,7 +576,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     {lead.responsavel && responsavel ? (
                                         <div className="p-3 bg-green-50 border border-green-200 rounded-lg shadow-sm">
                                             <p className="text-sm font-medium text-green-700">
-                                                Atribuído a: <strong>{responsavel.nome}</strong>
+                                                Atribuído a: <strong>{lead.responsavel}</strong>
                                             </p>
                                             {isAdmin && (
                                                 <button
