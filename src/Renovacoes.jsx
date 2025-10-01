@@ -279,13 +279,14 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 method: 'POST', mode: 'no-cors', body: JSON.stringify(lead), headers: { 'Content-Type': 'application/json' },
             });
             // Após o envio, busca os leads para sincronizar o estado global (IMPORTANTE)
+            // Se o transferirLead funcionar, essa chamada só garante a consistência.
             fetchLeadsFromSheet(SHEET_NAME); 
         } catch (error) {
             console.error('Erro ao enviar lead:', error);
         }
     };
     
-    // 💥 REFORÇO DA SIMULAÇÃO LOCAL AQUI 💥
+    // 💥 CORREÇÃO PRINCIPAL: Garante a atualização imediata antes de enviar ao Sheets 💥
     const handleEnviar = (leadId) => {
         const userId = selecionados[leadId];
         if (!userId) {
@@ -293,35 +294,35 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             return;
         }
 
-        // 1. Encontra o usuário, GARANTINDO que a comparação seja feita entre STRINGS.
+        // 1. Encontra o usuário
         const usuarioSelecionado = usuarios.find(u => String(u.id) === String(userId)); 
         if (!usuarioSelecionado) {
             alert('Erro: Usuário selecionado não encontrado. Verifique a lista de usuários.');
             return;
         }
 
-        // 2. Simulação local para atualização imediata: Muda o estado do lead no componente pai (leads)
-        // Isso força o card a re-renderizar imediatamente com o novo "responsavel" (REFORÇADO)
+        // 2. SIMULAÇÃO LOCAL/ATUALIZAÇÃO: Atualiza o estado do Lead no componente pai (leads) IMEDIATAMENTE.
+        // Isso fará com que o card seja re-renderizado com o campo 'responsavel' preenchido.
         transferirLead(leadId, usuarioSelecionado.nome); 
         
-        // 3. Prepara e envia a atualização para o Google Sheets
-        const lead = leads.find((l) => l.id === leadId);
-        const leadAtualizado = { 
-            ...lead, 
-            usuarioId: String(userId), // Garante que o ID do usuário seja enviado como string
-            responsavel: usuarioSelecionado.nome 
-        };
-        enviarLeadAtualizado(leadAtualizado);
-        
-        // 4. Limpa o select localmente
+        // 3. Limpa o select localmente (opcional, mas limpa o campo de seleção)
         setSelecionados(prev => {
             const newSelection = { ...prev };
             delete newSelection[leadId];
             return newSelection;
         });
+
+        // 4. Prepara e envia a atualização para o Google Sheets (Assíncrono)
+        const lead = leads.find((l) => l.id === leadId);
+        const leadAtualizado = { 
+            ...lead, 
+            usuarioId: String(userId),
+            responsavel: usuarioSelecionado.nome 
+        };
+        enviarLeadAtualizado(leadAtualizado);
     };
 
-    // Reintroduzida e reforçada a simulação local
+    // Atualiza o responsável para null, forçando o card a mostrar o <select>
     const handleAlterar = (leadId) => {
         // Simulação local para remoção imediata
         transferirLead(leadId, null);
