@@ -1,13 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCcw } from 'lucide-react'; // Importação do ícone de refresh
 
+// Estilos base para os cards (mais modernos)
+const baseCardStyle = {
+  backgroundColor: '#ffffff',
+  borderRadius: '12px',
+  padding: '20px',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+  transition: 'transform 0.2s, box-shadow 0.2s',
+  flex: 1,
+  minWidth: '200px',
+  textAlign: 'center',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'space-between',
+  height: '100%',
+};
+
+const valueTextStyle = {
+  fontSize: '32px',
+  fontWeight: '600',
+  marginTop: '8px',
+  lineHeight: '1.2',
+};
+
+const titleTextStyle = {
+  fontSize: '14px',
+  color: '#667085',
+  fontWeight: '500',
+  textTransform: 'uppercase',
+};
+
 // --- NOVO COMPONENTE: Gráfico Circular de Progresso (Simulação com CSS) ---
 const CircularProgressChart = ({ percentage }) => {
-  // Garante que a porcentagem esteja entre 0 e 100
   const normalizedPercentage = Math.min(100, Math.max(0, percentage));
-  // Calcula o dash offset (o quanto do círculo deve ser preenchido)
-  // Circunferência de um círculo de raio 50 é 2 * PI * 50 ≈ 314.159
-  // Usaremos um valor aproximado de 314 para facilitar o CSS inline
   const circumference = 314;
   const dashoffset = circumference - (normalizedPercentage / 100) * circumference;
 
@@ -16,7 +42,7 @@ const CircularProgressChart = ({ percentage }) => {
       width: '120px',
       height: '120px',
       position: 'relative',
-      margin: '0 auto',
+      margin: '20px auto 0', // Adiciona margem superior
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -25,7 +51,7 @@ const CircularProgressChart = ({ percentage }) => {
         width="120"
         height="120"
         viewBox="0 0 120 120"
-        style={{ transform: 'rotate(-90deg)' }} // Rotaciona para o preenchimento começar no topo
+        style={{ transform: 'rotate(-90deg)' }}
       >
         {/* Fundo do Círculo (Track) */}
         <circle
@@ -33,7 +59,7 @@ const CircularProgressChart = ({ percentage }) => {
           cy="60"
           r="50"
           fill="none"
-          stroke="#e6e6e6"
+          stroke="#e9ecef"
           strokeWidth="10"
         />
         {/* Círculo de Progresso */}
@@ -42,7 +68,7 @@ const CircularProgressChart = ({ percentage }) => {
           cy="60"
           r="50"
           fill="none"
-          stroke="#4CAF50" // Cor verde para o progresso
+          stroke="#10B981" // Um verde mais moderno (Emerald 500)
           strokeWidth="10"
           strokeLinecap="round"
           style={{
@@ -58,9 +84,9 @@ const CircularProgressChart = ({ percentage }) => {
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        fontSize: '18px',
-        fontWeight: 'bold',
-        color: '#333',
+        fontSize: '22px',
+        fontWeight: '700',
+        color: '#10B981',
       }}>
         {normalizedPercentage.toFixed(1)}%
       </div>
@@ -175,38 +201,20 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const comissaoMediaGlobal =
     totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
 
-  // --- NOVO CÁLCULO: Porcentagem de Vendidos ---
+  // Cálculo: Porcentagem de Vendidos
   const porcentagemVendidos = totalLeads > 0 ? (leadsFechadosCount / totalLeads) * 100 : 0;
-  // ---------------------------------------------
-
-  const boxStyle = {
-    padding: '10px',
-    borderRadius: '5px',
-    flex: 1,
-    color: '#fff',
-    textAlign: 'center',
-    minWidth: '150px', // Garante que os boxes não fiquem muito pequenos
-  };
-
-  // Ajuste de estilo para os 3 primeiros boxes de contadores, permitindo o espaço para o gráfico
-  const boxStyleContadorPrincipal = {
-    ...boxStyle,
-    color: '#333', // Cor do texto para os 3 principais
-    flexBasis: 'calc(33.333% - 14px)', // Para que caibam 3 em uma linha com gap de 20px
-    flexGrow: 0,
-  };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Dashboard</h1>
+    <div style={{ padding: '20px', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
+      <h1 style={{ color: '#1f2937', marginBottom: '20px', fontWeight: '700' }}>Dashboard de Vendas</h1>
 
-      {/* Filtro de datas e Botão de Refresh */}
+      {/* Filtro de datas e Botão de Refresh (Estilos mais discretos) */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
-          marginBottom: '20px',
+          gap: '12px',
+          marginBottom: '30px',
           flexWrap: 'wrap',
         }}
       >
@@ -215,9 +223,9 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           value={dataInicio}
           onChange={(e) => setDataInicio(e.target.value)}
           style={{
-            padding: '6px 10px',
-            borderRadius: '6px',
-            border: '1px solid #ccc',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            border: '1px solid #d1d5db',
             cursor: 'pointer',
           }}
           title="Data de Início"
@@ -227,9 +235,9 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           value={dataFim}
           onChange={(e) => setDataFim(e.target.value)}
           style={{
-            padding: '6px 10px',
-            borderRadius: '6px',
-            border: '1px solid #ccc',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            border: '1px solid #d1d5db',
             cursor: 'pointer',
           }}
           title="Data de Fim"
@@ -237,12 +245,13 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         <button
           onClick={aplicarFiltroData}
           style={{
-            backgroundColor: '#007bff',
+            backgroundColor: '#10B981', // Verde moderno
             color: 'white',
             border: 'none',
-            borderRadius: '6px',
-            padding: '6px 14px',
+            borderRadius: '8px',
+            padding: '8px 16px',
             cursor: 'pointer',
+            fontWeight: '600',
           }}
         >
           Filtrar
@@ -254,17 +263,17 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           onClick={buscarLeadsClosedFromAPI}
           disabled={isLoading}
           style={{
-            backgroundColor: '#6c757d',
+            backgroundColor: '#6b7280', // Cinza escuro
             color: 'white',
             border: 'none',
-            borderRadius: '6px',
-            padding: '6px 10px',
+            borderRadius: '8px',
+            padding: '8px 12px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            minWidth: '36px',
-            height: '36px',
+            minWidth: '40px',
+            height: '40px',
           }}
         >
           {isLoading ? (
@@ -279,90 +288,93 @@ const Dashboard = ({ leads, usuarioLogado }) => {
       </div>
 
       {loading && (
-        <div style={{ textAlign: 'center', padding: '20px' }}>
+        <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
           <p>Carregando dados do dashboard...</p>
         </div>
       )}
 
       {!loading && (
         <>
-          {/* Primeira linha: 3 Contadores Principais e o Gráfico Circular */}
-          <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          {/* Contêiner principal: 3 Contadores + Gráfico (Flex para alinhamento) */}
+          <div style={{ display: 'flex', gap: '24px', marginBottom: '30px', flexWrap: 'wrap', alignItems: 'stretch' }}>
 
-            {/* Contador: Total de Leads */}
-            <div style={{ ...boxStyleContadorPrincipal, backgroundColor: '#eee' }}>
-              <h3>Total de Leads</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{totalLeads}</p>
+            {/* Sub-Contêiner para os 3 Contadores (ocupa 66% da largura) */}
+            <div style={{ display: 'flex', flexGrow: 2, gap: '24px', flexBasis: 'min(66%, 700px)', flexWrap: 'wrap' }}>
+                {/* Contador: Total de Leads (Neutro) */}
+                <div style={{ ...baseCardStyle, minWidth: '180px' }}>
+                    <p style={titleTextStyle}>Total de Leads</p>
+                    <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
+                </div>
+
+                {/* Contador: Vendas (Destaque Positivo) */}
+                <div style={{ ...baseCardStyle, backgroundColor: '#10B981', minWidth: '180px' }}>
+                    <p style={{ ...titleTextStyle, color: 'rgba(255,255,255,0.7)' }}>Vendas</p>
+                    <p style={{ ...valueTextStyle, color: '#ffffff' }}>{leadsFechadosCount}</p>
+                </div>
+
+                {/* Contador: Leads Perdidos (Destaque Negativo) */}
+                <div style={{ ...baseCardStyle, backgroundColor: '#EF4444', minWidth: '180px' }}>
+                    <p style={{ ...titleTextStyle, color: 'rgba(255,255,255,0.7)' }}>Perdidos</p>
+                    <p style={{ ...valueTextStyle, color: '#ffffff' }}>{leadsPerdidos}</p>
+                </div>
             </div>
 
-            {/* Contador: Vendas */}
-            <div style={{ ...boxStyleContadorPrincipal, backgroundColor: '#4CAF50', color: '#fff' }}>
-              <h3>Vendas</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsFechadosCount}</p>
-            </div>
-
-            {/* Contador: Leads Perdidos */}
-            <div style={{ ...boxStyleContadorPrincipal, backgroundColor: '#F44336', color: '#fff' }}>
-              <h3>Leads Perdidos</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{leadsPerdidos}</p>
-            </div>
-
-            {/* NOVO: Gráfico Circular de Progresso */}
+            {/* Gráfico Circular de Progresso (Sempre à direita, ocupa 33% da largura) */}
             <div style={{
-              padding: '10px',
-              borderRadius: '5px',
-              backgroundColor: '#fff',
-              border: '1px solid #ccc',
-              flexBasis: 'calc(33.333% - 14px)',
-              flexGrow: 0,
-              minWidth: '150px',
-              textAlign: 'center',
+                ...baseCardStyle,
+                flexGrow: 1,
+                flexBasis: 'min(30%, 300px)', // Garante que ele ocupe o restante do espaço
+                minWidth: '250px',
             }}>
-              <h3 style={{ color: '#333' }}>% de Vendidos (Leads)</h3>
-              <CircularProgressChart percentage={porcentagemVendidos} />
+                <h3 style={{ color: '#1f2937', fontSize: '16px', margin: '0' }}>Taxa de Conversão</h3>
+                <CircularProgressChart percentage={porcentagemVendidos} />
             </div>
 
           </div>
 
-          {/* Segunda linha: Contadores por Seguradora */}
-          <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
-            <div style={{ ...boxStyle, backgroundColor: '#003366' }}>
-              <h3>Porto Seguro</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{portoSeguro}</p>
+          {/* Segunda linha: Contadores por Seguradora (Grid para mais estrutura) */}
+          <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '20px', fontWeight: '600' }}>Vendas por Seguradora</h2>
+          <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap' }}>
+            <div style={{ ...baseCardStyle, flexGrow: 1, backgroundColor: '#eff6ff', border: '1px solid #bfdbfe' }}>
+              <p style={{ ...titleTextStyle, color: '#1e3a8a' }}>Porto Seguro</p>
+              <p style={{ ...valueTextStyle, color: '#1e3a8a' }}>{portoSeguro}</p>
             </div>
-            <div style={{ ...boxStyle, backgroundColor: '#87CEFA', color: '#333' }}>
-              <h3>Azul Seguros</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{azulSeguros}</p>
+            <div style={{ ...baseCardStyle, flexGrow: 1, backgroundColor: '#f0fdf4', border: '1px solid #86efac' }}>
+              <p style={{ ...titleTextStyle, color: '#065f46' }}>Azul Seguros</p>
+              <p style={{ ...valueTextStyle, color: '#065f46' }}>{azulSeguros}</p>
             </div>
-            <div style={{ ...boxStyle, backgroundColor: '#FF8C00' }}>
-              <h3>Itau Seguros</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{itauSeguros}</p>
+            <div style={{ ...baseCardStyle, flexGrow: 1, backgroundColor: '#fff7ed', border: '1px solid #fed7aa' }}>
+              <p style={{ ...titleTextStyle, color: '#9a3412' }}>Itau Seguros</p>
+              <p style={{ ...valueTextStyle, color: '#9a3412' }}>{itauSeguros}</p>
             </div>
-            <div style={{ ...boxStyle, backgroundColor: '#4CAF50' }}>
-              <h3>Demais Seguradoras</h3>
-              <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{demais}</p>
+            <div style={{ ...baseCardStyle, flexGrow: 1, backgroundColor: '#f3f4f6', border: '1px solid #d1d5db' }}>
+              <p style={{ ...titleTextStyle, color: '#374151' }}>Demais Seguradoras</p>
+              <p style={{ ...valueTextStyle, color: '#374151' }}>{demais}</p>
             </div>
           </div>
 
           {/* Somente para Admin: linha de Prêmio Líquido e Comissão */}
           {usuarioLogado.tipo === 'Admin' && (
-            <div style={{ display: 'flex', gap: '20px', marginTop: '20px', flexWrap: 'wrap' }}>
-              <div style={{ ...boxStyle, backgroundColor: '#3f51b5' }}>
-                <h3>Total Prêmio Líquido</h3>
-                <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
+            <>
+            <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '20px', fontWeight: '600' }}>Métricas Financeiras</h2>
+            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+              <div style={{ ...baseCardStyle, flexGrow: 1, backgroundColor: '#eef2ff', border: '1px solid #c7d2fe' }}>
+                <p style={{ ...titleTextStyle, color: '#4338ca' }}>Total Prêmio Líquido</p>
+                <p style={{ ...valueTextStyle, color: '#4338ca' }}>
                   {totalPremioLiquido.toLocaleString('pt-BR', {
                     style: 'currency',
                     currency: 'BRL',
                   })}
                 </p>
               </div>
-              <div style={{ ...boxStyle, backgroundColor: '#009688' }}>
-                <h3>Média Comissão</h3>
-                <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
+              <div style={{ ...baseCardStyle, flexGrow: 1, backgroundColor: '#ecfeff', border: '1px solid #99f6e4' }}>
+                <p style={{ ...titleTextStyle, color: '#0f766e' }}>Média Comissão</p>
+                <p style={{ ...valueTextStyle, color: '#0f766e' }}>
                   {comissaoMediaGlobal.toFixed(2).replace('.', ',')}%
                 </p>
               </div>
             </div>
+            </>
           )}
         </>
       )}
