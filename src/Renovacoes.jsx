@@ -111,7 +111,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
     // --- LÓGICAS (AJUSTADAS) ---
     useEffect(() => {
-        // 🚨 NOVIDADE: Inicializa com o MÊS e ANO ATUAL, focado na VIGENCIA FINAL
+        // Inicializa com o MÊS e ANO ATUAL, focado na VIGENCIA FINAL
         const today = new Date();
         const ano = today.getFullYear();
         const mes = String(today.getMonth() + 1).padStart(2, '0');
@@ -221,7 +221,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 return lead.status === filtroStatus;
             }
 
-            // 2. FILTRO DE DATA (VIGENCIA FINAL) 🚨 NOVIDADE AQUI!
+            // 2. FILTRO DE DATA (VIGENCIA FINAL)
             if (filtroData) {
                 // Filtra pelo mês e ano da VIGENCIA FINAL (coluna P)
                 const leadVigenciaMesAno = getYearMonthFromDate(lead.VigenciaFinal);
@@ -233,7 +233,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 return nomeContemFiltro(lead.name, filtroNome);
             }
 
-            // Se nenhum filtro estiver ativo (o que não deve ocorrer na inicialização devido ao useEffect)
             return true; 
         });
     }, [leads, filtroStatus, filtroData, filtroNome]); // Dependências ajustadas para incluir filtroData
@@ -539,7 +538,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             {/* Título "Observações" removido */}
                                             <textarea
                                                 value={observacoes[lead.id] || ''}
-                                                onChange={(e) => handleObservacaoChange(lead.id, e.target.value)} {/* Corrigido: deve usar lead.id e e.target.value */}
+                                                onChange={(e) => handleObservacaoChange(lead.id, e.target.value)} 
                                                 rows="4"
                                                 placeholder="Adicione suas observações aqui..."
                                                 disabled={!isEditingObservacao[lead.id]}
