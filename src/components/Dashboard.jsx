@@ -1,37 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCcw } from 'lucide-react'; // Importação do ícone de refresh
 
-// Estilos base para os cards (mais modernos)
-const baseCardStyle = {
+// --- NOVOS ESTILOS PARA CARDS MAIS COMPACTOS E MINIMALISTAS ---
+const compactCardStyle = {
   backgroundColor: '#ffffff',
-  borderRadius: '12px',
-  padding: '20px',
-  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-  transition: 'transform 0.2s, box-shadow 0.2s',
-  flex: 1,
-  minWidth: '200px',
-  textAlign: 'center',
+  borderRadius: '8px', // Borda mais suave
+  padding: '15px', // Redução do padding
+  border: '1px solid #e5e7eb', // Borda discreta
+  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)', // Sombra sutil
+  transition: 'all 0.2s',
   display: 'flex',
   flexDirection: 'column',
-  justifyContent: 'space-between',
-  height: '100%',
+  justifyContent: 'center',
+  alignItems: 'center',
 };
 
 const valueTextStyle = {
-  fontSize: '32px',
-  fontWeight: '600',
-  marginTop: '8px',
+  fontSize: '26px', // Redução do tamanho da fonte para o valor
+  fontWeight: '700',
+  marginTop: '5px',
   lineHeight: '1.2',
 };
 
 const titleTextStyle = {
-  fontSize: '14px',
-  color: '#667085',
+  fontSize: '12px', // Redução da fonte do título
+  color: '#6b7280',
   fontWeight: '500',
   textTransform: 'uppercase',
+  marginBottom: '0',
 };
 
-// --- NOVO COMPONENTE: Gráfico Circular de Progresso (Simulação com CSS) ---
+// --- COMPONENTE: Gráfico Circular de Progresso (Estilos adaptados) ---
 const CircularProgressChart = ({ percentage }) => {
   const normalizedPercentage = Math.min(100, Math.max(0, percentage));
   const circumference = 314;
@@ -39,17 +38,17 @@ const CircularProgressChart = ({ percentage }) => {
 
   return (
     <div style={{
-      width: '120px',
-      height: '120px',
+      width: '100px', // Tamanho reduzido
+      height: '100px', // Tamanho reduzido
       position: 'relative',
-      margin: '20px auto 0', // Adiciona margem superior
+      margin: '10px auto 0',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
     }}>
       <svg
-        width="120"
-        height="120"
+        width="100"
+        height="100"
         viewBox="0 0 120 120"
         style={{ transform: 'rotate(-90deg)' }}
       >
@@ -59,8 +58,8 @@ const CircularProgressChart = ({ percentage }) => {
           cy="60"
           r="50"
           fill="none"
-          stroke="#e9ecef"
-          strokeWidth="10"
+          stroke="#f3f4f6"
+          strokeWidth="8" // Linha mais fina
         />
         {/* Círculo de Progresso */}
         <circle
@@ -68,8 +67,8 @@ const CircularProgressChart = ({ percentage }) => {
           cy="60"
           r="50"
           fill="none"
-          stroke="#10B981" // Um verde mais moderno (Emerald 500)
-          strokeWidth="10"
+          stroke="#059669" // Verde mais escuro e sólido (Emerald 600)
+          strokeWidth="8"
           strokeLinecap="round"
           style={{
             transition: 'stroke-dashoffset 0.5s linear',
@@ -84,9 +83,9 @@ const CircularProgressChart = ({ percentage }) => {
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        fontSize: '22px',
+        fontSize: '18px',
         fontWeight: '700',
-        color: '#10B981',
+        color: '#059669',
       }}>
         {normalizedPercentage.toFixed(1)}%
       </div>
@@ -208,7 +207,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     <div style={{ padding: '20px', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
       <h1 style={{ color: '#1f2937', marginBottom: '20px', fontWeight: '700' }}>Dashboard de Vendas</h1>
 
-      {/* Filtro de datas e Botão de Refresh (Estilos mais discretos) */}
+      {/* Filtro de datas e Botão de Refresh */}
       <div
         style={{
           display: 'flex',
@@ -222,59 +221,28 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           type="date"
           value={dataInicio}
           onChange={(e) => setDataInicio(e.target.value)}
-          style={{
-            padding: '8px 12px',
-            borderRadius: '8px',
-            border: '1px solid #d1d5db',
-            cursor: 'pointer',
-          }}
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d1d5db' }}
           title="Data de Início"
         />
         <input
           type="date"
           value={dataFim}
           onChange={(e) => setDataFim(e.target.value)}
-          style={{
-            padding: '8px 12px',
-            borderRadius: '8px',
-            border: '1px solid #d1d5db',
-            cursor: 'pointer',
-          }}
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d1d5db' }}
           title="Data de Fim"
         />
         <button
           onClick={aplicarFiltroData}
-          style={{
-            backgroundColor: '#10B981', // Verde moderno
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '8px 16px',
-            cursor: 'pointer',
-            fontWeight: '600',
-          }}
+          style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontWeight: '600' }}
         >
           Filtrar
         </button>
 
-        {/* Botão de Refresh */}
         <button
           title='Clique para atualizar os dados'
           onClick={buscarLeadsClosedFromAPI}
           disabled={isLoading}
-          style={{
-            backgroundColor: '#6b7280', // Cinza escuro
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '8px 12px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minWidth: '40px',
-            height: '40px',
-          }}
+          style={{ backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '40px', height: '40px' }}
         >
           {isLoading ? (
             <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -295,79 +263,88 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
       {!loading && (
         <>
-          {/* Contêiner principal: 3 Contadores + Gráfico (Flex para alinhamento) */}
-          <div style={{ display: 'flex', gap: '24px', marginBottom: '30px', flexWrap: 'wrap', alignItems: 'stretch' }}>
-
-            {/* Sub-Contêiner para os 3 Contadores (ocupa 66% da largura) */}
-            <div style={{ display: 'flex', flexGrow: 2, gap: '24px', flexBasis: 'min(66%, 700px)', flexWrap: 'wrap' }}>
-                {/* Contador: Total de Leads (Neutro) */}
-                <div style={{ ...baseCardStyle, minWidth: '180px' }}>
-                    <p style={titleTextStyle}>Total de Leads</p>
-                    <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
-                </div>
-
-                {/* Contador: Vendas (Destaque Positivo) */}
-                <div style={{ ...baseCardStyle, backgroundColor: '#10B981', minWidth: '180px' }}>
-                    <p style={{ ...titleTextStyle, color: 'rgba(255,255,255,0.7)' }}>Vendas</p>
-                    <p style={{ ...valueTextStyle, color: '#ffffff' }}>{leadsFechadosCount}</p>
-                </div>
-
-                {/* Contador: Leads Perdidos (Destaque Negativo) */}
-                <div style={{ ...baseCardStyle, backgroundColor: '#EF4444', minWidth: '180px' }}>
-                    <p style={{ ...titleTextStyle, color: 'rgba(255,255,255,0.7)' }}>Perdidos</p>
-                    <p style={{ ...valueTextStyle, color: '#ffffff' }}>{leadsPerdidos}</p>
-                </div>
+          {/* Primeira Seção: 3 Contadores Principais + Gráfico (Grid com 4 colunas) */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)', // 4 colunas iguais
+            gap: '20px',
+            marginBottom: '30px',
+          }}>
+            {/* Contador: Total de Leads */}
+            <div style={{ ...compactCardStyle, minWidth: '150px' }}>
+                <p style={titleTextStyle}>Total de Leads</p>
+                <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
             </div>
 
-            {/* Gráfico Circular de Progresso (Sempre à direita, ocupa 33% da largura) */}
+            {/* Contador: Vendas */}
+            <div style={{ ...compactCardStyle, backgroundColor: '#d1fae5', border: '1px solid #a7f3d0' }}>
+                <p style={{ ...titleTextStyle, color: '#059669' }}>Vendas</p>
+                <p style={{ ...valueTextStyle, color: '#059669' }}>{leadsFechadosCount}</p>
+            </div>
+
+            {/* Contador: Leads Perdidos */}
+            <div style={{ ...compactCardStyle, backgroundColor: '#fee2e2', border: '1px solid #fca5a5' }}>
+                <p style={{ ...titleTextStyle, color: '#ef4444' }}>Perdidos</p>
+                <p style={{ ...valueTextStyle, color: '#ef4444' }}>{leadsPerdidos}</p>
+            </div>
+
+            {/* Gráfico Circular de Progresso (Ultima Coluna, à Direita) */}
             <div style={{
-                ...baseCardStyle,
-                flexGrow: 1,
-                flexBasis: 'min(30%, 300px)', // Garante que ele ocupe o restante do espaço
-                minWidth: '250px',
+                ...compactCardStyle,
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '150px'
             }}>
-                <h3 style={{ color: '#1f2937', fontSize: '16px', margin: '0' }}>Taxa de Conversão</h3>
+                <h3 style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '5px' }}>Taxa de Conversão</h3>
                 <CircularProgressChart percentage={porcentagemVendidos} />
             </div>
-
           </div>
 
-          {/* Segunda linha: Contadores por Seguradora (Grid para mais estrutura) */}
-          <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '20px', fontWeight: '600' }}>Vendas por Seguradora</h2>
-          <div style={{ display: 'flex', gap: '20px', marginBottom: '30px', flexWrap: 'wrap' }}>
-            <div style={{ ...baseCardStyle, flexGrow: 1, backgroundColor: '#eff6ff', border: '1px solid #bfdbfe' }}>
-              <p style={{ ...titleTextStyle, color: '#1e3a8a' }}>Porto Seguro</p>
-              <p style={{ ...valueTextStyle, color: '#1e3a8a' }}>{portoSeguro}</p>
+          {/* Segunda Seção: Contadores por Seguradora (Grid com 4 colunas) */}
+          <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Vendas por Seguradora</h2>
+          <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)', // 4 colunas iguais
+              gap: '20px',
+              marginBottom: '30px',
+          }}>
+            <div style={{ ...compactCardStyle, backgroundColor: '#f0f9ff', border: '1px solid #bfdbfe' }}>
+              <p style={{ ...titleTextStyle, color: '#1e40af' }}>Porto Seguro</p>
+              <p style={{ ...valueTextStyle, color: '#1e40af' }}>{portoSeguro}</p>
             </div>
-            <div style={{ ...baseCardStyle, flexGrow: 1, backgroundColor: '#f0fdf4', border: '1px solid #86efac' }}>
+            <div style={{ ...compactCardStyle, backgroundColor: '#f0fdf4', border: '1px solid #a7f3d0' }}>
               <p style={{ ...titleTextStyle, color: '#065f46' }}>Azul Seguros</p>
               <p style={{ ...valueTextStyle, color: '#065f46' }}>{azulSeguros}</p>
             </div>
-            <div style={{ ...baseCardStyle, flexGrow: 1, backgroundColor: '#fff7ed', border: '1px solid #fed7aa' }}>
-              <p style={{ ...titleTextStyle, color: '#9a3412' }}>Itau Seguros</p>
-              <p style={{ ...valueTextStyle, color: '#9a3412' }}>{itauSeguros}</p>
+            <div style={{ ...compactCardStyle, backgroundColor: '#fff7ed', border: '1px solid #fed7aa' }}>
+              <p style={{ ...titleTextStyle, color: '#92400e' }}>Itau Seguros</p>
+              <p style={{ ...valueTextStyle, color: '#92400e' }}>{itauSeguros}</p>
             </div>
-            <div style={{ ...baseCardStyle, flexGrow: 1, backgroundColor: '#f3f4f6', border: '1px solid #d1d5db' }}>
+            <div style={{ ...compactCardStyle, backgroundColor: '#f9fafb', border: '1px solid #d1d5db' }}>
               <p style={{ ...titleTextStyle, color: '#374151' }}>Demais Seguradoras</p>
               <p style={{ ...valueTextStyle, color: '#374151' }}>{demais}</p>
             </div>
           </div>
 
-          {/* Somente para Admin: linha de Prêmio Líquido e Comissão */}
+          {/* Terceira Seção: Prêmios e Comissão (Grid com 2 colunas) */}
           {usuarioLogado.tipo === 'Admin' && (
             <>
-            <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '20px', fontWeight: '600' }}>Métricas Financeiras</h2>
-            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-              <div style={{ ...baseCardStyle, flexGrow: 1, backgroundColor: '#eef2ff', border: '1px solid #c7d2fe' }}>
-                <p style={{ ...titleTextStyle, color: '#4338ca' }}>Total Prêmio Líquido</p>
-                <p style={{ ...valueTextStyle, color: '#4338ca' }}>
+            <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Métricas Financeiras</h2>
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)', // 2 colunas iguais
+                gap: '20px',
+            }}>
+              <div style={{ ...compactCardStyle, backgroundColor: '#eef2ff', border: '1px solid #c7d2fe' }}>
+                <p style={{ ...titleTextStyle, color: '#4f46e5' }}>Total Prêmio Líquido</p>
+                <p style={{ ...valueTextStyle, color: '#4f46e5' }}>
                   {totalPremioLiquido.toLocaleString('pt-BR', {
                     style: 'currency',
                     currency: 'BRL',
                   })}
                 </p>
               </div>
-              <div style={{ ...baseCardStyle, flexGrow: 1, backgroundColor: '#ecfeff', border: '1px solid #99f6e4' }}>
+              <div style={{ ...compactCardStyle, backgroundColor: '#ecfeff', border: '1px solid #99f6e4' }}>
                 <p style={{ ...titleTextStyle, color: '#0f766e' }}>Média Comissão</p>
                 <p style={{ ...valueTextStyle, color: '#0f766e' }}>
                   {comissaoMediaGlobal.toFixed(2).replace('.', ',')}%
