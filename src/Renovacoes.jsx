@@ -268,30 +268,28 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         scrollToTop();
     };
 
-    // CORREÇÃO AQUI: Salva o ID como STRING, para manter o tipo consistente com o Sheet (Mantida)
+    // Salva o ID como STRING, para manter o tipo consistente com o Sheet (Mantida)
     const handleSelect = (leadId, userId) => {
         setSelecionados((prev) => ({ ...prev, [leadId]: String(userId) }));
     };
 
-    // Funções de Envio (Ajustadas para o "fire-and-forget" que simula a atualização instantânea)
-
-    // A função assíncrona apenas envia, sem travar a interface
+    // Funções de Envio - Lógica otimista ("fire-and-forget")
+    
     const enviarLeadAtualizado = async (lead) => {
         try {
+            // Este fetch não espera por await, pois a atualização visual é imediata
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST', mode: 'no-cors', body: JSON.stringify(lead), headers: { 'Content-Type': 'application/json' },
             });
-            // Não chame fetchLeadsFromSheet(SHEET_NAME) aqui para evitar a atualização completa
-            // A atualização visual já foi feita no handleEnviar
-            // Opcionalmente, você pode fazer uma busca completa mais tarde (ex: a cada 5 minutos)
+            // Opcional: Aqui você poderia chamar fetchLeadsFromSheet(SHEET_NAME) se quisesse garantir a sincronização após o envio
         } catch (error) {
             console.error('Erro ao enviar lead (assíncrono):', error);
-            // Em um ambiente de produção, você pode querer reverter a alteração visual ou notificar o usuário de um erro.
-            alert('Erro ao enviar a atribuição, os dados locais podem estar incorretos. Por favor, atualize a página.');
+            // Em caso de falha no backend, o usuário já viu a alteração no frontend.
+            // Uma notificação de erro ou um "undo" seria o ideal para produção.
         }
     };
     
-    // 💥 NOVA LÓGICA PRINCIPAL: Atualização local e Envio em segundo plano 💥
+    // 💥 FUNÇÃO PRINCIPAL REVISADA PARA ATUALIZAÇÃO VISUAL INSTANTÂNEA 💥
     const handleEnviar = (leadId) => {
         const userId = selecionados[leadId];
         if (!userId) {
@@ -299,43 +297,40 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             return;
         }
 
-        // 1. Encontra o usuário, GARANTINDO que a comparação seja feita entre STRINGS.
         const usuarioSelecionado = usuarios.find(u => String(u.id) === String(userId)); 
         if (!usuarioSelecionado) {
-            alert('Erro: Usuário selecionado não encontrado. Verifique a lista de usuários e tipos de ID (String/Number).');
+            alert('Erro: Usuário selecionado não encontrado.');
             return;
         }
 
         const lead = leads.find((l) => l.id === leadId);
         if (!lead) return;
 
-
-        // 2. 🚀 ATUALIZAÇÃO LOCAL (SIMULAÇÃO DE "APERTO DO BOTÃO E ATUALIZAÇÃO") 🚀
-        // Chama a função que atualiza o estado `leads` no componente pai (App/Root)
-        // Isso remove o lead da lista "sem responsável" e o atribui visualmente.
+        // 1. ATUALIZAÇÃO VISUAL LOCAL IMEDIATA
+        // Isso faz o card sair do <select> e mostrar "Atribuído a: [Nome]"
         transferirLead(leadId, usuarioSelecionado.nome); 
         
-        // 3. Limpa o select para feedback visual imediato
+        // 2. Limpa o select para que ele não mostre a opção selecionada no futuro
         setSelecionados(prev => {
             const newSelection = { ...prev };
             delete newSelection[leadId];
             return newSelection;
         });
 
-        // 4. Prepara e dispara a atualização para o Google Sheets em segundo plano
+        // 3. ENVIO ASSÍNCRONO PARA O SERVIDOR (NÃO BLOQUEIA A UI)
         const leadAtualizado = { 
             ...lead, 
-            usuarioId: String(userId), // Garante que o ID do usuário seja enviado como string
+            usuarioId: String(userId),
             responsavel: usuarioSelecionado.nome 
         };
         
-        // Chamada assíncrona, "fire-and-forget", para não travar a UI
+        // Dispara o envio. A interface já está atualizada!
         enviarLeadAtualizado(leadAtualizado);
     };
 
     const handleAlterar = (leadId) => {
+        // Limpa a seleção e define o responsável como null, voltando o card para o estado de seleção.
         setSelecionados((prev) => ({ ...prev, [leadId]: '' }));
-        // Adicionando a atualização local imediata também para o Alterar
         transferirLead(leadId, null);
     };
 
@@ -373,7 +368,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 method: 'POST', mode: 'no-cors', body: JSON.stringify({ leadId: leadId, observacao: observacaoTexto }), headers: { 'Content-Type': 'application/json' },
             });
             setIsEditingObservacao(prev => ({ ...prev, [leadId]: false }));
-            // A busca completa aqui é mais importante do que no envio de responsabilidade
+            // Aqui sim buscamos os leads atualizados para garantir que a observação foi salva corretamente
             await fetchLeadsFromSheet(SHEET_NAME);
         } catch (error) {
             console.error('Erro ao salvar observação:', error);
@@ -515,7 +510,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                     </div>
                 ) : (
                     leadsPagina.map((lead) => {
-                        // O problema de tipo é corrigido na busca, garantindo que u.id (string) seja comparado com lead.responsavel (string)
+                        // Busca o responsável atual para exibir o nome
                         const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
                         const shouldShowObs = lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado');
 
@@ -585,6 +580,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                         <User size={18} className="mr-2 text-indigo-500" />
                                         Atribuição
                                     </h3>
+                                    {/* Exibe o nome do responsável se lead.responsavel e responsavel existirem */}
                                     {lead.responsavel && responsavel ? (
                                         <div className="p-3 bg-green-50 border border-green-200 rounded-lg shadow-sm">
                                             <p className="text-sm font-medium text-green-700">
@@ -600,6 +596,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                             )}
                                         </div>
                                     ) : (
+                                        // Exibe o select e o botão Enviar se o lead não estiver atribuído
                                         <div className="flex flex-col gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
                                             <select
                                                 value={selecionados[lead.id] || ''}
