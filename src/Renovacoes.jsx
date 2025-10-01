@@ -78,7 +78,7 @@ const StatusFilterButton = ({ status, count, currentFilter, onClick, isScheduled
         statusColors = 'bg-gray-200 text-gray-700 hover:bg-gray-300';
     }
     
-    const label = isScheduledToday ? `Agendados` : status;
+    const label = isScheduledToday ? `Agendados Hoje` : status;
     
     return (
         <button
@@ -266,7 +266,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         return counts;
     }, [leads]);
     
-    // --- Lógica de Paginação, Transferência e Observação (MANTIDAS) ---
+    // --- Lógica de Paginação, Transferência e Observação (AJUSTADA) ---
     const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
     const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
     const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
@@ -301,26 +301,52 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST', mode: 'no-cors', body: JSON.stringify(lead), headers: { 'Content-Type': 'application/json' },
             });
-            fetchLeadsFromSheet(SHEET_NAME);
+            // Não chame fetchLeadsFromSheet() aqui para evitar dupla chamada.
+            // A atualização do estado visual é feita no handleEnviar.
         } catch (error) {
             console.error('Erro ao enviar lead:', error);
         }
     };
     
+    // CORREÇÃO: Garante que o estado local seja atualizado com o nome do usuário.
     const handleEnviar = (leadId) => {
         const userId = selecionados[leadId];
         if (!userId) {
             alert('Selecione um usuário antes de enviar.');
             return;
         }
-        transferirLead(leadId, userId);
+
+        const usuarioSelecionado = usuarios.find(u => u.id === userId);
+        if (!usuarioSelecionado) {
+            alert('Usuário selecionado não encontrado.');
+            return;
+        }
+
+        // 1. Atualiza o estado visual no componente pai (o estado `leads`)
+        // O `transferirLead` deve atualizar o array `leads` no estado do componente App
+        // com o nome do novo responsável (`usuarioSelecionado.nome`).
+        transferirLead(leadId, usuarioSelecionado.nome); 
+        
+        // 2. Prepara e envia a atualização para o Google Sheets
         const lead = leads.find((l) => l.id === leadId);
-        const leadAtualizado = { ...lead, usuarioId: userId };
+        const leadAtualizado = { 
+            ...lead, 
+            usuarioId: userId,
+            responsavel: usuarioSelecionado.nome // ESSENCIAL: Garante que o script Sheets atualize o nome
+        };
         enviarLeadAtualizado(leadAtualizado);
+        
+        // 3. Limpa o select e a seleção
+        setSelecionados(prev => {
+            const newSelection = { ...prev };
+            delete newSelection[leadId];
+            return newSelection;
+        });
     };
 
     const handleAlterar = (leadId) => {
         setSelecionados((prev) => ({ ...prev, [leadId]: '' }));
+        // Se a atribuição for alterada, o responsável deve ser limpo localmente
         transferirLead(leadId, null);
     };
 
@@ -489,7 +515,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 <StatusFilterButton status="Todos" count={gerais.length} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} color="purple" />
                 <StatusFilterButton status="Em Contato" count={statusCounts['Em Contato']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} color="yellow" />
                 <StatusFilterButton status="Sem Contato" count={statusCounts['Sem Contato']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} color="red" />
-                {hasScheduledToday && <StatusFilterButton status="Agendado" count={statusCounts['Agendado']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} isScheduledToday={true} color="cyan" />}
+                {statusCounts['Agendado'] > 0 && <StatusFilterButton status="Agendado" count={statusCounts['Agendado']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} isScheduledToday={true} color="cyan" />}
             </div>
 
             {/* Lista de Cards de Leads */}
