@@ -268,7 +268,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         scrollToTop();
     };
 
-    // CORREÇÃO AQUI: Salva o ID como STRING, para manter o tipo consistente com o Sheet
+    // Salva o ID como STRING, para manter o tipo consistente com o Sheet
     const handleSelect = (leadId, userId) => {
         setSelecionados((prev) => ({ ...prev, [leadId]: String(userId) }));
     };
@@ -293,15 +293,13 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         }
 
         // 1. Encontra o usuário, GARANTINDO que a comparação seja feita entre STRINGS.
-        // O `u.id` vindo do Sheet é quase sempre uma string, e o `userId` do select também.
         const usuarioSelecionado = usuarios.find(u => String(u.id) === String(userId)); 
         if (!usuarioSelecionado) {
-            // Este alerta é a correção do problema de tipo
-            alert('Erro: Usuário selecionado não encontrado. Verifique a lista de usuários e tipos de ID (String/Number).');
+            alert('Erro: Usuário selecionado não encontrado. Verifique a lista de usuários.');
             return;
         }
 
-        // 2. Atualiza o estado visual
+        // 2. Simulação local para atualização imediata (REINTRODUZIDO)
         transferirLead(leadId, usuarioSelecionado.nome); 
         
         // 3. Prepara e envia a atualização para o Google Sheets
@@ -321,9 +319,13 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         });
     };
 
+    // Reintroduzida a simulação local
     const handleAlterar = (leadId) => {
-        setSelecionados((prev) => ({ ...prev, [leadId]: '' }));
+        // Simulação local para remoção imediata
         transferirLead(leadId, null);
+        
+        // Limpa o select
+        setSelecionados((prev) => ({ ...prev, [leadId]: '' }));
     };
 
     const formatarData = (dataStr) => {
@@ -495,11 +497,11 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             <div className="space-y-5">
                 {gerais.length === 0 && !isLoading ? (
                     <div className="text-center p-12 bg-white rounded-xl shadow-md text-gray-600 text-lg">
-                        <p> Você não tem nenhuma renovação para o filtro selecionado no momento. </p>
+                        <p> Você não possui nenhuma renovação no momento. </p>
                     </div>
                 ) : (
                     leadsPagina.map((lead) => {
-                        // O problema de tipo é corrigido na busca, garantindo que u.id (string) seja comparado com lead.responsavel (string)
+                        // Busca o usuário apenas para exibir o nome, baseado no nome (o nome na lista de usuários deve ser único)
                         const responsavel = usuarios.find((u) => u.nome === lead.responsavel);
                         const shouldShowObs = lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado');
 
