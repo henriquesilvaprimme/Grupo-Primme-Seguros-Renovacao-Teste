@@ -29,21 +29,29 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const [premioLiquidoInputDisplay, setPremioLiquidoInputDisplay] = useState({});
 
     // --- FUNÇÕES DE LÓGICA (MANTIDAS) ---
+    // CORREÇÃO APLICADA AQUI: Garantir que a conversão DD/MM/AAAA -> AAAA-MM-DD funcione.
     const getDataParaComparacao = (dataStr) => {
         if (!dataStr) return '';
+        dataStr = String(dataStr).trim();
+
         try {
-            const dateObj = new Date(dataStr);
-            if (isNaN(dateObj.getTime())) {
-                const parts = dataStr.split('/');
-                if (parts.length === 3) {
-                    return `${parts[2]}-${parts[1]}-${parts[0]}`;
-                }
-                return '';
+            // Verifica o formato DD/MM/AAAA e converte para AAAA-MM-DD
+            const parts = dataStr.split('/');
+            if (parts.length === 3) {
+                // Se for DD/MM/AAAA, retorna AAAA-MM-DD
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
             }
-            const year = dateObj.getFullYear();
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+
+            // Se já estiver em AAAA-MM-DD ou for um formato ISO válido (ex: de Date.now())
+            const dateObj = new Date(dataStr);
+            if (!isNaN(dateObj.getTime())) {
+                const year = dateObj.getFullYear();
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+            
+            return ''; // Retorna vazio se não conseguir formatar
         } catch (e) {
             console.error("Erro ao formatar data para comparação:", dataStr, e);
             return '';
@@ -109,7 +117,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     useEffect(() => {
         handleRefresh();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); 
+    }, []);
     
     // --- EFEITO DE FILTRAGEM E SINCRONIZAÇÃO DE ESTADOS (MANTIDO) ---
     useEffect(() => {
@@ -201,7 +209,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             );
         } else if (filtroData) {
             leadsFiltrados = fechadosOrdenados.filter(lead => {
-                const dataLeadMesAno = lead.Data ? getDataParaComparacao(lead.Data).substring(0, 7) : '';
+                // Garantimos que a data do lead é convertida para AAAA-MM-DD
+                const dataLeadFormatada = getDataParaComparacao(lead.Data);
+                const dataLeadMesAno = dataLeadFormatada ? dataLeadFormatada.substring(0, 7) : '';
+                
+                // Agora a comparação será mais robusta e incluirá o dia 01
                 return dataLeadMesAno === filtroData;
             });
         } else {
@@ -597,8 +609,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                             disabled={isButtonDisabled || isLoading}
                                             className={`flex items-center justify-center w-full px-4 py-3 text-lg font-semibold rounded-lg shadow-md transition duration-200 ${
                                                 isButtonDisabled || isLoading
-                                                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                                : 'bg-green-600 text-white hover:bg-green-700'
                                             }`}
                                         >
                                             <CheckCircle size={20} className="mr-2" /> 
