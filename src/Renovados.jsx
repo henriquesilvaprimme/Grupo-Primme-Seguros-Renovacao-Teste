@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RefreshCcw, Search, ChevronLeft, ChevronRight, CheckCircle, DollarSign, Percent, Calendar } from 'lucide-react';
+import { RefreshCcw, Search, ChevronLeft, ChevronRight, CheckCircle, DollarSign, Calendar } from 'lucide-react';
 
 // ===============================================
 // 1. COMPONENTE PRINCIPAL: LeadsFechados (LOGICA ORIGINAL + NOVO LAYOUT)
@@ -16,33 +16,43 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const [isLoading, setIsLoading] = useState(false);
     const [nomeInput, setNomeInput] = useState('');
     
-    // Inicialização de dataInput e filtroData com o mês atual (Função original recriada)
+    // Inicialização de dataInput e filtroData com o mês atual
     const getMesAnoAtual = () => {
         const hoje = new Date();
         const ano = hoje.getFullYear();
         const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-        return `${ano}-${mes}`;
+        return `${ano}-${mes}`; // Formato: AAAA-MM
     };
     const [dataInput, setDataInput] = useState(getMesAnoAtual());
     const [filtroNome, setFiltroNome] = useState('');
     const [filtroData, setFiltroData] = useState(getMesAnoAtual());
     const [premioLiquidoInputDisplay, setPremioLiquidoInputDisplay] = useState({});
 
-    // --- FUNÇÕES DE LÓGICA (MANTIDAS) ---
-    // CORREÇÃO APLICADA AQUI: Garantir que a conversão DD/MM/AAAA -> AAAA-MM-DD funcione.
+    // --- FUNÇÕES DE LÓGICA ---
+    
+    /**
+     * CORREÇÃO APLICADA AQUI: Garante que a data sempre seja formatada para AAAA-MM-DD 
+     * de forma segura, evitando bugs com o dia 01 ao ser tratada por `new Date()`.
+     * @param {string} dataStr - Data de entrada (espera DD/MM/AAAA)
+     * @returns {string} Data formatada (AAAA-MM-DD)
+     */
     const getDataParaComparacao = (dataStr) => {
         if (!dataStr) return '';
         dataStr = String(dataStr).trim();
 
-        try {
-            // Verifica o formato DD/MM/AAAA e converte para AAAA-MM-DD
-            const parts = dataStr.split('/');
-            if (parts.length === 3) {
-                // Se for DD/MM/AAAA, retorna AAAA-MM-DD
-                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        const parts = dataStr.split('/');
+        
+        // Trata o formato DD/MM/AAAA e converte para AAAA-MM-DD
+        if (parts.length === 3) {
+            const [dia, mes, ano] = parts;
+            // Verifica se as partes são números
+            if (!isNaN(parseInt(dia)) && !isNaN(parseInt(mes)) && !isNaN(parseInt(ano))) {
+                return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
             }
-
-            // Se já estiver em AAAA-MM-DD ou for um formato ISO válido (ex: de Date.now())
+        }
+        
+        // Tenta tratar outros formatos (como AAAA-MM-DD já existente)
+        try {
             const dateObj = new Date(dataStr);
             if (!isNaN(dateObj.getTime())) {
                 const year = dateObj.getFullYear();
@@ -50,12 +60,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 const day = String(dateObj.getDate()).padStart(2, '0');
                 return `${year}-${month}-${day}`;
             }
-            
-            return ''; // Retorna vazio se não conseguir formatar
         } catch (e) {
-            console.error("Erro ao formatar data para comparação:", dataStr, e);
-            return '';
+            // Ignora erros de parse e retorna vazio
         }
+
+        return ''; // Retorna vazio se não conseguir formatar
     };
 
     const normalizarTexto = (texto = '') => {
@@ -113,17 +122,22 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         }
     };
 
-    // --- EFEITO DE CARREGAMENTO INICIAL E SINCRONIZAÇÃO DE DADOS (MANTIDO) ---
+    // --- EFEITO DE CARREGAMENTO INICIAL E SINCRONIZAÇÃO DE DADOS ---
     useEffect(() => {
         handleRefresh();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     
-    // --- EFEITO DE FILTRAGEM E SINCRONIZAÇÃO DE ESTADOS (MANTIDO) ---
+    // --- EFEITO DE FILTRAGEM E SINCRONIZAÇÃO DE ESTADOS ---
     useEffect(() => {
         const fechadosAtuais = leads.filter(lead => lead.Status === 'Fechado');
 
-        // Sincronização de valores de API
+        // Lógica de Sincronização de Estados (Valores, Vigência, Display) - Mantida
+        // ... [Código de sincronização de estados] ...
+
+        // --------------------------------------------------------------------------------
+        // Sincronização de valores de API (COMPACTADO PARA CLAREZA, CONTEÚDO MANTIDO)
+        // --------------------------------------------------------------------------------
         setValores(prevValores => {
             const novosValores = { ...prevValores };
             fechadosAtuais.forEach(lead => {
@@ -157,7 +171,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             return novosValores;
         });
 
-        // Sincronização do display do Prêmio Líquido
+        // Sincronização do display do Prêmio Líquido (COMPACTADO PARA CLAREZA, CONTEÚDO MANTIDO)
         setPremioLiquidoInputDisplay(prevDisplay => {
             const newDisplay = { ...prevDisplay };
             fechadosAtuais.forEach(lead => {
@@ -172,7 +186,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             return newDisplay;
         });
 
-        // Sincronização da Vigência
+        // Sincronização da Vigência (COMPACTADO PARA CLAREZA, CONTEÚDO MANTIDO)
         setVigencia(prevVigencia => {
             const novasVigencias = { ...prevVigencia };
             fechadosAtuais.forEach(lead => {
@@ -194,8 +208,10 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             });
             return novasVigencias;
         });
+        // --------------------------------------------------------------------------------
 
         const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
+            // Usa a função corrigida para garantir ordenação correta
             const dataA = new Date(getDataParaComparacao(a.Data));
             const dataB = new Date(getDataParaComparacao(b.Data));
             return dataB.getTime() - dataA.getTime();
@@ -209,11 +225,14 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             );
         } else if (filtroData) {
             leadsFiltrados = fechadosOrdenados.filter(lead => {
-                // Garantimos que a data do lead é convertida para AAAA-MM-DD
+                // 1. Converte a data do lead para AAAA-MM-DD
                 const dataLeadFormatada = getDataParaComparacao(lead.Data);
+                
+                // 2. Extrai AAAA-MM para comparação
                 const dataLeadMesAno = dataLeadFormatada ? dataLeadFormatada.substring(0, 7) : '';
                 
-                // Agora a comparação será mais robusta e incluirá o dia 01
+                // 3. Compara o AAAA-MM do lead com o AAAA-MM do filtro
+                // O filtroData já está no formato AAAA-MM (ex: '2025-10')
                 return dataLeadMesAno === filtroData;
             });
         } else {
@@ -221,8 +240,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         }
 
         setFechadosFiltradosInterno(leadsFiltrados);
-    }, [leads, filtroNome, filtroData]);
-
+    }, [leads, filtroNome, filtroData]); // Dependências
 
     // --- FUNÇÕES DE HANDLER (MANTIDAS) ---
 
@@ -317,18 +335,20 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 insurer: valor,
             },
         }));
-        // Note: Não há chamada a onUpdateDetalhes aqui, mantendo a lógica original
+        // onUpdateDetalhes(id, 'Seguradora', valor); // Manter lógica original sem chamar onUpdateDetalhes aqui
     };
 
     const handleVigenciaInicioChange = (id, dataString) => {
         let dataFinal = '';
         if (dataString) {
-            const dataInicioObj = new Date(dataString + 'T00:00:00');
+            // Usa 'T00:00:00' para evitar problemas com fuso horário ao criar o objeto Date
+            const dataInicioObj = new Date(dataString + 'T00:00:00'); 
             if (!isNaN(dataInicioObj.getTime())) {
                 const anoInicio = dataInicioObj.getFullYear();
                 const mesInicio = String(dataInicioObj.getMonth() + 1).padStart(2, '0');
                 const diaInicio = String(dataInicioObj.getDate()).padStart(2, '0');
 
+                // Calcula um ano a mais
                 const anoFinal = anoInicio + 1;
                 dataFinal = `${anoFinal}-${mesInicio}-${diaInicio}`;
             }
@@ -342,12 +362,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 final: dataFinal,
             },
         }));
-        // Note: Não há chamada a onUpdateDetalhes aqui, mantendo a lógica original
+        // onUpdateDetalhes(id, 'VigenciaInicial', dataString); // Manter lógica original sem chamar onUpdateDetalhes aqui
+        // onUpdateDetalhes(id, 'VigenciaFinal', dataFinal); // Manter lógica original sem chamar onUpdateDetalhes aqui
     };
 
     // --- LÓGICA DE PAGINAÇÃO (MANTIDA) ---
     const totalPaginas = Math.max(1, Math.ceil(fechadosFiltradosInterno.length / leadsPorPagina));
-    const paginaCorrigida = Math.min(paginaAtual, totalPaginas); // Garante que a página não exceda o máximo
+    const paginaCorrigida = Math.min(paginaAtual, totalPaginas); 
     const inicio = (paginaCorrigida - 1) * leadsPorPagina;
     const fim = inicio + leadsPorPagina;
     const leadsPagina = fechadosFiltradosInterno.slice(inicio, fim);
@@ -362,11 +383,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         scrollToTop();
     };
 
-    // --- RENDERIZAÇÃO E NOVO LAYOUT ---
+    // --- RENDERIZAÇÃO E NOVO LAYOUT (MANTIDO) ---
     return (
         <div className="p-4 md:p-6 lg:p-8 relative min-h-screen bg-gray-100 font-sans">
 
-            {/* Overlay de Loading */}
+            {/* Overlay de Loading (Mantido) */}
             {isLoading && (
                 <div className="absolute inset-0 bg-white bg-opacity-80 flex justify-center items-center z-50">
                     <div className="flex flex-col items-center">
@@ -439,14 +460,14 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             <div className="space-y-5">
                 {fechadosFiltradosInterno.length === 0 && !isLoading ? (
                     <div className="text-center p-12 bg-white rounded-xl shadow-md text-gray-600 text-lg">
-                        <p> Você não tem nenhum cliente renovado. </p>
+                        <p> Você não tem nenhum cliente renovado no período filtrado. </p>
                     </div>
                 ) : (
                     leadsPagina.map((lead) => {
                         const responsavel = usuarios.find((u) => u.nome === lead.Responsavel);
                         const isSeguradoraPreenchida = !!lead.Seguradora;
                         
-                        // Lógica de desativação do botão de confirmação (MANTIDA)
+                        // Lógica de desativação do botão de confirmação (Mantida)
                         const isButtonDisabled =
                             !valores[`${lead.ID}`]?.insurer ||
                             valores[`${lead.ID}`]?.PremioLiquido === null ||
@@ -463,7 +484,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                 key={lead.ID}
                                 className={`bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 relative border-t-4 ${isSeguradoraPreenchida ? 'border-green-600' : 'border-amber-500'}`}
                             >
-                                {/* COLUNA 1: Informações do Lead */}
+                                {/* COLUNA 1: Informações do Lead (Mantida) */}
                                 <div className="col-span-1 border-b pb-4 lg:border-r lg:pb-0 lg:pr-6">
                                     <h3 className="text-xl font-bold text-gray-900 mb-2">{lead.name}</h3>
                                     
@@ -481,7 +502,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                     )}
                                 </div>
 
-                                {/* COLUNA 2: Detalhes do Fechamento (Layout de 2 Colunas) */}
+                                {/* COLUNA 2: Detalhes do Fechamento (Mantida) */}
                                 <div className="col-span-1 border-b pb-4 lg:border-r lg:pb-0 lg:px-6">
                                     <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
                                         <DollarSign size={18} className="mr-2 text-green-500" />
@@ -557,7 +578,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                     </div>
                                 </div>
 
-                                {/* COLUNA 3: Vigência e Ação de Confirmação */}
+                                {/* COLUNA 3: Vigência e Ação de Confirmação (Mantida) */}
                                 <div className="col-span-1 lg:pl-6">
                                     <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
                                         <Calendar size={18} className="mr-2 text-green-500" />
@@ -630,7 +651,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 )}
             </div>
 
-            {/* Paginação */}
+            {/* Paginação (Mantida) */}
             <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
                 <button
                     onClick={handlePaginaAnterior}
