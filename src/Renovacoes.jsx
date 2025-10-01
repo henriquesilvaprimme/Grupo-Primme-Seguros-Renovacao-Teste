@@ -284,16 +284,28 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         setSelecionados((prev) => ({ ...prev, [leadId]: userId }));
     };
 
-    const enviarLeadAtualizado = async (lead) => {
+    /**
+     * LÓGICA REFORÇADA: Garante que os campos essenciais (ID do lead e Responsável)
+     * sejam enviados de forma clara para que o Apps Script possa localizar e atualizar a coluna I.
+     */
+    const enviarLeadAtualizado = async (leadId, responsavelNome) => {
+        // Objeto de dados (payload) focado para o Apps Script
+        const dataToSend = { 
+            leadId: leadId, 
+            responsavel: responsavelNome, 
+            // O Apps Script deverá usar o leadId para encontrar a linha e 
+            // salvar o responsavel (nome) na coluna I.
+        };
+
         try {
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST', 
                 mode: 'no-cors', // MANTIDO
-                body: JSON.stringify(lead), 
+                body: JSON.stringify(dataToSend), // Envia apenas os dados necessários
                 headers: { 'Content-Type': 'application/json' },
             });
             
-            // DELAY DE 2 SEGUNDOS: Necessário quando usamos 'no-cors' para dar tempo ao Sheets Script de salvar.
+            // DELAY DE 2 SEGUNDOS: Essencial com 'no-cors'
             await delay(2000); 
             
             fetchLeadsFromSheet(SHEET_NAME); 
@@ -322,25 +334,21 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
              return;
         }
 
-        const leadAtualizado = { 
-            ...lead, 
-            usuarioId: userId, 
-            responsavel: usuarioSelecionado.nome 
-        };
-
+        // 1. Atualiza o estado local do React
         transferirLead(leadId, userId);
         
-        enviarLeadAtualizado(leadAtualizado);
+        // 2. Envia a requisição com o ID do Lead e o nome do Responsável.
+        enviarLeadAtualizado(leadId, usuarioSelecionado.nome);
     };
 
     const handleAlterar = (leadId) => {
         setSelecionados((prev) => ({ ...prev, [leadId]: '' }));
+        // Você pode querer enviar uma atualização para o Sheets Script
+        // para "limpar" a atribuição (responsavel = vazio)
+        enviarLeadAtualizado(leadId, ""); // Limpa o responsável no Sheets
         transferirLead(leadId, null);
     };
 
-    /**
-     * CORRIGIDO: parres mudado para partes.
-     */
     const formatarData = (dataStr) => {
         if (!dataStr) return '';
         let data;
@@ -349,7 +357,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
         } else if (dataStr.includes('-') && dataStr.length === 10) {
             const partes = dataStr.split('-');
-            data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2])); // Corrigido aqui
+            data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2])); 
         } else {
             data = new Date(dataStr);
         }
