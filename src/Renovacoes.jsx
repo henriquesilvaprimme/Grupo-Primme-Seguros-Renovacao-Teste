@@ -284,9 +284,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         setSelecionados((prev) => ({ ...prev, [leadId]: userId }));
     };
 
-    /**
-     * CORREÇÃO CRÍTICA: Mantém 'mode: no-cors' e adiciona um DELAY.
-     */
     const enviarLeadAtualizado = async (lead) => {
         try {
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
@@ -341,15 +338,18 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         transferirLead(leadId, null);
     };
 
+    /**
+     * CORRIGIDO: parres mudado para partes.
+     */
     const formatarData = (dataStr) => {
         if (!dataStr) return '';
         let data;
         if (dataStr.includes('/')) {
             const partes = dataStr.split('/');
-            data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(parres[0]));
+            data = new Date(parseInt(partes[2]), parseInt(partes[1]) - 1, parseInt(partes[0]));
         } else if (dataStr.includes('-') && dataStr.length === 10) {
             const partes = dataStr.split('-');
-            data = new Date(parseInt(parres[0]), parseInt(parres[1]) - 1, parseInt(parres[2]));
+            data = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2])); // Corrigido aqui
         } else {
             data = new Date(dataStr);
         }
