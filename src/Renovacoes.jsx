@@ -691,8 +691,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             </div>
         )}
       </div>
-    </div>
-  );
-};
+    
 
 export default Renovacoes;
