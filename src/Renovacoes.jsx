@@ -23,7 +23,7 @@ const getYearMonthFromDate = (dateValue) => {
     if (typeof dateValue === 'string' && dateValue.includes('/')) {
         const parts = dateValue.split('/');
         date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-    } 
+    }
     else if (typeof dateValue === 'string' && dateValue.includes('-') && dateValue.length >= 7) {
         const parts = dateValue.split('-');
         date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
@@ -247,15 +247,15 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             } else if (lead.status === 'Sem Contato') {
                 counts['Sem Contato']++;
             } else if (lead.status.startsWith('Agendado')) {
-                   const statusDateStr = lead.status.split(' - ')[1];
-                   if (!statusDateStr) return;
-                   const [dia, mes, ano] = statusDateStr.split('/');
-                   const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-                   const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
-                   
-                   if (statusDateFormatted === todayFormatted) {
-                      counts['Agendado']++;
-                   }
+                     const statusDateStr = lead.status.split(' - ')[1];
+                     if (!statusDateStr) return;
+                     const [dia, mes, ano] = statusDateStr.split('/');
+                     const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+                     const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+                     
+                     if (statusDateFormatted === todayFormatted) {
+                        counts['Agendado']++;
+                     }
             }
         });
         return counts;
@@ -540,158 +540,166 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                         <p> Você não tem nenhuma renovação para o filtro selecionado no momento. </p>
                     </div>
                 ) : (
-                    leadsPagina.map((lead) => {
-                        const shouldShowObs = lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado');
-                        
-                        // Obtém o nome do responsável (priorizando a mudança otimista)
-                        const responsavelNome = getResponsavelDisplay(lead);
-                        const isAtribuido = responsavelNome && responsavelNome !== 'null';
+                    <>
+                        {leadsPagina.map((lead) => {
+                            const shouldShowObs = lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status.startsWith('Agendado');
+                            
+                            // Obtém o nome do responsável (priorizando a mudança otimista)
+                            const responsavelNome = getResponsavelDisplay(lead);
+                            const isAtribuido = responsavelNome && responsavelNome !== 'null';
 
-                        return (
-                            <div 
-                                key={lead.id}
-                                className="bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 p-5 grid grid-cols-1 lg:grid-cols-3 gap-6 relative border-t-4 border-indigo-500"
-                            >
-                                {/* COLUNA 1: Informações do Lead */}
-                                <div className="col-span-1 border-r lg:pr-6">
-                                    <div className="mb-3">
-                                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${lead.status.startsWith('Agendado') ? 'bg-cyan-100 text-cyan-800' : lead.status === 'Em Contato' ? 'bg-yellow-100 text-yellow-800' : lead.status === 'Sem Contato' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
-                                            {getFullStatus(lead.status)}
-                                        </span>
+                            return (
+                                <div 
+                                    key={lead.id}
+                                    className="bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 p-5 grid grid-cols-1 lg:grid-cols-3 gap-6 relative border-t-4 border-indigo-500"
+                                >
+                                    {/* COLUNA 1: Informações do Lead */}
+                                    <div className="col-span-1 border-r lg:pr-6">
+                                        <div className="mb-3">
+                                            <span className={`text-xs font-bold px-3 py-1 rounded-full ${lead.status.startsWith('Agendado') ? 'bg-cyan-100 text-cyan-800' : lead.status === 'Em Contato' ? 'bg-yellow-100 text-yellow-800' : lead.status === 'Sem Contato' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}`}>
+                                                {getFullStatus(lead.status)}
+                                            </span>
+                                        </div>
+                                        <Lead 
+                                            lead={lead} 
+                                            onUpdateStatus={handleConfirmStatus} 
+                                            disabledConfirm={!isAtribuido} 
+                                            compact={false}
+                                        />
+                                        <p className="mt-3 text-sm font-semibold text-gray-700">
+                                            Vigência Final: <strong className="text-indigo-600">{formatarData(lead.VigenciaFinal)}</strong>
+                                        </p>
+                                        <p className="mt-1 text-xs text-gray-400">
+                                            Criado em: {formatarData(lead.createdAt)}
+                                        </p>
                                     </div>
-                                    <Lead 
-                                        lead={lead} 
-                                        onUpdateStatus={handleConfirmStatus} 
-                                        disabledConfirm={!isAtribuido} 
-                                        compact={false}
-                                    />
-                                    <p className="mt-3 text-sm font-semibold text-gray-700">
-                                        Vigência Final: <strong className="text-indigo-600">{formatarData(lead.VigenciaFinal)}</strong>
-                                    </p>
-                                    <p className="mt-1 text-xs text-gray-400">
-                                        Criado em: {formatarData(lead.createdAt)}
-                                    </p>
-                                </div>
 
-                                {/* COLUNA 2: Observações */}
-                                <div className="col-span-1 border-r lg:px-6">
-                                    {shouldShowObs && (
-                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
-                                            <textarea
-                                                value={observacoes[lead.id] || ''}
-                                                onChange={(e) => handleObservacaoChange(lead.id, e.target.value)} 
-                                                rows="4"
-                                                placeholder="Adicione suas observações aqui..."
-                                                disabled={!isEditingObservacao[lead.id]}
-                                                className={`w-full p-2 text-sm rounded-lg border resize-none transition duration-150 ${isEditingObservacao[lead.id] ? 'border-indigo-300 bg-white focus:ring-indigo-500 focus:border-indigo-500' : 'border-gray-200 bg-gray-100 cursor-text'}`}
-                                            />
-                                            <div className="flex justify-end gap-2 mt-2">
-                                                {isEditingObservacao[lead.id] ? (
+                                    {/* COLUNA 2: Observações */}
+                                    <div className="col-span-1 border-r lg:px-6">
+                                        {shouldShowObs && (
+                                            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+                                                <textarea
+                                                    value={observacoes[lead.id] || ''}
+                                                    onChange={(e) => handleObservacaoChange(lead.id, e.target.value)} 
+                                                    rows="4"
+                                                    placeholder="Adicione suas observações aqui..."
+                                                    disabled={!isEditingObservacao[lead.id]}
+                                                    className={`w-full p-2 text-sm rounded-lg border resize-none transition duration-150 ${isEditingObservacao[lead.id] ? 'border-indigo-300 bg-white focus:ring-indigo-500 focus:border-indigo-500' : 'border-gray-200 bg-gray-100 cursor-text'}`}
+                                                />
+                                                <div className="flex justify-end gap-2 mt-2">
+                                                    {isEditingObservacao[lead.id] ? (
+                                                        <button
+                                                            onClick={() => handleSalvarObservacao(lead.id)}
+                                                            className="flex items-center px-3 py-1 bg-green-500 text-white text-sm rounded-full hover:bg-green-600 disabled:opacity-50 transition duration-150"
+                                                            disabled={isLoading}
+                                                        >
+                                                            <Save size={14} className="mr-1" /> Salvar
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleAlterarObservacao(lead.id)}
+                                                            className="flex items-center px-3 py-1 bg-gray-400 text-white text-sm rounded-full hover:bg-gray-500 transition duration-150"
+                                                        >
+                                                            <Edit size={14} className="mr-1" /> Editar
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* COLUNA 3: Atribuição - LÓGICA DE EXIBIÇÃO */}
+                                    <div className="col-span-1 lg:pl-6">
+                                        <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
+                                            <User size={18} className="mr-2 text-indigo-500" />
+                                            Atribuição
+                                        </h3>
+                                        
+                                        {/* Condição: Se está atribuído E NÃO está no modo de seleção */}
+                                        {isAtribuido && !selecionados[lead.id] ? (
+                                            <div className="p-3 bg-green-50 border border-green-200 rounded-lg shadow-sm">
+                                                <p className="text-sm font-medium text-green-700">
+                                                    Atribuído a: <strong>{responsavelNome}</strong>
+                                                </p>
+                                                {isAdmin && (
                                                     <button
-                                                        onClick={() => handleSalvarObservacao(lead.id)}
-                                                        className="flex items-center px-3 py-1 bg-green-500 text-white text-sm rounded-full hover:bg-green-600 disabled:opacity-50 transition duration-150"
-                                                        disabled={isLoading}
+                                                        onClick={() => handleAlterar(lead.id)}
+                                                        className="mt-2 px-3 py-1 bg-amber-500 text-white text-xs rounded-full hover:bg-amber-600 transition duration-150 shadow-sm"
                                                     >
-                                                        <Save size={14} className="mr-1" /> Salvar
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => handleAlterarObservacao(lead.id)}
-                                                        className="flex items-center px-3 py-1 bg-gray-400 text-white text-sm rounded-full hover:bg-gray-500 transition duration-150"
-                                                    >
-                                                        <Edit size={14} className="mr-1" /> Editar
+                                                        Mudar Atribuição
                                                     </button>
                                                 )}
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* COLUNA 3: Atribuição - LÓGICA DE EXIBIÇÃO */}
-                                <div className="col-span-1 lg:pl-6">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
-                                        <User size={18} className="mr-2 text-indigo-500" />
-                                        Atribuição
-                                    </h3>
-                                    
-                                    {/* Condição: Se está atribuído E NÃO está no modo de seleção */}
-                                    {isAtribuido && !selecionados[lead.id] ? (
-                                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg shadow-sm">
-                                            <p className="text-sm font-medium text-green-700">
-                                                Atribuído a: <strong>{responsavelNome}</strong>
-                                            </p>
-                                            {isAdmin && (
-                                                <button
-                                                    onClick={() => handleAlterar(lead.id)}
-                                                    className="mt-2 px-3 py-1 bg-amber-500 text-white text-xs rounded-full hover:bg-amber-600 transition duration-150 shadow-sm"
+                                        ) : (
+                                            // Exibe o select e o botão Enviar (Se não está atribuído OU se está no modo de alteração)
+                                            <div className="flex flex-col gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+                                                <select
+                                                    value={selecionados[lead.id] || ''}
+                                                    onChange={(e) => handleSelect(lead.id, e.target.value)}
+                                                    className="p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                                    disabled={!isAdmin || isLoading}
                                                 >
-                                                    Mudar Atribuição
+                                                    <option value="">{isAtribuido ? 'Selecione novo usuário...' : 'Atribuir a...'}</option>
+                                                    {usuariosAtivos.map((usuario) => (
+                                                        <option key={usuario.id} value={usuario.id}>
+                                                            {usuario.nome}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <button
+                                                    onClick={() => handleEnviar(lead.id)}
+                                                    className="flex items-center justify-center px-4 py-2 bg-indigo-500 text-white text-sm rounded-full hover:bg-indigo-600 disabled:opacity-50 transition duration-150 shadow-md"
+                                                    disabled={!selecionados[lead.id] || !isAdmin || isLoading}
+                                                >
+                                                    <Send size={16} className="mr-2" /> {isAtribuido ? 'Re-atribuir' : 'Atribuir'}
                                                 </button>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        // Exibe o select e o botão Enviar (Se não está atribuído OU se está no modo de alteração)
-                                        <div className="flex flex-col gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
-                                            <select
-                                                value={selecionados[lead.id] || ''}
-                                                onChange={(e) => handleSelect(lead.id, e.target.value)}
-                                                className="p-2 text-sm rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
-                                            >
-                                                <option value="">Transferir para...</option>
-                                                {usuariosAtivos.map((u) => (
-                                                    <option key={u.id} value={String(u.id)}> {u.nome} </option>
-                                                ))}
-                                            </select>
-                                            <button
-                                                onClick={() => handleEnviar(lead.id)}
-                                                disabled={!selecionados[lead.id]}
-                                                className="flex items-center justify-center p-2 bg-indigo-500 text-white text-sm rounded-lg hover:bg-indigo-600 disabled:bg-gray-400 transition duration-150"
-                                            >
-                                                <Send size={16} className="mr-1" /> Enviar
-                                            </button>
-                                        </div>
-                                    )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
+                            );
+                        })}
+
+                        {/* ========================================================== */}
+                        {/* 💥 PAGINAÇÃO INCLUÍDA AQUI 💥 (100% IDÊNTICA) */}
+                        {/* ========================================================== */}
+                        {totalPaginas > 1 && (
+                            <div className="flex justify-center items-center gap-4 mt-8 pb-8">
+                                <button
+                                    onClick={handlePaginaAnterior}
+                                    disabled={paginaCorrigida <= 1 || isLoading}
+                                    className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
+                                        (paginaCorrigida <= 1 || isLoading) 
+                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                                        : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
+                                    }`}
+                                >
+                                    Anterior
+                                </button>
+                                
+                                <span className="text-gray-700 font-semibold">
+                                    Página {paginaCorrigida} de {totalPaginas}
+                                </span>
+                                
+                                <button
+                                    onClick={handlePaginaProxima}
+                                    disabled={paginaCorrigida >= totalPaginas || isLoading}
+                                    className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
+                                        (paginaCorrigida >= totalPaginas || isLoading) 
+                                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                                        : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
+                                    }`}
+                                >
+                                    Próxima
+                                </button>
                             </div>
-                        );
-                    })
+                        )}
+                        {/* ========================================================== */}
+                    </>
                 )}
             </div>
-
-{/* Paginação */}
-            <div className="flex justify-center items-center gap-4 mt-8 pb-8">
-              <button
-                onClick={handlePaginaAnterior}
-                disabled={paginaCorrigida <= 1 || isLoading}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
-                  (paginaCorrigida <= 1 || isLoading) 
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                  : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
-                }`}
-              >
-                Anterior
-              </button>
-              
-              <span className="text-gray-700 font-semibold">
-                Página {paginaCorrigida} de {totalPaginas}
-              </span>
-              
-              <button
-                onClick={handlePaginaProxima}
-                disabled={paginaCorrigida >= totalPaginas || isLoading}
-                className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
-                  (paginaCorrigida >= totalPaginas || isLoading) 
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                  : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
-                }`}
-              >
-                Próxima
-              </button>
-            </div>
-        )} 
-      </div>
-    </div>
-  );
+        </div>
+    );
 };
 
 export default Renovacoes;
