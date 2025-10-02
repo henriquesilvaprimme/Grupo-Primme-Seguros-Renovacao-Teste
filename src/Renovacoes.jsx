@@ -659,20 +659,17 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             </div>
 
             {/* Paginação */}
-            <div className="mt-8 flex justify-center bg-white p-4 rounded-xl shadow-lg">
-                    
-                    {/* Paginação */}
-                    <div className="flex justify-center items-center gap-4"> 
+            <div className="flex justify-center items-center gap-4 mt-8 pb-8"> 
                         <button
                             onClick={handlePaginaAnterior}
                             disabled={paginaCorrigida <= 1 || isLoading}
-                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md flex items-center gap-1 ${
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
                                 (paginaCorrigida <= 1 || isLoading) 
                                 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
                                 : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
                             }`}
                         >
-                            <ChevronLeft size={16} /> Anterior
+                            Anterior
                         </button>
                         
                         <span className="text-gray-700 font-semibold">
@@ -682,19 +679,20 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                         <button
                             onClick={handlePaginaProxima}
                             disabled={paginaCorrigida >= totalPaginas || isLoading}
-                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md flex items-center gap-1 ${
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
                                 (paginaCorrigida >= totalPaginas || isLoading) 
                                 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
                                 : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
                             }`}
                         >
-                            Próxima <ChevronRight size={16} />
+                            Próxima
                         </button>
                     </div>
+                    {/* FIM DA PAGINAÇÃO EXATA */}
                 </div>
             )}
         </div>
     );
 };
 
-export default Renovacoes;
+export default LeadsFechados;
