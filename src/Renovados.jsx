@@ -638,25 +638,38 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             </div>
 
             {/* Paginação */}
-            <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
-                <button
-                    onClick={handlePaginaAnterior}
-                    disabled={paginaCorrigida <= 1 || isLoading}
-                    className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
-                >
-                    <ChevronLeft size={20} className="mr-1" /> Anterior
-                </button>
-                <span className="text-gray-700 font-medium text-lg">
-                    Página <strong className="text-green-600">{paginaCorrigida}</strong> de {totalPaginas}
-                </span>
-                <button
-                    onClick={handlePaginaProxima}
-                    disabled={paginaCorrigida >= totalPaginas || isLoading}
-                    className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
-                >
-                    Próxima <ChevronRight size={20} className="ml-1" />
-                </button>
-            </div>
+            <div className="flex justify-center items-center gap-4 mt-8 pb-8"> 
+                        <button
+                            onClick={handlePaginaAnterior}
+                            disabled={paginaCorrigida <= 1 || isLoading}
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
+                                (paginaCorrigida <= 1 || isLoading) 
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                                : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
+                            }`}
+                        >
+                            Anterior
+                        </button>
+                        
+                        <span className="text-gray-700 font-semibold">
+                            Página {paginaCorrigida} de {totalPaginas}
+                        </span>
+                        
+                        <button
+                            onClick={handlePaginaProxima}
+                            disabled={paginaCorrigida >= totalPaginas || isLoading}
+                            className={`px-4 py-2 rounded-lg border text-sm font-medium transition duration-150 shadow-md ${
+                                (paginaCorrigida >= totalPaginas || isLoading) 
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                                : 'bg-white border-indigo-500 text-indigo-600 hover:bg-indigo-50'
+                            }`}
+                        >
+                            Próxima
+                        </button>
+                    </div>
+                    {/* FIM DA PAGINAÇÃO EXATA */}
+                </div>
+            )}
         </div>
     );
 };
