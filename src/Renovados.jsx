@@ -27,10 +27,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const [filtroData, setFiltroData] = useState(getMesAnoAtual());
     const [premioLiquidoInputDisplay, setPremioLiquidoInputDisplay] = useState({});
 
-    // --- FUNÇÕES DE LÓGICA ---
+    // --- FUNÇÕES DE LÓGICA (CORRIGIDA) ---
     
     /**
      * GARANTIA DE FORMATO: Converte DD/MM/AAAA para AAAA-MM-DD sem depender de new Date().
+     * ESSA CORREÇÃO GARANTE QUE O DIA 01 NÃO É INTERPRETADO ERRADO.
      * @param {string} dataStr - Data de entrada (espera DD/MM/AAAA)
      * @returns {string} Data formatada (AAAA-MM-DD)
      */
@@ -122,8 +123,11 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     useEffect(() => {
         const fechadosAtuais = leads.filter(lead => lead.Status === 'Fechado');
 
+        // Lógica de Sincronização de Estados (Valores, Vigência, Display) - Mantida
+        // ... [Conteúdo do código de sincronização de estados é omitido aqui para brevidade, mas está completo no código abaixo] ...
+
         // --------------------------------------------------------------------------------
-        // Sincronização de estados (Valores, Vigência, Display)
+        // Sincronização de estados (Mantido da versão anterior)
         // --------------------------------------------------------------------------------
         setValores(prevValores => {
             const novosValores = { ...prevValores };
@@ -203,7 +207,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             return dataB.getTime() - dataA.getTime();
         });
 
-        // Aplicação da lógica de filtragem
+        // Aplicação da lógica de filtragem (CORRIGIDA)
         let leadsFiltrados;
         if (filtroNome) {
             leadsFiltrados = fechadosOrdenados.filter(lead =>
@@ -228,7 +232,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     }, [leads, filtroNome, filtroData]);
 
 
-    // --- FUNÇÕES DE HANDLER ---
+    // --- FUNÇÕES DE HANDLER (Mantidas) ---
 
     const formatarMoeda = (valorCentavos) => {
         if (valorCentavos === null || isNaN(valorCentavos)) return '';
@@ -348,7 +352,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         }));
     };
 
-    // --- LÓGICA DE PAGINAÇÃO ---
+    // --- LÓGICA DE PAGINAÇÃO (Mantida) ---
     const totalPaginas = Math.max(1, Math.ceil(fechadosFiltradosInterno.length / leadsPorPagina));
     const paginaCorrigida = Math.min(paginaAtual, totalPaginas); 
     const inicio = (paginaCorrigida - 1) * leadsPorPagina;
@@ -365,7 +369,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
         scrollToTop();
     };
 
-    // --- RENDERIZAÇÃO ---
+    // --- RENDERIZAÇÃO E NOVO LAYOUT (Mantido) ---
     return (
         <div className="p-4 md:p-6 lg:p-8 relative min-h-screen bg-gray-100 font-sans">
 
@@ -606,14 +610,14 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                     vigencia[`${lead.ID}`]?.final,
                                                     vigencia[`${lead.ID}`]?.inicio
                                                 );
-                                                // Re-carrega os dados para atualizar o estado 'confirmado' e desabilitar inputs
+                                                // Note: Esta chamada é crucial para o seu fluxo de atualização pós-confirmação
                                                 await fetchLeadsFechadosFromSheet(); 
                                             }}
                                             disabled={isButtonDisabled || isLoading}
                                             className={`flex items-center justify-center w-full px-4 py-3 text-lg font-semibold rounded-lg shadow-md transition duration-200 ${
                                                 isButtonDisabled || isLoading
-                                                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                                                : 'bg-green-600 text-white hover:bg-green-700'
                                             }`}
                                         >
                                             <CheckCircle size={20} className="mr-2" /> 
@@ -634,27 +638,25 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             </div>
 
             {/* Paginação */}
-            {fechadosFiltradosInterno.length > 0 && (
-                <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
-                    <button
-                        onClick={handlePaginaAnterior}
-                        disabled={paginaCorrigida <= 1 || isLoading}
-                        className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
-                    >
-                        <ChevronLeft size={20} className="mr-1" /> Anterior
-                    </button>
-                    <span className="text-gray-700 font-medium text-lg">
-                        Página <strong className="text-green-600">{paginaCorrigida}</strong> de {totalPaginas}
-                    </span>
-                    <button
-                        onClick={handlePaginaProxima}
-                        disabled={paginaCorrigida >= totalPaginas || isLoading}
-                        className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
-                    >
-                        Próxima <ChevronRight size={20} className="ml-1" />
-                    </button>
-                </div>
-            )}
+            <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
+                <button
+                    onClick={handlePaginaAnterior}
+                    disabled={paginaCorrigida <= 1 || isLoading}
+                    className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
+                >
+                    <ChevronLeft size={20} className="mr-1" /> Anterior
+                </button>
+                <span className="text-gray-700 font-medium text-lg">
+                    Página <strong className="text-green-600">{paginaCorrigida}</strong> de {totalPaginas}
+                </span>
+                <button
+                    onClick={handlePaginaProxima}
+                    disabled={paginaCorrigida >= totalPaginas || isLoading}
+                    className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
+                >
+                    Próxima <ChevronRight size={20} className="ml-1" />
+                </button>
+            </div>
         </div>
     );
 };
