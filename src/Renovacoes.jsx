@@ -691,6 +691,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             </div>
         )}
       </div>
-    
+    </div>
+  ); // <-- ESTE PARÊNTESE DE FECHAMENTO ESTAVA FALTANDO
+};
 
 export default Renovacoes;
