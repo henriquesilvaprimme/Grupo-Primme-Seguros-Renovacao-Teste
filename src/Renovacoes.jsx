@@ -660,24 +660,31 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
 
             {/* Paginação */}
             <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
-                <button
-                    onClick={handlePaginaAnterior}
-                    disabled={paginaCorrigida <= 1 || isLoading}
-                    className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
-                >
-                    <ChevronLeft size={20} className="mr-1" /> Anterior
-                </button>
-                <span className="text-gray-700 font-medium text-lg">
-                    Página <strong className="text-green-600">{paginaCorrigida}</strong> de {totalPaginas}
-                </span>
-                <button
-                    onClick={handlePaginaProxima}
-                    disabled={paginaCorrigida >= totalPaginas || isLoading}
-                    className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
-                >
-                    Próxima <ChevronRight size={20} className="ml-1" />
-                </button>
-            </div>
+        {/* Botão Anterior */}
+        <button
+            onClick={handlePaginaAnterior}
+            disabled={paginaCorrigida <= 1 || isLoading}
+            className="p-3 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center justify-center shadow-md w-10 h-10"
+            aria-label="Página Anterior"
+        >
+            <ChevronLeft size={20} />
+        </button>
+
+        {/* Indicador de Página */}
+        <span className="text-gray-700 font-medium text-lg">
+            Página <strong className="text-indigo-600">{paginaCorrigida}</strong> de {totalPaginas}
+        </span>
+
+        {/* Botão Próximo */}
+        <button
+            onClick={handlePaginaProxima}
+            disabled={paginaCorrigida >= totalPaginas || isLoading}
+            className="p-3 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center justify-center shadow-md w-10 h-10"
+            aria-label="Próxima Página"
+        >
+            <ChevronRight size={20} />
+        </button>
+    </div>
         </div>
     );
 };
