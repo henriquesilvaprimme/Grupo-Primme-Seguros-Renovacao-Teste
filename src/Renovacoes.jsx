@@ -254,7 +254,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                      const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
                      
                      if (statusDateFormatted === todayFormatted) {
-                        counts['Agendado']++;
+                         counts['Agendado']++;
                      }
             }
         });
@@ -661,7 +661,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                         })}
 
                         {/* ========================================================== */}
-                        {/* 💥 PAGINAÇÃO INCLUÍDA AQUI 💥 (100% IDÊNTICA) */}
+                        {/* 💥 PAGINAÇÃO ATUALIZADA 💥 */}
                         {/* ========================================================== */}
                         {totalPaginas > 1 && (
                             <div className="flex justify-center items-center gap-4 mt-8 pb-8">
