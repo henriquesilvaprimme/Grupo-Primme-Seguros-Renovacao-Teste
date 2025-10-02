@@ -689,15 +689,10 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 Próxima
               </button>
             </div>
-        </>
-        // O '</div>' e os outros elementos de fechamento abaixo do trecho de paginação
-        // foram removidos ou ajustados para integrar a nova estrutura
-        // (considerando que o novo trecho termina com '</div></>')
-
         )}
       </div>
     </div>
   );
 };
 
-export default Leads;
+export default Renovacoes;
