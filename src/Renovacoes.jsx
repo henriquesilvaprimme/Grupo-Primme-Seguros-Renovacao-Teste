@@ -662,20 +662,20 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
                 <button
                     onClick={handlePaginaAnterior}
-                    disabled={paginaCorrigida === 1}
-                    className="p-2 bg-gray-300 rounded-full hover:bg-gray-400 disabled:opacity-50 transition duration-150"
+                    disabled={paginaCorrigida <= 1 || isLoading}
+                    className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
                 >
-                    <ChevronLeft size={20} />
+                    <ChevronLeft size={20} className="mr-1" /> Anterior
                 </button>
-                <span className="text-sm font-semibold text-gray-700">
-                    Página {paginaCorrigida} de {totalPaginas}
+                <span className="text-gray-700 font-medium text-lg">
+                    Página <strong className="text-green-600">{paginaCorrigida}</strong> de {totalPaginas}
                 </span>
                 <button
                     onClick={handlePaginaProxima}
-                    disabled={paginaCorrigida === totalPaginas}
-                    className="p-2 bg-gray-300 rounded-full hover:bg-gray-400 disabled:opacity-50 transition duration-150"
+                    disabled={paginaCorrigida >= totalPaginas || isLoading}
+                    className="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed transition duration-150 flex items-center shadow-md"
                 >
-                    <ChevronRight size={20} />
+                    Próxima <ChevronRight size={20} className="ml-1" />
                 </button>
             </div>
         </div>
