@@ -658,7 +658,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 )}
             </div>
 
-           // Seu trecho de código com a nova paginação implementada.
 {/* Paginação */}
             <div className="flex justify-center items-center gap-4 mt-8 pb-8">
               <button
@@ -689,10 +688,10 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 Próxima
               </button>
             </div>
-        )} // <--- Mantenha isso
+        )} 
       </div>
     </div>
   );
 };
 
-export default Leads;
+export default Renovacoes;
