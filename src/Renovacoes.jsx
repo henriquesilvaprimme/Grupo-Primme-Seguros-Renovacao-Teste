@@ -659,7 +659,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             </div>
 
             {/* Paginação */}
-            <div className="flex justify-center items-center gap-4 mt-8 pb-8"> 
+            <div className="flex justify-center items-center gap-4"> 
                         <button
                             onClick={handlePaginaAnterior}
                             disabled={paginaCorrigida <= 1 || isLoading}
@@ -688,7 +688,6 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                             Próxima
                         </button>
                     </div>
-                    {/* FIM DA PAGINAÇÃO EXATA */}
                 </div>
             )}
         </div>
