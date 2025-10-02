@@ -661,7 +661,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                         })}
 
                         {/* ========================================================== */}
-                        {/* 💥 PAGINAÇÃO ATUALIZADA 💥 */}
+                        {/* 💥 PAGINAÇÃO IMPLEMENTADA AQUI 💥 */}
                         {/* ========================================================== */}
                         {totalPaginas > 1 && (
                             <div className="flex justify-center items-center gap-4 mt-8 pb-8">
