@@ -14,7 +14,7 @@ export default function Login() {
   useEffect(() => {
     const fetchUsuarios = async () => {
       try {
-        const response = await fetch(GOOGLE_SHEETS_USERS_AUTH_URL)?v=pegar_usuario`);;
+        const response = await fetch(GOOGLE_SHEETS_USERS_AUTH_URL);
         const data = await response.json();
 
         if (Array.isArray(data)) {
