@@ -10,7 +10,7 @@ export default function Login() {
   const handleLogin = (e) => {
     e.preventDefault();
 
-    const usuariosSalvos = JSON.parse(localStorage.getItem("usuarios")) || [];
+    const usuariosSalvos = JSON.parse(localStorage.getItem("Usuarios Renovação")) || [];
 
     const usuarioEncontrado = usuariosSalvos.find(
       (u) => u.usuario === usuario && u.senha === senha && (u.status === "Ativo" || u.status === "Admin")
