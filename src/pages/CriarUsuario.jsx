@@ -29,13 +29,13 @@ const CriarUsuario = ({ adicionarUsuario }) => {
 
     adicionarUsuario(novoUsuario);
     
-    navigate('/usuarios Renovação');
+    navigate('/usuarios');
   };
 
   const criarUsuarioFunc = async (lead) => {
 
     try {
-      const response = await fetch('https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=criar_usuario', {
+      const response = await fetch('https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=criar_usuario', {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify(lead),
