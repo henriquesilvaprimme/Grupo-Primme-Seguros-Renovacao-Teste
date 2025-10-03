@@ -15,7 +15,8 @@ const GerenciarUsuarios = () => {
   const fetchUsuariosFromSheet = async () => {
     setError(null);
     try {
-      const response = await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=pegar_usuario`);
+      // Agora pega da aba Usuarios Renovação
+      const response = await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=pegar_usuario_renovacao`);
 
       if (!response.ok) {
         throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
@@ -91,7 +92,8 @@ const GerenciarUsuarios = () => {
     try {
       console.log('Enviando solicitação de atualização para Apps Script:', novoEstadoUsuario);
 
-      await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=alterar_usuario`, {
+      // Agora altera na aba Usuarios Renovação
+      await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=alterar_usuario_renovacao`, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({ usuario: novoEstadoUsuario }),
@@ -106,8 +108,6 @@ const GerenciarUsuarios = () => {
     } catch (err) {
       console.error('Erro ao enviar atualização de usuário para o Apps Script:', err);
       alert('Erro ao atualizar usuário. Por favor, tente novamente.');
-      // Opcional: Aqui você pode reverter a alteração no estado local se a API falhar
-      // setUsuarios(prev => prev.map((u, index) => index === usuarioParaAtualizarIndex ? usuarioAtual : u));
     }
   };
 
@@ -141,7 +141,7 @@ const GerenciarUsuarios = () => {
   return (
     <div className="p-6">
       <div className="flex items-center gap-3 mb-6">
-        <h2 className="text-3xl font-bold text-indigo-700">Gerenciar Usuários</h2>
+        <h2 className="text-3xl font-bold text-indigo-700">Gerenciar Usuários (Renovação)</h2>
         <button
           title="Clique para atualizar os dados"
           onClick={handleRefresh}
