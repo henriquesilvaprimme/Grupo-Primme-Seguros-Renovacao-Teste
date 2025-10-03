@@ -16,7 +16,7 @@ const GerenciarUsuarios = () => {
   const fetchUsuariosFromSheet = async () => {
     setError(null);
     try {
-      const response = await fetch(`${GOOGLE_SHEETS_BASE_URL};
+      const response = await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=pegar_usuario`;
       
       if (!response.ok) {
         throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
