@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const GOOGLE_SHEETS_USERS_AUTH_URL = "https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=pegar_usuario";
+const GOOGLE_SHEETS_USERS_AUTH_URL = "https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -14,7 +14,7 @@ export default function Login() {
   useEffect(() => {
     const fetchUsuarios = async () => {
       try {
-        const response = await fetch(GOOGLE_SHEETS_USERS_AUTH_URL);
+        const response = await fetch(GOOGLE_SHEETS_USERS_AUTH_URL)?v=pegar_usuario_renovacao`);;
         const data = await response.json();
 
         if (Array.isArray(data)) {
