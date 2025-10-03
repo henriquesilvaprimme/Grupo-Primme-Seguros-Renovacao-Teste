@@ -64,7 +64,7 @@ function App() {
 
   const fetchUsuariosForLogin = async () => {
     try {
-      const response = await fetch(GOOGLE_SHEETS_USERS_AUTH_URL)?v=pegar_usuario_renovacao`);
+      const response = await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=pegar_usuario_renovacao`);
       const data = await response.json();
 
       if (Array.isArray(data)) {
