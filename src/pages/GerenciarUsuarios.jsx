@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, RefreshCcw } from 'lucide-react';
 
-// URL da implantação do Apps Script (a mesma usada no resto do sistema)
-const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
+// Certifique-se de que esta URL é a da SUA ÚLTIMA IMPLANTAÇÃO do Apps Script.
+// Ela deve ser a mesma URL base usada para as requisições POST/GET.
+const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec'; // <-- ATUALIZE ESTA LINHA COM A URL REAL DA SUA IMPLANTAÇÃO
 
-const GerenciarUsuariosRenovacao = () => {
+const GerenciarUsuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -14,7 +15,7 @@ const GerenciarUsuariosRenovacao = () => {
   const fetchUsuariosFromSheet = async () => {
     setError(null);
     try {
-      const response = await fetch(GOOGLE_SHEETS_USERS_AUTH_URL)?v=pegar_usuario`;
+      const response = await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=pegar_usuario`);
 
       if (!response.ok) {
         throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
@@ -77,17 +78,20 @@ const GerenciarUsuariosRenovacao = () => {
     if (novoStatus !== null) novoEstadoUsuario.status = novoStatus;
     if (novoTipo !== null) novoEstadoUsuario.tipo = novoTipo;
 
-    // Atualização otimista
+    // --- ATUALIZAÇÃO OTIMISTA: Atualiza o estado local IMEDIATAMENTE ---
     setUsuarios((prev) =>
       prev.map((u, index) =>
-        index === usuarioParaAtualizarIndex ? novoEstadoUsuario : u
+        index === usuarioParaAtualizarIndex
+          ? novoEstadoUsuario
+          : u
       )
     );
+    // ------------------------------------------------------------------
 
     try {
       console.log('Enviando solicitação de atualização para Apps Script:', novoEstadoUsuario);
 
-      await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=alterar_usuario_renovacao`, {
+      await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=alterar_usuario`, {
         method: 'POST',
         mode: 'no-cors',
         body: JSON.stringify({ usuario: novoEstadoUsuario }),
@@ -96,11 +100,14 @@ const GerenciarUsuariosRenovacao = () => {
         },
       });
 
-      console.log('Solicitação de atualização enviada para a aba "Usuarios Renovação".');
+      console.log('Solicitação de atualização para o usuário enviada ao Apps Script (modo no-cors).');
+      console.log('Por favor, verifique os logs de execução do Google Apps Script para confirmação de sucesso e possíveis erros.');
 
     } catch (err) {
       console.error('Erro ao enviar atualização de usuário para o Apps Script:', err);
       alert('Erro ao atualizar usuário. Por favor, tente novamente.');
+      // Opcional: Aqui você pode reverter a alteração no estado local se a API falhar
+      // setUsuarios(prev => prev.map((u, index) => index === usuarioParaAtualizarIndex ? usuarioAtual : u));
     }
   };
 
@@ -134,7 +141,7 @@ const GerenciarUsuariosRenovacao = () => {
   return (
     <div className="p-6">
       <div className="flex items-center gap-3 mb-6">
-        <h2 className="text-3xl font-bold text-indigo-700">Gerenciar Usuários (Renovação)</h2>
+        <h2 className="text-3xl font-bold text-indigo-700">Gerenciar Usuários</h2>
         <button
           title="Clique para atualizar os dados"
           onClick={handleRefresh}
@@ -243,4 +250,4 @@ const GerenciarUsuariosRenovacao = () => {
   );
 };
 
-export default GerenciarUsuariosRenovacao;
+export default GerenciarUsuarios;
