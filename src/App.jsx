@@ -64,7 +64,7 @@ function App() {
 
   const fetchUsuariosForLogin = async () => {
     try {
-      const response = await fetch(`${GOOGLE_SHEETS_BASE_URL};
+      const response = await fetch(`$(GOOGLE_SHEETS_BASE_URL);
       const data = await response.json();
 
       if (Array.isArray(data)) {
