@@ -29,7 +29,7 @@ const CriarUsuario = ({ adicionarUsuario }) => {
 
     adicionarUsuario(novoUsuario);
     
-    navigate('/usuarios');
+    navigate('/usuarios Renovação');
   };
 
   const criarUsuarioFunc = async (lead) => {
