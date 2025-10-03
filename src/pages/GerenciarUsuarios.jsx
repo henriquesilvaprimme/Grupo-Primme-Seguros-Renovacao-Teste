@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, RefreshCcw } from 'lucide-react';
 
-// Certifique-se de que esta URL é a da SUA ÚLTIMA IMPLANTAÇÃO do Apps Script.
-// Ela deve ser a mesma URL base usada para as requisições POST/GET.
-const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec'; // <-- ATUALIZE ESTA LINHA COM A URL REAL DA SUA IMPLANTAÇÃO
+// URL da implantação do Apps Script (a mesma usada no resto do sistema)
+const GOOGLE_SHEETS_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 
-const GerenciarUsuarios = () => {
+const GerenciarUsuariosRenovacao = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,7 +14,6 @@ const GerenciarUsuarios = () => {
   const fetchUsuariosFromSheet = async () => {
     setError(null);
     try {
-      // Agora pega da aba Usuarios Renovação
       const response = await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=pegar_usuario_renovacao`);
 
       if (!response.ok) {
@@ -79,20 +77,16 @@ const GerenciarUsuarios = () => {
     if (novoStatus !== null) novoEstadoUsuario.status = novoStatus;
     if (novoTipo !== null) novoEstadoUsuario.tipo = novoTipo;
 
-    // --- ATUALIZAÇÃO OTIMISTA: Atualiza o estado local IMEDIATAMENTE ---
+    // Atualização otimista
     setUsuarios((prev) =>
       prev.map((u, index) =>
-        index === usuarioParaAtualizarIndex
-          ? novoEstadoUsuario
-          : u
+        index === usuarioParaAtualizarIndex ? novoEstadoUsuario : u
       )
     );
-    // ------------------------------------------------------------------
 
     try {
       console.log('Enviando solicitação de atualização para Apps Script:', novoEstadoUsuario);
 
-      // Agora altera na aba Usuarios Renovação
       await fetch(`${GOOGLE_SHEETS_BASE_URL}?v=alterar_usuario_renovacao`, {
         method: 'POST',
         mode: 'no-cors',
@@ -102,8 +96,7 @@ const GerenciarUsuarios = () => {
         },
       });
 
-      console.log('Solicitação de atualização para o usuário enviada ao Apps Script (modo no-cors).');
-      console.log('Por favor, verifique os logs de execução do Google Apps Script para confirmação de sucesso e possíveis erros.');
+      console.log('Solicitação de atualização enviada para a aba "Usuarios Renovação".');
 
     } catch (err) {
       console.error('Erro ao enviar atualização de usuário para o Apps Script:', err);
@@ -250,4 +243,4 @@ const GerenciarUsuarios = () => {
   );
 };
 
-export default GerenciarUsuarios;
+export default GerenciarUsuariosRenovacao;
