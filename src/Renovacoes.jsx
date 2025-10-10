@@ -65,7 +65,7 @@ const StatusFilterButton = ({ status, count, currentFilter, onClick, isScheduled
         statusColors = 'bg-gray-200 text-gray-700 hover:bg-gray-300';
     }
     
-    const label = isScheduledToday ? `Agendados Hoje` : status;
+    const label = isScheduledToday ? `Agendados` : status;
     
     return (
         <button
