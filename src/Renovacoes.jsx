@@ -20,6 +20,7 @@ const getYearMonthFromDate = (dateValue) => {
 
     let date;
     
+    // Tenta parsear formatos comuns (dd/mm/yyyy ou yyyy-mm-dd)
     if (typeof dateValue === 'string' && dateValue.includes('/')) {
         const parts = dateValue.split('/');
         date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
@@ -99,7 +100,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const [hasScheduledToday, setHasScheduledToday] = useState(false);
     const [showNotification, setShowNotification] = useState(false);
     
-    // NOVO ESTADO: Armazena o responsável recém-atribuído localmente (Lógica Otimista)
+    // ESTADO LOCAL PARA LÓGICA OTIMISTA (MUDANÇA IMEDIATA)
     const [responsavelLocal, setResponsavelLocal] = useState({});
 
     // --- LÓGICAS INICIAIS ---
@@ -292,10 +293,10 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         setSelecionados((prev) => ({ ...prev, [leadId]: String(userId) }));
     };
 
-    // Funções de Envio Assíncrono
-    // 💥 AJUSTE 1: Adicionar fetchLeadsFromSheet para garantir sincronia
+    // 💥 CORREÇÃO 1: Função para Envio Assíncrono com recarga
     const enviarLeadAtualizado = async (leadAtualizado) => {
-        setIsLoading(true);
+        // Não usamos setIsLoading aqui para não bloquear a UI por muito tempo
+        // O loading já está ativo na função handleEnviar.
         try {
             await fetch(ALTERAR_ATRIBUIDO_SCRIPT_URL, {
                 method: 'POST', 
@@ -304,18 +305,18 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 headers: { 'Content-Type': 'application/json' },
             });
             
-            // Força a re-sincronização do estado global com o Sheets
+            // Força a re-sincronização do estado global com o Sheets após o envio
             await fetchLeadsFromSheet(SHEET_NAME); 
         } catch (error) {
             console.error('Erro ao enviar lead (assíncrono):', error);
             alert('Erro ao atribuir lead. Recarregue a página se o Sheets não tiver atualizado.');
         } finally {
-            setIsLoading(false);
+             // O setIsLoading é desligado no final do handleEnviar
         }
     };
     
-    // 💥 FUNÇÃO PRINCIPAL CORRIGIDA PARA LÓGICA OTIMISTA 💥
-    const handleEnviar = (leadId) => {
+    // 💥 CORREÇÃO 2: LÓGICA DE ATRIBUIÇÃO COMPLETA
+    const handleEnviar = async (leadId) => {
         const userId = selecionados[leadId];
         if (!userId) {
             alert('Selecione um usuário antes de enviar.');
@@ -332,27 +333,41 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         }
         
         const novoResponsavelNome = usuarioSelecionado.nome;
+        setIsLoading(true); // Ativa o loading
 
-        // 1. ATUALIZAÇÃO VISUAL NO ESTADO LOCAL (Lógica Otimista e Backup)
-        setResponsavelLocal(prev => ({ ...prev, [leadId]: novoResponsavelNome }));
-        
-        // 2. Limpa o select
-        setSelecionados(prev => {
-            const newSelection = { ...prev };
-            delete newSelection[leadId];
-            return newSelection;
-        });
+        try {
+            // 1. ATUALIZAÇÃO VISUAL NO ESTADO LOCAL (Lógica Otimista)
+            setResponsavelLocal(prev => ({ ...prev, [leadId]: novoResponsavelNome }));
+            
+            // 2. ATUALIZAÇÃO NO ESTADO GLOBAL DO CONTEXTO/PAI (Para que outros leads vejam a mudança)
+            // É CRÍTICO para a funcionalidade imediata, mesmo que o fetchLeadsFromSheet re-confirme depois.
+            // A prop 'transferirLead' deve ser a função de atualização do estado de leads no componente pai.
+            if (transferirLead) {
+                transferirLead(leadId, novoResponsavelNome);
+            }
 
-        // 3. ENVIO ASSÍNCRONO PARA O SERVIDOR
-        // O Scripts do Apps precisa usar o 'id' para localizar o lead na planilha.
-        const leadAtualizado = { 
-            id: leadId,
-            responsavel: novoResponsavelNome,
-            usuarioId: String(userId) // Este ID é o ID do usuário, não o ID da linha.
-        };
-        
-        // 💥 AJUSTE 2: Remoção do transferirLead. O fetchLeadsFromSheet fará a atualização do estado global.
-        enviarLeadAtualizado(leadAtualizado);
+            // 3. Limpa o select
+            setSelecionados(prev => {
+                const newSelection = { ...prev };
+                delete newSelection[leadId];
+                return newSelection;
+            });
+            
+            // 4. ENVIO ASSÍNCRONO PARA O SERVIDOR (Sheets) E SINCRONIZAÇÃO TOTAL
+            const leadAtualizado = { 
+                id: leadId,
+                responsavel: novoResponsavelNome,
+                usuarioId: String(userId)
+            };
+            
+            await enviarLeadAtualizado(leadAtualizado); 
+            
+        } catch (error) {
+            console.error('Erro no fluxo de atribuição:', error);
+            alert('Ocorreu um erro durante a atribuição.');
+        } finally {
+            setIsLoading(false); // Desativa o loading
+        }
     };
 
     const handleAlterar = (leadId) => {
@@ -662,7 +677,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 )}
             </div>
 
-            {/* Paginação - ALTERADA AQUI */}
+            {/* Paginação */}
             <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
                 <button
                     onClick={handlePaginaAnterior}
