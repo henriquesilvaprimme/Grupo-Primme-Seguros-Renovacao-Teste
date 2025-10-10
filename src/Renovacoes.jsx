@@ -188,9 +188,11 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         setFiltroData(''); setDataInput(''); setFiltroStatus('Todos'); setPaginaAtual(1);
     };
     
+    // 💥 ALTERAÇÃO AQUI: NÃO RESETAR FILTRO DE DATA OU NOME 💥
     const aplicarFiltroStatus = (status) => {
         setFiltroStatus(status);
-        setFiltroNome(''); setNomeInput(''); setFiltroData(''); setDataInput(''); setPaginaAtual(1);
+        setPaginaAtual(1); // Mantenha apenas a mudança de página
+        // Removemos: setFiltroNome(''); setNomeInput(''); setFiltroData(''); setDataInput('');
     };
     
     const nomeContemFiltro = (leadNome, filtroNome) => {
@@ -230,6 +232,20 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         let filteredLeads = leads.filter((lead) => {
             if (lead.status === 'Fechado' || lead.status === 'Perdido') return false;
 
+            // 1. FILTRO DE NOME
+            if (filtroNome && !nomeContemFiltro(lead.name, filtroNome)) {
+                return false;
+            }
+            
+            // 2. FILTRO DE DATA (Vigência Final)
+            if (filtroData) {
+                const leadVigenciaMesAno = getYearMonthFromDate(lead.VigenciaFinal);
+                if (leadVigenciaMesAno !== filtroData) {
+                    return false;
+                }
+            }
+
+            // 3. FILTRO DE STATUS
             if (filtroStatus && filtroStatus !== 'Todos') {
                 if (filtroStatus === 'Agendado') {
                     const today = new Date();
@@ -244,19 +260,11 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                 return lead.status === filtroStatus;
             }
 
-            if (filtroData) {
-                const leadVigenciaMesAno = getYearMonthFromDate(lead.VigenciaFinal);
-                return leadVigenciaMesAno === filtroData;
-            }
-
-            if (filtroNome) {
-                return nomeContemFiltro(lead.name, filtroNome);
-            }
 
             return true; 
         });
 
-        // 💥 LÓGICA DE ORDENAÇÃO POR VIGÊNCIA FINAL (Crescente) 💥
+        // LÓGICA DE ORDENAÇÃO POR VIGÊNCIA FINAL (Crescente)
         filteredLeads.sort((a, b) => {
             const dateA = parseDateToDateObject(a.VigenciaFinal);
             const dateB = parseDateToDateObject(b.VigenciaFinal);
@@ -347,7 +355,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         }
     };
     
-    // 💥 FUNÇÃO PRINCIPAL CORRIGIDA PARA LÓGICA OTIMISTA 💥
+    // FUNÇÃO PRINCIPAL CORRIGIDA PARA LÓGICA OTIMISTA
     const handleEnviar = (leadId) => {
         const userId = selecionados[leadId];
         if (!userId) {
@@ -558,10 +566,33 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             
             {/* Barra de Filtro de Status */}
             <div className="flex flex-wrap gap-3 justify-center mb-8">
-                <StatusFilterButton status="Todos" count={gerais.length} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} />
-                <StatusFilterButton status="Em Contato" count={statusCounts['Em Contato']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} />
-                <StatusFilterButton status="Sem Contato" count={statusCounts['Sem Contato']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} />
-                {statusCounts['Agendado'] > 0 && <StatusFilterButton status="Agendado" count={statusCounts['Agendado']} currentFilter={filtroStatus} onClick={aplicarFiltroStatus} isScheduledToday={true} />}
+                <StatusFilterButton 
+                    status="Todos" 
+                    count={gerais.length} 
+                    currentFilter={filtroStatus} 
+                    onClick={aplicarFiltroStatus} 
+                />
+                <StatusFilterButton 
+                    status="Em Contato" 
+                    count={statusCounts['Em Contato']} 
+                    currentFilter={filtroStatus} 
+                    onClick={aplicarFiltroStatus} 
+                />
+                <StatusFilterButton 
+                    status="Sem Contato" 
+                    count={statusCounts['Sem Contato']} 
+                    currentFilter={filtroStatus} 
+                    onClick={aplicarFiltroStatus} 
+                />
+                {statusCounts['Agendado'] > 0 && 
+                    <StatusFilterButton 
+                        status="Agendado" 
+                        count={statusCounts['Agendado']} 
+                        currentFilter={filtroStatus} 
+                        onClick={aplicarFiltroStatus} 
+                        isScheduledToday={true} 
+                    />
+                }
             </div>
 
             {/* Lista de Cards de Leads */}
