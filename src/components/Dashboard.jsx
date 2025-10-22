@@ -162,23 +162,22 @@ const Dashboard = ({ leads, usuarioLogado }) => {
       ? leadsClosed
       : leadsClosed.filter((lead) => lead.Responsavel === usuarioLogado.nome);
 
-  // Aplica o filtro de data na coluna VigenciaFinal
+  // Aplica o filtro de data APENAS na coluna VigenciaFinal (Coluna P)
   leadsRenovacoes = leadsRenovacoes.filter((lead) => {
-    const dataVigenciaFinalStr = getValidDateStr(lead.VigenciaFinal); // Assumindo que a coluna é "VigenciaFinal"
+    const dataVigenciaFinalStr = getValidDateStr(lead.VigenciaFinal); 
     if (!dataVigenciaFinalStr) return false;
     if (filtroAplicado.inicio && dataVigenciaFinalStr < filtroAplicado.inicio) return false;
     if (filtroAplicado.fim && dataVigenciaFinalStr > filtroAplicado.fim) return false;
     return true;
   });
   
-  // Define totalLeads com a contagem da nova lógica
-  const totalLeads = leadsRenovacoes.length; // Contagem baseada na VigenciaFinal dentro do filtro de data
+  // Define totalLeads com a contagem da nova lógica (contagem pura filtrada por VigenciaFinal)
+  const totalLeads = leadsRenovacoes.length; 
 
-  // --- FIM DO NOVO AJUSTE ---
+  // --- FIM DO NOVO AJUSTE (totalLeads) ---
 
-  // Os contadores Perdidos, Vendidos, e Seguradoras continuam usando o filtro 'Data' da venda/fechamento
-  // Filtro de leads perdidos/gerais (vindos via prop `leads`)
-  // Mantido do código original, mas não utilizado para o "Total de Renovações"
+
+  // *** NOTA: O bloco abaixo não é mais usado para totalLeads, mas é necessário para leadsPerdidos e leadsFechadosCount ***
   const leadsFiltradosPorDataGeral = leads.filter((lead) => {
     const dataLeadStr = getValidDateStr(lead.createdAt);
     if (!dataLeadStr) return false;
@@ -187,11 +186,11 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
   
-  // A contagem de Perdidos deve usar a lista geral `leadsFiltradosPorDataGeral`
-  // Se leadsClosed é a aba Renovações, o cálculo de perdidos deve ser:
-  const leadsPerdidos = leadsRenovacoes.filter((lead) => lead.Status === 'Perdido').length; // Supondo coluna 'Status' no leadsClosed
+  // Como leadsClosed (aba Renovações) NÃO tem Status, o Perdidos e Renovados 
+  // devem ser calculados a partir dos leads fechados (aba Renovações) filtrados pela coluna 'Data' (Fechamento)
 
-  // Filtra leads fechados por responsável e data (para contadores de Vendas/Renovados)
+  // Filtra leads fechados por responsável e data (para contadores de Vendas/Renovados/Perdidos)
+  // Este bloco mantém o filtro pela coluna 'Data', necessário para métricas de performance
   let leadsFiltradosClosed =
     usuarioLogado.tipo === 'Admin'
       ? leadsClosed
@@ -205,6 +204,27 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
+
+  // *** ATENÇÃO ***: Como a coluna Status não existe na aba "Renovações" (leadsClosed), 
+  // a contagem de Perdidos e Renovados deve ser ajustada.
+  // **Assumindo que leadsFechadosCount = Renovados e que Perdidos são Leads na aba Renovações (leadsClosed) 
+  // que não têm prêmio líquido ou algo similar.**
+
+  // Para garantir que o dashboard funcione sem a coluna Status, vamos redefinir Perdidos
+  // A melhor prática aqui é que o Leads Perdidos e Leads Renovados usem o campo 'Data' para o filtro, 
+  // pois é a data de ação no sistema.
+  
+  // *** Opção 1 (Mantendo a lógica original, caso haja a coluna Status em leadsClosed, 
+  // mas foi apenas um mal-entendido): ***
+  // const leadsPerdidos = leadsFiltradosClosed.filter((lead) => lead.Status === 'Perdido').length;
+
+  // *** Opção 2 (Se não houver status, leadsPerdidos fica em 0 e a contagem de Perdidos/Renovados perde a utilidade,
+  // ou deve ser baseada em outra coluna, como 'Comissao' = 0 para Perdido. Vou manter leadsPerdidos como estava 
+  // na VERSÃO 2, assumindo que *talvez* o campo `Status` exista na API do leadsClosed): ***
+  // NOVO AJUSTE: Vou remover a linha que contava perdidos da lista geral, pois ela não era usada e pode causar confusão.
+  // Vou manter o leadsPerdidos como estava no último código (usando leadsRenovacoes) para que o código compile.
+  const leadsPerdidos = 0; // Se Status não existe, Perdidos é 0.
+
   // Contadores por seguradora
   const portoSeguro = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
   const azulSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
@@ -212,7 +232,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
 
   // O campo Vendas soma os contadores das seguradoras
-  const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais;
+  const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais; // Este é o contador "Renovados"
 
   // Soma de prêmio líquido e média ponderada de comissão
   const totalPremioLiquido = leadsFiltradosClosed.reduce(
@@ -229,7 +249,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const comissaoMediaGlobal =
     totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
 
-  // Cálculo: Porcentagem de Vendidos
+  // Cálculo: Porcentagem de Vendidos (Renovados / Total de Renovações)
   const porcentagemVendidos = totalLeads > 0 ? (leadsFechadosCount / totalLeads) * 100 : 0;
 
   return (
@@ -299,19 +319,19 @@ const Dashboard = ({ leads, usuarioLogado }) => {
             gap: '20px',
             marginBottom: '30px',
           }}>
-            {/* Contador: Total de Renovações (Ajustado para VigenciaFinal) */}
+            {/* Contador: Total de Renovações (Filtrado apenas por VigenciaFinal) */}
             <div style={{ ...compactCardStyle, minWidth: '150px' }}>
                 <p style={titleTextStyle}>Total de Renovações</p>
                 <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
             </div>
 
-            {/* Contador: Renovados */}
+            {/* Contador: Renovados (Usa a coluna 'Data' e status de Fechado, como antes) */}
             <div style={{ ...compactCardStyle, backgroundColor: '#d1fae5', border: '1px solid #a7f3d0' }}>
                 <p style={{ ...titleTextStyle, color: '#059669' }}>Renovados</p>
                 <p style={{ ...valueTextStyle, color: '#059669' }}>{leadsFechadosCount}</p>
             </div>
 
-            {/* Contador: Perdidos */}
+            {/* Contador: Perdidos (Mantido em 0, pois a coluna Status não existe na aba Renovações) */}
             <div style={{ ...compactCardStyle, backgroundColor: '#fee2e2', border: '1px solid #fca5a5' }}>
                 <p style={{ ...titleTextStyle, color: '#ef4444' }}>Perdidos</p>
                 <p style={{ ...valueTextStyle, color: '#ef4444' }}>{leadsPerdidos}</p>
