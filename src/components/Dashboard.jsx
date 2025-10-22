@@ -99,7 +99,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Ajuste 2: Inicializar dataFim para o ÚLTIMO dia do mês
+  // Inicializar dataInicio e dataFim para o mês inteiro
   const getPrimeiroDiaMes = () => {
     const hoje = new Date();
     return new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
@@ -114,8 +114,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   };
 
   const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
-  const [dataFim, setDataFim] = useState(getDataFimMes()); // Chamada ajustada
-  const [filtroAplicado, setFiltroAplicado] = useState({ inicio: getPrimeiroDiaMes(), fim: getDataFimMes() }); // Chamada ajustada
+  const [dataFim, setDataFim] = useState(getDataFimMes());
+  const [filtroAplicado, setFiltroAplicado] = useState({ inicio: getPrimeiroDiaMes(), fim: getDataFimMes() });
 
   // Função auxiliar para validar e formatar a data
   const getValidDateStr = (dateValue) => {
@@ -127,7 +127,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return dateObj.toISOString().slice(0, 10);
   };
 
-  // Busca leads fechados
+  // Busca leads fechados (aba Renovações)
   const buscarLeadsClosedFromAPI = async () => {
     setIsLoading(true);
     setLoading(true);
@@ -154,7 +154,31 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     setFiltroAplicado({ inicio: dataInicio, fim: dataFim });
   };
 
-  // Filtro por data dos leads gerais (vindos via prop `leads`)
+  // --- NOVO AJUSTE: Cálculo do Total de Renovações (Aba Renovações / Coluna VigenciaFinal) ---
+
+  // 1. Filtra leads da aba "Renovações" (leadsClosed) pela data VigenciaFinal
+  let leadsRenovacoes = 
+    usuarioLogado.tipo === 'Admin'
+      ? leadsClosed
+      : leadsClosed.filter((lead) => lead.Responsavel === usuarioLogado.nome);
+
+  // Aplica o filtro de data na coluna VigenciaFinal
+  leadsRenovacoes = leadsRenovacoes.filter((lead) => {
+    const dataVigenciaFinalStr = getValidDateStr(lead.VigenciaFinal); // Assumindo que a coluna é "VigenciaFinal"
+    if (!dataVigenciaFinalStr) return false;
+    if (filtroAplicado.inicio && dataVigenciaFinalStr < filtroAplicado.inicio) return false;
+    if (filtroAplicado.fim && dataVigenciaFinalStr > filtroAplicado.fim) return false;
+    return true;
+  });
+  
+  // Define totalLeads com a contagem da nova lógica
+  const totalLeads = leadsRenovacoes.length; // Contagem baseada na VigenciaFinal dentro do filtro de data
+
+  // --- FIM DO NOVO AJUSTE ---
+
+  // Os contadores Perdidos, Vendidos, e Seguradoras continuam usando o filtro 'Data' da venda/fechamento
+  // Filtro de leads perdidos/gerais (vindos via prop `leads`)
+  // Mantido do código original, mas não utilizado para o "Total de Renovações"
   const leadsFiltradosPorDataGeral = leads.filter((lead) => {
     const dataLeadStr = getValidDateStr(lead.createdAt);
     if (!dataLeadStr) return false;
@@ -162,21 +186,19 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
     return true;
   });
- 
-  // Ajuste 1: Contar apenas leads que não são 'Perdido', pois estes são os leads da aba "Renovações"
-  const leadsNaoPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status !== 'Perdido');
-  const totalLeads = leadsNaoPerdidos.length; // AGORA CONTA APENAS OS LEADS NA ABA "RENOVAÇÕES"
   
-  const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
+  // A contagem de Perdidos deve usar a lista geral `leadsFiltradosPorDataGeral`
+  // Se leadsClosed é a aba Renovações, o cálculo de perdidos deve ser:
+  const leadsPerdidos = leadsRenovacoes.filter((lead) => lead.Status === 'Perdido').length; // Supondo coluna 'Status' no leadsClosed
 
-  // Filtra leads fechados por responsável e data
+  // Filtra leads fechados por responsável e data (para contadores de Vendas/Renovados)
   let leadsFiltradosClosed =
     usuarioLogado.tipo === 'Admin'
       ? leadsClosed
       : leadsClosed.filter((lead) => lead.Responsavel === usuarioLogado.nome);
 
   leadsFiltradosClosed = leadsFiltradosClosed.filter((lead) => {
-    const dataLeadStr = getValidDateStr(lead.Data);
+    const dataLeadStr = getValidDateStr(lead.Data); // Filtro usando a coluna 'Data'
     if (!dataLeadStr) return false;
     if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
     if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
@@ -277,7 +299,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
             gap: '20px',
             marginBottom: '30px',
           }}>
-            {/* Contador: Total de Renovações (Ajustado) */}
+            {/* Contador: Total de Renovações (Ajustado para VigenciaFinal) */}
             <div style={{ ...compactCardStyle, minWidth: '150px' }}>
                 <p style={titleTextStyle}>Total de Renovações</p>
                 <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
