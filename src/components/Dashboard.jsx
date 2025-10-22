@@ -30,7 +30,7 @@ const titleTextStyle = {
   marginBottom: '0',
 };
 
-// --- COMPONENTE: Gráfico Circular de Progresso (Corrigido) ---
+// --- COMPONENTE: Gráfico Circular de Progresso (Estilos adaptados) ---
 const CircularProgressChart = ({ percentage }) => {
   const normalizedPercentage = Math.min(100, Math.max(0, percentage));
   const circumference = 314;
@@ -46,7 +46,6 @@ const CircularProgressChart = ({ percentage }) => {
       alignItems: 'center',
       justifyContent: 'center',
     }}>
-      {/* O SVG é o primeiro filho do container principal */}
       <svg
         width="100"
         height="100"
@@ -78,7 +77,7 @@ const CircularProgressChart = ({ percentage }) => {
           }}
         />
       </svg>
-      {/* Texto da Porcentagem no Centro (Fora do SVG, mas dentro do container pai) */}
+      {/* Texto da Porcentagem no Centro */}
       <div style={{
         position: 'absolute',
         top: '50%',
@@ -100,23 +99,26 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Função para obter o primeiro dia do mês atual
+  // 🚀 FUNÇÕES PARA O FILTRO DE DATA ATUALIZADO (Primeiro e Último dia do Mês)
   const getPrimeiroDiaMes = () => {
     const hoje = new Date();
     return new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
   };
 
-  // Função MODIFICADA para obter o último dia do mês atual
   const getUltimoDiaMes = () => {
+    // Cria uma data que é o primeiro dia do PRÓXIMO mês, e subtrai 1 dia
     const hoje = new Date();
-    // O dia 0 do próximo mês é o último dia do mês atual
-    return new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().slice(0, 10);
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    return ultimoDia.toISOString().slice(0, 10);
   };
 
-  // Inicializar dataInicio e dataFim com valores padrão: 1º dia e Último dia do mês
   const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
-  const [dataFim, setDataFim] = useState(getUltimoDiaMes());
-  const [filtroAplicado, setFiltroAplicado] = useState({ inicio: getPrimeiroDiaMes(), fim: getUltimoDiaMes() });
+  const [dataFim, setDataFim] = useState(getUltimoDiaMes()); // 💡 ATUALIZADO para usar o último dia
+  const [filtroAplicado, setFiltroAplicado] = useState({ 
+    inicio: getPrimeiroDiaMes(), 
+    fim: getUltimoDiaMes() // 💡 ATUALIZADO para usar o último dia
+  });
+  // --------------------------------------------------------------------------
 
   // Função auxiliar para validar e formatar a data
   const getValidDateStr = (dateValue) => {
@@ -347,6 +349,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                     style: 'currency',
                     currency: 'BRL',
                   })}
+                </p>
               </div>
               <div style={{ ...compactCardStyle, backgroundColor: '#ecfeff', border: '1px solid #99f6e4' }}>
                 <p style={{ ...titleTextStyle, color: '#0f766e' }}>Média Comissão</p>
