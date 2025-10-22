@@ -30,7 +30,7 @@ const titleTextStyle = {
   marginBottom: '0',
 };
 
-// --- COMPONENTE: Gráfico Circular de Progresso (Estilos adaptados) ---
+// --- COMPONENTE: Gráfico Circular de Progresso (Corrigido) ---
 const CircularProgressChart = ({ percentage }) => {
   const normalizedPercentage = Math.min(100, Math.max(0, percentage));
   const circumference = 314;
@@ -46,6 +46,7 @@ const CircularProgressChart = ({ percentage }) => {
       alignItems: 'center',
       justifyContent: 'center',
     }}>
+      {/* O SVG é o primeiro filho do container principal */}
       <svg
         width="100"
         height="100"
@@ -76,15 +77,16 @@ const CircularProgressChart = ({ percentage }) => {
             strokeDashoffset: dashoffset,
           }}
         />
-        {/* Texto da Porcentagem no Centro */}
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          fontSize: '18px',
-          fontWeight: '700',
-          color: '#059669',
+      </svg>
+      {/* Texto da Porcentagem no Centro (Fora do SVG, mas dentro do container pai) */}
+      <div style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        fontSize: '18px',
+        fontWeight: '700',
+        color: '#059669',
       }}>
         {normalizedPercentage.toFixed(1)}%
       </div>
@@ -97,8 +99,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const [leadsClosed, setLeadsClosed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-
-  // 🔑 LÓGICA DE DATA MODIFICADA AQUI 🔑
 
   // Função para obter o primeiro dia do mês atual
   const getPrimeiroDiaMes = () => {
@@ -347,7 +347,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                     style: 'currency',
                     currency: 'BRL',
                   })}
-                </p>
               </div>
               <div style={{ ...compactCardStyle, backgroundColor: '#ecfeff', border: '1px solid #99f6e4' }}>
                 <p style={{ ...titleTextStyle, color: '#0f766e' }}>Média Comissão</p>
