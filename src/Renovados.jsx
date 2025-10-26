@@ -653,7 +653,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                 <input
                                                     type="text"
                                                     placeholder="0,00"
-                                                    value={valores[`${lead.ID}`]?.Comissao ||% ''}
+                                                    value={valores[`${lead.ID}`]?.Comissao || % ''}
                                                     onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
                                                     disabled={isSeguradoraPreenchida}
                                                     className="w-full p-2 pl-8 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
