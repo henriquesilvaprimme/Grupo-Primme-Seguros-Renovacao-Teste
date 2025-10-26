@@ -621,7 +621,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                     {/* Cartão Porto Seguro Novo (Condicional: Seguradora IN [Porto, Azul, Itau] E MeioPagamento == 'CP') */}
                                     {requiresCartaoPortoNovo && (
                                         <div className="mb-4">
-                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Cartão Porto Seguro novo</label>
+                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Cartão Porto Seguro Novo?</label>
                                             <select
                                                 value={cartaoPortoNovo[`${lead.ID}`] || ''}
                                                 onChange={(e) => handleCartaoPortoNovoChange(lead.ID, e.target.value)}
