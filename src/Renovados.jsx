@@ -654,21 +654,24 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                         </div>
 
                                         {/* Comissão (Input) */}
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Comissão (%)</label>
-                                            <div className="relative">
-                                                {/* O símbolo '%' é exibido no valor, mas removido no handler */}
-                                                <input
-                                                    type="text"
-                                                    placeholder="0,00"
-                                                    value={valores[`${lead.ID}`]?.Comissao || ''}
-                                                    onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
-                                                    disabled={isSeguradoraPreenchida}
-                                                    className="w-full p-2 pr-5 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
-                                                />
-                                                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">%</span>
-                                            </div>
-                                        </div>
+<div>
+    <label className="text-xs font-semibold text-gray-600 block mb-1">Comissão (%)</label>
+    <div className="relative">
+        {/*
+            *** ALTERAÇÃO: Mover o símbolo para a esquerda (left-3) ***
+        */}
+        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">%</span>
+        <input
+            type="text"
+            placeholder="0,00"
+            value={valores[`${lead.ID}`]?.Comissao || ''}
+            onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
+            disabled={isSeguradoraPreenchida}
+            // *** ALTERAÇÃO: Adicionar padding à esquerda (pl-7) e remover o padding da direita (pr-5 -> p-2) ***
+            className="w-full p-2 pl-7 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
+        />
+    </div>
+</div>
 
                                         {/* Parcelamento (Select) */}
                                         <div className="col-span-2">
