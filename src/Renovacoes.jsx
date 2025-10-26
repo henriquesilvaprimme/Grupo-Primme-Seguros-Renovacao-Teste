@@ -44,40 +44,6 @@ const getYearMonthFromDate = (dateValue) => {
 
 
 // ===============================================
-// FUNÇÃO AUXILIAR PARA FORMATAR VALOR (NOVO)
-// ===============================================
-const formatarComissao = (valor) => {
-    if (valor === undefined || valor === null || valor === '') return 'N/A';
-    
-    // Converte para string e substitui vírgula por ponto para parse
-    let valorStr = String(valor).replace(',', '.').trim();
-    
-    // Tenta converter para número (assume que o valor do Sheets é 25.00 ou "25,00%")
-    let numericValue = parseFloat(valorStr);
-    
-    // Se o valor for um número entre 0 e 1 e for formatado como porcentagem (ex: 0.25), multiplique por 100
-    if (numericValue > 0 && numericValue < 1 && valorStr.includes('.')) {
-        numericValue *= 100;
-    } 
-    // Se o valor for NaN ou 0, trata
-    else if (isNaN(numericValue) || numericValue === 0) {
-        // Se a string já tiver um "%" e for válida (ex: "25,00%"), remove o '%' e usa o valor.
-        if (valorStr.includes('%')) {
-            numericValue = parseFloat(valorStr.replace('%', ''));
-        } else {
-             return '0,00%';
-        }
-    }
-    
-    // Formata o número resultante para a localização pt-BR
-    return numericValue.toLocaleString('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }) + '%';
-};
-
-
-// ===============================================
 // COMPONENTE AUXILIAR: StatusButton com Contagem
 // ===============================================
 const StatusFilterButton = ({ status, count, currentFilter, onClick, isScheduledToday }) => {
@@ -330,15 +296,15 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             } else if (lead.status === 'Sem Contato') {
                 counts['Sem Contato']++;
             } else if (lead.status.startsWith('Agendado')) {
-                         const statusDateStr = lead.status.split(' - ')[1];
-                         if (!statusDateStr) return;
-                         const [dia, mes, ano] = statusDateStr.split('/');
-                         const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-                         const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
-                         
-                         if (statusDateFormatted === todayFormatted) {
-                             counts['Agendado']++;
-                         }
+                       const statusDateStr = lead.status.split(' - ')[1];
+                       if (!statusDateStr) return;
+                       const [dia, mes, ano] = statusDateStr.split('/');
+                       const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+                       const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+                       
+                       if (statusDateFormatted === todayFormatted) {
+                            counts['Agendado']++;
+                       }
             }
         });
         return counts;
@@ -661,11 +627,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                         disabledConfirm={!isAtribuido} 
                                         compact={false}
                                     />
-                                    {/* NOVO CAMPO: COMISSÃO (Adicionado para renderizar com o formato 25,00%) */}
                                     <p className="mt-3 text-sm font-semibold text-gray-700">
-                                        Comissão: <strong className="text-green-600">{formatarComissao(lead.Comissao)}</strong>
-                                    </p>
-                                    <p className="mt-1 text-sm font-semibold text-gray-700">
                                         Vigência Final: <strong className="text-indigo-600">{formatarData(lead.VigenciaFinal)}</strong>
                                     </p>
                                     <p className="mt-1 text-xs text-gray-400">
