@@ -122,6 +122,32 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
     return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
+  // 🌟 NOVO: Função auxiliar para formatar porcentagem
+  const formatPercentage = (valor) => {
+      if (valor === undefined || valor === null || valor === '') return 'N/A';
+      
+      let numericValue;
+      if (typeof valor === 'string') {
+          // Remove '%' se existir e substitui vírgula por ponto para parse
+          numericValue = parseFloat(valor.replace('%', '').replace(',', '.').trim());
+      } else {
+          numericValue = parseFloat(valor);
+      }
+
+      // Se o valor for um número entre 0 e 1 (formato decimal, ex: 0.25), multiplique por 100
+      if (numericValue > 0 && numericValue < 1) {
+          numericValue *= 100;
+      } 
+      
+      if (isNaN(numericValue)) return 'N/A';
+      
+      // Formata o número resultante para a localização pt-BR
+      return numericValue.toLocaleString('pt-BR', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+      }) + '%';
+  };
+
 
   return (
     <div
@@ -134,27 +160,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         position: 'relative'
       }}
     >
-      {/* REMOVIDO: A pílula de status no canto superior direito foi removida
-        para evitar a duplicação com a pílula colorida que está na div externa.
-      */}
-      {/* {isStatusConfirmed && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            padding: '5px 10px',
-            borderRadius: '5px',
-            backgroundColor: '#007bff',
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: '14px',
-          }}
-        >
-          {status}
-        </div>
-      )} */}
-
       {/* CAMPOS ATUALIZADOS AQUI */}
       <p><strong>Nome:</strong> {lead.name}</p>
       <p><strong>Modelo do veículo:</strong> {lead.vehicleModel}</p>
@@ -162,15 +167,12 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       <p><strong>Telefone:</strong> {lead.phone}</p>
       <p><strong>Seguradora:</strong> {lead.Seguradora || 'N/A'}</p>
       <p><strong>Prêmio Líquido:</strong> {formatCurrency(lead.PremioLiquido)}</p>
-      <p><strong>Comissão:</strong> {lead.Comissao}%</p>
+      {/* 🌟 Aplicação da nova função formatPercentage */}
+      <p><strong>Comissão:</strong> {formatPercentage(lead.Comissao)}</p> 
       <p><strong>Parcelamento:</strong> {lead.Parcelamento || 'N/A'}</p>
       <p><strong>Vigência Final:</strong> {formatDateDisplay(lead.VigenciaFinal) || 'N/A'}</p>
       {/* FIM DOS CAMPOS ATUALIZADOS */}
       
-      {/* <p><strong>Cidade:</strong> {lead.city}</p> - REMOVIDO, POIS NÃO ESTAVA NA SUA LISTA */}
-      {/* <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p> - REMOVIDO, POIS NÃO ESTAVA NA SUA LISTA */}
-
-
       <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <select
           value={status}
@@ -197,7 +199,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
           }}
         >
           <option value="">Selecione o status</option>
-          {/* REMOVIDO: <option value="Novo">Novo</option> */}
           <option value="Agendar">Agendar</option>
           <option value="Em Contato">Em Contato</option>
           <option value="Fechado">Fechado</option>
@@ -268,30 +269,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
           </button>
         )}
       </div>
-
-      {/* REMOVIDO: Botão do WhatsApp */}
-      {/*
-      <div style={{ marginTop: '10px' }}>
-        <a
-          href={`https://wa.me/${lead.phone}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            backgroundColor: '#25D366',
-            color: 'white',
-            padding: '8px 12px',
-            borderRadius: '5px',
-            textDecoration: 'none',
-            fontSize: '0.9em',
-          }}
-        >
-          <Phone size={16} /> Enviar WhatsApp
-        </a>
-      </div>
-      */}
     </div>
   );
 };
