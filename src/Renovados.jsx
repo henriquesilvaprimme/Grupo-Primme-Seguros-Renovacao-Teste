@@ -16,7 +16,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const [isLoading, setIsLoading] = useState(false);
     const [nomeInput, setNomeInput] = useState('');
     
-    // NOVOS ESTADOS ADICIONADOS AQUI
+    // NOVOS ESTADOS
     const [meioPagamento, setMeioPagamento] = useState({});
     const [cartaoPortoNovo, setCartaoPortoNovo] = useState({});
     
@@ -351,6 +351,16 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                 insurer: valor,
             },
         }));
+        // Se a seguradora for alterada para uma que não requer o campo Cartão Porto Novo, limpa o estado
+        const seguradorasComCartaoPortoNovo = ['Porto Seguro', 'Azul Seguros', 'Itau Seguros'];
+        if (!seguradorasComCartaoPortoNovo.includes(valor)) {
+            setCartaoPortoNovo(prev => ({
+                ...prev,
+                [`${id}`]: '',
+            }));
+            // O ideal seria também chamar onUpdateDetalhes para limpar na planilha se a seguradora mudar
+            onUpdateDetalhes(id, 'CartaoPortoNovo', '');
+        }
     };
     
     // NOVO HANDLER: Meio de Pagamento
@@ -360,6 +370,16 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
             [`${id}`]: valor,
         }));
         onUpdateDetalhes(id, 'MeioPagamento', valor);
+
+        // Se o meio de pagamento for alterado para algo diferente de CP, limpa o estado
+        if (valor !== 'CP') {
+            setCartaoPortoNovo(prev => ({
+                ...prev,
+                [`${id}`]: '',
+            }));
+             // O ideal seria também chamar onUpdateDetalhes para limpar na planilha se o MeioPagamento mudar
+            onUpdateDetalhes(id, 'CartaoPortoNovo', '');
+        }
     };
 
     // NOVO HANDLER: Cartão Porto Seguro novo
@@ -403,6 +423,9 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const inicio = (paginaCorrigida - 1) * leadsPorPagina;
     const fim = inicio + leadsPorPagina;
     const leadsPagina = fechadosFiltradosInterno.slice(inicio, fim);
+    
+    // Lista de seguradoras que REQUEREM o campo Cartão Porto Novo
+    const seguradorasComCartaoPortoNovo = ['Porto Seguro', 'Azul Seguros', 'Itau Seguros'];
 
     const handlePaginaAnterior = () => {
         setPaginaAtual(prev => Math.max(prev - 1, 1));
@@ -498,9 +521,19 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                         const responsavel = usuarios.find((u) => u.nome === lead.Responsavel);
                         const isSeguradoraPreenchida = !!lead.Seguradora;
                         
+                        // Lógica para verificar se a seguradora atual e o meio de pagamento REQUEREM o campo Cartão Porto Novo
+                        const currentInsurer = valores[`${lead.ID}`]?.insurer;
+                        const currentMeioPagamento = meioPagamento[`${lead.ID}`];
+
+                        // NOVO REQUISITO: Requer Cartão Porto Novo se a seguradora for uma das listadas E o meio de pagamento for 'CP'
+                        const requiresCartaoPortoNovo = seguradorasComCartaoPortoNovo.includes(currentInsurer) && currentMeioPagamento === 'CP';
+
+                        // Condição de validação para Cartão Porto Novo
+                        const cartaoPortoNovoInvalido = requiresCartaoPortoNovo && (!cartaoPortoNovo[`${lead.ID}`] || cartaoPortoNovo[`${lead.ID}`] === '');
+                        
                         // Lógica de desativação do botão de confirmação
                         const isButtonDisabled =
-                            !valores[`${lead.ID}`]?.insurer ||
+                            !currentInsurer ||
                             valores[`${lead.ID}`]?.PremioLiquido === null ||
                             valores[`${lead.ID}`]?.PremioLiquido === undefined ||
                             !valores[`${lead.ID}`]?.Comissao ||
@@ -509,12 +542,9 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                             valores[`${lead.ID}`]?.Parcelamento === '' ||
                             !vigencia[`${lead.ID}`]?.inicio ||
                             !vigencia[`${lead.ID}`]?.final ||
-                            // Adicionando validações para os novos campos
-                            !meioPagamento[`${lead.ID}`] ||
-                            meioPagamento[`${lead.ID}`] === '' ||
-                            (!cartaoPortoNovo[`${lead.ID}`] && valores[`${lead.ID}`]?.insurer === 'Porto Seguro') || // Opcional: só valida se for Porto
-                            (cartaoPortoNovo[`${lead.ID}`] === '' && valores[`${lead.ID}`]?.insurer === 'Porto Seguro');
-
+                            !currentMeioPagamento ||
+                            currentMeioPagamento === '' ||
+                            cartaoPortoNovoInvalido; // Novo requisito de validação
 
                         return (
                             <div 
@@ -550,7 +580,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                     <div className="mb-4">
                                         <label className="text-xs font-semibold text-gray-600 block mb-1">Seguradora</label>
                                         <select
-                                            value={valores[`${lead.ID}`]?.insurer || ''}
+                                            value={currentInsurer || ''}
                                             onChange={(e) => handleInsurerChange(lead.ID, e.target.value)}
                                             disabled={isSeguradoraPreenchida}
                                             className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
@@ -567,12 +597,12 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                     <div className="mb-4">
                                         <label className="text-xs font-semibold text-gray-600 block mb-1">Meio de Pagamento</label>
                                         <select
-                                            value={meioPagamento[`${lead.ID}`] || ''}
+                                            value={currentMeioPagamento || ''}
                                             onChange={(e) => handleMeioPagamentoChange(lead.ID, e.target.value)}
                                             disabled={isSeguradoraPreenchida}
                                             className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
                                         >
-                                            <option value=""> </option>
+                                            <option value="">Em branco</option>
                                             <option value="CP">CP</option>
                                             <option value="CC">CC</option>
                                             <option value="Debito">Debito</option>
@@ -580,8 +610,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                         </select>
                                     </div>
 
-                                    {/* Cartão Porto Seguro Novo (NOVO - visível apenas para Porto Seguro) */}
-                                    {valores[`${lead.ID}`]?.insurer === 'Porto Seguro' && (
+                                    {/* Cartão Porto Seguro Novo (Condicional: Seguradora IN [Porto, Azul, Itau] E MeioPagamento == 'CP') */}
+                                    {requiresCartaoPortoNovo && (
                                         <div className="mb-4">
                                             <label className="text-xs font-semibold text-gray-600 block mb-1">Cartão Porto Seguro novo</label>
                                             <select
@@ -590,7 +620,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                 disabled={isSeguradoraPreenchida}
                                                 className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
                                             >
-                                                <option value=""> </option>
+                                                <option value="">Em branco</option>
                                                 <option value="Sim">Sim</option>
                                                 <option value="Não">Não</option>
                                             </select>
@@ -689,13 +719,13 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                 await onConfirmInsurer(
                                                     lead.ID,
                                                     valores[`${lead.ID}`]?.PremioLiquido === null ? null : valores[`${lead.ID}`]?.PremioLiquido / 100,
-                                                    valores[`${lead.ID}`]?.insurer,
+                                                    currentInsurer,
                                                     parseFloat(String(valores[`${lead.ID}`]?.Comissao || '0').replace(',', '.')),
                                                     valores[`${lead.ID}`]?.Parcelamento,
                                                     vigencia[`${lead.ID}`]?.final,
                                                     vigencia[`${lead.ID}`]?.inicio,
                                                     // NOVOS PARÂMETROS ADICIONADOS AQUI
-                                                    meioPagamento[`${lead.ID}`], 
+                                                    currentMeioPagamento, 
                                                     cartaoPortoNovo[`${lead.ID}`] 
                                                 );
                                                 // Note: Esta chamada é crucial para o seu fluxo de atualização pós-confirmação
