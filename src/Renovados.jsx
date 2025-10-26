@@ -672,7 +672,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                             >
                                                 <option value="">Selecione o Parcelamento</option>
                                                 {[...Array(12)].map((_, i) => (
-                                                    <option key={i + 1} value={`${i + 1}x`}>{i + 1}x</option>
+                                                    <option key={i + 1} value={`${i + 1}`}>{i + 1}</option>
                                                 ))}
                                             </select>
                                         </div>
