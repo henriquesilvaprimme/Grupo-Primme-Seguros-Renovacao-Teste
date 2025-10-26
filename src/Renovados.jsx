@@ -646,20 +646,20 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                         </div>
 
                                         {/* Comissão (Input) */}
-                                        <div>
-                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Comissão (%)</label>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-sm">%</span>
-                                                <input
-                                                    type="text"
-                                                    placeholder="0,00"
-                                                    value={valores[`${lead.ID}`]?.Comissao || % ''}
-                                                    onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
-                                                    disabled={isSeguradoraPreenchida}
-                                                    className="w-full p-2 pl-8 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
-                                                />
-                                            </div>
-                                        </div>
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-600 block mb-1">Comissão (%)</label>
+                                            <div className="relative">
+                                                {/* O símbolo '%' foi movido para fora do input para ser enviado junto com o valor */}
+                                                <input
+                                                    type="text"
+                                                    placeholder="0,00"
+                                                    value={(valores[`${lead.ID}`]?.Comissao || '') + '%'}
+                                                    onChange={(e) => handleComissaoChange(lead.ID, e.target.value)}
+                                                    disabled={isSeguradoraPreenchida}
+                                                    className="w-full p-2 pl-4 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500 text-right"
+                                                />
+                                            </div>
+                                        </div>
 
                                         {/* Parcelamento (Select) */}
                                         <div className="col-span-2">
