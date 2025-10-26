@@ -8,13 +8,17 @@ import { RefreshCcw, Bell, Search, Send, Edit, Save, User, ChevronLeft, ChevronR
 const SHEET_NAME = 'Renovações';
 
 // URLs com o parâmetro 'sheet' adicionado para apontar para a nova aba
-const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
+const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGP9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar_atribuido&sheet=${SHEET_NAME}`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
 
 // ===============================================
-// FUNÇÃO AUXILIAR PARA O FILTRO DE DATA
+// FUNÇÕES AUXILIARES
 // ===============================================
+
+/**
+ * Função auxiliar para obter o Ano e Mês de uma string de data.
+ */
 const getYearMonthFromDate = (dateValue) => {
     if (!dateValue) return '';
 
@@ -40,6 +44,37 @@ const getYearMonthFromDate = (dateValue) => {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     
     return `${year}-${month}`;
+};
+
+/**
+ * Função auxiliar para formatar a comissão (string ou número) para '25,00%'.
+ * @param {string | number} comissaoStr
+ * @returns {string} Comissão formatada.
+ */
+const formatarComissao = (comissaoStr) => {
+    if (!comissaoStr) return 'N/A';
+    
+    // Tenta converter para número, tratando vírgula como separador decimal.
+    let numericValue;
+    if (typeof comissaoStr === 'string') {
+        // Substitui a vírgula por ponto para que o parseFloat funcione corretamente
+        const cleanedStr = comissaoStr.replace(',', '.').replace(/[^\d.]/g, '');
+        numericValue = parseFloat(cleanedStr);
+    } else if (typeof comissaoStr === 'number') {
+        numericValue = comissaoStr;
+    } else {
+        return 'N/A';
+    }
+
+    if (isNaN(numericValue)) return 'N/A';
+    
+    // Formata o número com 2 casas decimais e substitui o ponto por vírgula para o formato PT-BR, e adiciona o '%'
+    // Multiplica por 100 se for um decimal (ex: 0.25 -> 25.00). Assume que o valor da planilha já está na forma 25,00 (25).
+    // Se o valor for 0.25, multiplica por 100. Caso contrário (se for 25), não multiplica.
+    const isDecimal = numericValue < 1 && numericValue > 0;
+    const finalValue = isDecimal ? numericValue * 100 : numericValue;
+
+    return finalValue.toFixed(2).replace('.', ',') + '%';
 };
 
 
@@ -296,15 +331,15 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             } else if (lead.status === 'Sem Contato') {
                 counts['Sem Contato']++;
             } else if (lead.status.startsWith('Agendado')) {
-                       const statusDateStr = lead.status.split(' - ')[1];
-                       if (!statusDateStr) return;
-                       const [dia, mes, ano] = statusDateStr.split('/');
-                       const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
-                       const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
-                       
-                       if (statusDateFormatted === todayFormatted) {
+                        const statusDateStr = lead.status.split(' - ')[1];
+                        if (!statusDateStr) return;
+                        const [dia, mes, ano] = statusDateStr.split('/');
+                        const statusDate = new Date(`${ano}-${mes}-${dia}T00:00:00`);
+                        const statusDateFormatted = statusDate.toLocaleDateString('pt-BR');
+                        
+                        if (statusDateFormatted === todayFormatted) {
                             counts['Agendado']++;
-                       }
+                        }
             }
         });
         return counts;
@@ -630,6 +665,10 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     <p className="mt-3 text-sm font-semibold text-gray-700">
                                         Vigência Final: <strong className="text-indigo-600">{formatarData(lead.VigenciaFinal)}</strong>
                                     </p>
+                                    {/* NOVO BLOCO DE INFORMAÇÃO DE COMISSÃO */}
+                                    <p className="mt-1 text-sm font-semibold text-gray-700">
+                                        Comissão: <strong className="text-green-600">{formatarComissao(lead.Comissao)}</strong>
+                                    </p>
                                     <p className="mt-1 text-xs text-gray-400">
                                         Criado em: {formatarData(lead.createdAt)}
                                     </p>
@@ -669,50 +708,61 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     )}
                                 </div>
 
-                                {/* COLUNA 3: Atribuição - LÓGICA DE EXIBIÇÃO */}
-                                <div className="col-span-1 lg:pl-6">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
-                                        <User size={18} className="mr-2 text-indigo-500" />
-                                        Atribuição
-                                    </h3>
-                                    
-                                    {/* Condição: Se está atribuído E NÃO está no modo de seleção */}
-                                    {isAtribuido && !selecionados[lead.id] ? (
-                                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg shadow-sm">
-                                            <p className="text-sm font-medium text-green-700">
-                                                Atribuído a: <strong>{responsavelNome}</strong>
-                                            </p>
-                                            {isAdmin && (
-                                                <button
-                                                    onClick={() => handleAlterar(lead.id)}
-                                                    className="mt-2 px-3 py-1 bg-amber-500 text-white text-xs rounded-full hover:bg-amber-600 transition duration-150 shadow-sm"
+                                {/* COLUNA 3: Responsável e Ações */}
+                                <div className="col-span-1 lg:pl-6 flex flex-col justify-between">
+                                    <div>
+                                        {selecionados[lead.id] !== undefined ? (
+                                            /* Modo de Seleção */
+                                            <div className="flex flex-col gap-2">
+                                                <h4 className="text-sm font-semibold text-gray-700">Transferir para:</h4>
+                                                <select
+                                                    value={selecionados[lead.id]}
+                                                    onChange={(e) => handleSelect(lead.id, e.target.value)}
+                                                    className="w-full p-2 border border-indigo-300 rounded-lg bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                                 >
-                                                    Mudar Atribuição
+                                                    <option value="" disabled>Selecione um usuário...</option>
+                                                    {usuariosAtivos.map((user) => (
+                                                        <option key={user.id} value={user.id}>
+                                                            {user.nome}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <button
+                                                    onClick={() => handleEnviar(lead.id)}
+                                                    disabled={!selecionados[lead.id]}
+                                                    className="flex items-center justify-center w-full px-4 py-2 bg-indigo-500 text-white font-semibold rounded-lg hover:bg-indigo-600 transition duration-150 shadow-md disabled:opacity-50"
+                                                >
+                                                    <Send size={18} className="mr-2" />
+                                                    Enviar
                                                 </button>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        // Exibe o select e o botão Enviar (Se não está atribuído OU se está no modo de alteração)
-                                        <div className="flex flex-col gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
-                                            <select
-                                                value={selecionados[lead.id] || ''}
-                                                onChange={(e) => handleSelect(lead.id, e.target.value)}
-                                                className="p-2 text-sm rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500"
-                                            >
-                                                <option value="">Transferir para...</option>
-                                                {usuariosAtivos.map((u) => (
-                                                    <option key={u.id} value={String(u.id)}> {u.nome} </option>
-                                                ))}
-                                            </select>
-                                            <button
-                                                onClick={() => handleEnviar(lead.id)}
-                                                disabled={!selecionados[lead.id]}
-                                                className="flex items-center justify-center p-2 bg-indigo-500 text-white text-sm rounded-lg hover:bg-indigo-600 disabled:bg-gray-400 transition duration-150"
-                                            >
-                                                <Send size={16} className="mr-1" /> Enviar
-                                            </button>
-                                        </div>
-                                    )}
+                                            </div>
+                                        ) : (
+                                            /* Modo de Visualização */
+                                            <div className="flex flex-col gap-2">
+                                                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between">
+                                                    <div className='flex items-center'>
+                                                        <User size={18} className="text-indigo-600 mr-2" />
+                                                        <span className="text-sm font-medium text-gray-800">
+                                                            Atribuído a:
+                                                            <strong className="ml-1 text-indigo-700">
+                                                                {responsavelNome || 'Ninguém'}
+                                                            </strong>
+                                                        </span>
+                                                    </div>
+                                                    {isAdmin && (
+                                                        <button
+                                                            onClick={() => handleAlterar(lead.id)}
+                                                            className="p-1 text-indigo-500 hover:text-indigo-700 transition duration-150"
+                                                            title="Alterar Responsável"
+                                                        >
+                                                            <Edit size={16} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <p className='text-xs text-gray-500 mt-2'>Para iniciar o contato, atribua o lead a você ou a um usuário.</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         );
@@ -721,25 +771,31 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
             </div>
 
             {/* Paginação */}
-            <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
-                <button
-                    onClick={handlePaginaAnterior}
-                    disabled={paginaCorrigida === 1}
-                    className="w-10 h-10 flex items-center justify-center bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition duration-150 shadow-md"
-                >
-                    <ChevronLeft size={20} />
-                </button>
-                <span className="text-sm font-semibold text-gray-700">
-                    Página {paginaCorrigida} de {totalPaginas}
-                </span>
-                <button
-                    onClick={handlePaginaProxima}
-                    disabled={paginaCorrigida === totalPaginas}
-                    className="w-10 h-10 flex items-center justify-center bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition duration-150 shadow-md"
-                >
-                    <ChevronRight size={20} />
-                </button>
-            </div>
+            {gerais.length > leadsPorPagina && (
+                <div className="flex justify-center items-center mt-8 p-4 bg-white rounded-xl shadow-lg">
+                    <button
+                        onClick={handlePaginaAnterior}
+                        disabled={paginaAtual === 1}
+                        className="p-2 mx-1 bg-indigo-500 text-white rounded-full disabled:bg-gray-300 hover:bg-indigo-600 transition duration-150"
+                        title="Página Anterior"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+
+                    <span className="text-sm font-semibold text-gray-700 mx-4">
+                        Página <strong className="text-indigo-600">{paginaCorrigida}</strong> de <strong className="text-indigo-600">{totalPaginas}</strong>
+                    </span>
+
+                    <button
+                        onClick={handlePaginaProxima}
+                        disabled={paginaAtual === totalPaginas}
+                        className="p-2 mx-1 bg-indigo-500 text-white rounded-full disabled:bg-gray-300 hover:bg-indigo-600 transition duration-150"
+                        title="Próxima Página"
+                    >
+                        <ChevronRight size={20} />
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
