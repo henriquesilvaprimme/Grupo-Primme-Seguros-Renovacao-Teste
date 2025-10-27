@@ -751,12 +751,12 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                             }`}
                                         >
                                             <CheckCircle size={20} className="mr-2" /> 
-                                            Confirmar Fechamento
+                                            Confirmar Renovação
                                         </button>
                                     ) : (
                                         <div className="text-center p-3 bg-green-100 border border-green-300 rounded-lg">
                                             <span className="text-sm text-green-800 font-bold">
-                                                Detalhes do fechamento já confirmados!
+                                                Renovado!
                                             </span>
                                         </div>
                                     )}
