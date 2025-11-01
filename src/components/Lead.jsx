@@ -5,8 +5,8 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   const [status, setStatus] = useState(lead.status || '');
   // `isStatusConfirmed` para controlar o bloqueio da seleção e exibição do botão "Alterar"
   const [isStatusConfirmed, setIsStatusConfirmed] = useState(
-    // ADICIONADO 'Apólice Cancelada' à lista de status confirmados
-    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado') || lead.status === 'Apólice Cancelada'
+    // ATUALIZADO: Inclui 'Cancelado' na lista de status confirmados
+    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado') || lead.status === 'Cancelado'
   );
   const [showCalendar, setShowCalendar] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
@@ -17,8 +17,8 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       case status.startsWith('Fechado'):
         return '#d4edda'; // verde claro
       case status.startsWith('Perdido'):
-        return '#f8d7da'; // vermelho claro (o mesmo para Perdido)
-      case status.startsWith('Apólice Cancelada'): // NOVO STATUS PARA COR
+        return '#f8d7da'; // vermelho claro
+      case status.startsWith('Cancelado'): // NOVO STATUS: Usa 'Cancelado'
         return '#f8d7da'; // Usando a mesma cor vermelha de 'Perdido' para destaque
       case status.startsWith('Em Contato'):
         return '#fff3cd'; // laranja claro
@@ -35,8 +35,8 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   // Sincroniza o estado `isStatusConfirmed` quando o `lead.status` muda (ex: após um refresh de leads)
   useEffect(() => {
     setIsStatusConfirmed(
-      // ATUALIZADO com 'Apólice Cancelada'
-      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado') || lead.status === 'Apólice Cancelada'
+      // ATUALIZADO com 'Cancelado'
+      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado') || lead.status === 'Cancelado'
     );
     setStatus(lead.status || ''); // Garante que o status exibido esteja sempre atualizado com o lead
   }, [lead.status]);
@@ -76,9 +76,9 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
     }
   };
   
-  // NOVA FUNÇÃO: Botão Apólice Cancelada
+  // NOVA FUNÇÃO: Botão Apólice Cancelada - AGORA ENVIA 'Cancelado'
   const handleCancelPolicy = () => {
-    const newStatus = 'Apólice Cancelada';
+    const newStatus = 'Cancelado'; // Status simplificado
     // Confirma se o usuário quer realmente cancelar
     if (window.confirm(`Tem certeza que deseja marcar a apólice do(a) ${lead.name} como CANCELADA?`)) {
       enviarLeadAtualizado(lead.id, newStatus, lead.phone);
@@ -152,9 +152,37 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
         marginBottom: '15px',
         borderRadius: '5px',
         backgroundColor: cardColor,
-        position: 'relative'
+        position: 'relative' // Essencial para posicionar o botão Cancelada
       }}
     >
+      {/* NOVO BOTÃO: Apólice Cancelada - Posicionado no canto superior direito */}
+      {!isStatusConfirmed && ( // Só exibe se o status ainda não foi confirmado
+        <div 
+          style={{ 
+            position: 'absolute', 
+            top: '15px', 
+            right: '15px', 
+            zIndex: 10 // Garante que fique por cima de outros elementos
+          }}
+        >
+          <button
+            onClick={handleCancelPolicy}
+            style={{
+              padding: '5px 10px', // Diminuído o padding para ficar menor e retangular
+              backgroundColor: '#dc3545', // Vermelho
+              color: '#fff',
+              border: 'none',
+              borderRadius: '15px', // Borda arredondada
+              fontSize: '14px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            Apólice Cancelada
+          </button>
+        </div>
+      )}
+      
       {/* CAMPOS ATUALIZADOS AQUI */}
       <p><strong>Nome:</strong> {lead.name}</p>
       <p><strong>Modelo do veículo:</strong> {lead.vehicleModel}</p>
@@ -167,7 +195,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       <p><strong>Vigência Final:</strong> {formatDateDisplay(lead.VigenciaFinal) || 'N/A'}</p>
       {/* FIM DOS CAMPOS ATUALIZADOS */}
       
-
       <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <select
           value={status}
@@ -200,7 +227,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
           <option value="Fechado">Fechado</option>
           <option value="Perdido">Perdido</option>
           <option value="Sem Contato">Sem Contato</option>
-          {/* A opção 'Apólice Cancelada' foi movida para um botão separado */}
+          {/* A opção 'Apólice Cancelada' foi movida para o botão fixo */}
         </select>
 
         {/* Lógica condicional para exibir Confirmar ou Alterar */}
@@ -265,24 +292,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
             Alterar
           </button>
         )}
-        
-        {/* NOVO BOTÃO: Apólice Cancelada */}
-        {!isStatusConfirmed && ( // Só exibe se o status ainda não foi confirmado
-          <button
-            onClick={handleCancelPolicy}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: '#dc3545', // Vermelho para "Apólice Cancelada"
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Apólice Cancelada
-          </button>
-        )}
-
       </div>
 
       {/* REMOVIDO: Botão do WhatsApp */}
