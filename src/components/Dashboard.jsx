@@ -76,16 +76,15 @@ const CircularProgressChart = ({ percentage }) => {
             strokeDashoffset: dashoffset,
           }}
         />
-      </svg>
-      {/* Texto da Porcentagem no Centro */}
-      <div style={{
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        fontSize: '18px',
-        fontWeight: '700',
-        color: '#059669',
+        {/* Texto da Porcentagem no Centro */}
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          fontSize: '18px',
+          fontWeight: '700',
+          color: '#059669',
       }}>
         {normalizedPercentage.toFixed(1)}%
       </div>
@@ -159,6 +158,9 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
   // Filtro por data dos leads gerais (vindos via prop `leads`)
   const leadsFiltradosPorDataGeral = leads.filter((lead) => {
+    // LÓGICA DE EXCLUSÃO ADICIONADA: Ignora leads com status 'Cancelado'
+    if (lead.status === 'Cancelado') return false; 
+    
     const dataLeadStr = getValidDateStr(lead.createdAt);
     if (!dataLeadStr) return false;
     if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
