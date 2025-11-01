@@ -751,8 +751,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                     })
                 )}
             </div>
-            }
-                            
+            }                  
             {/* Paginação */}
             <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
                 <button
