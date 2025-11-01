@@ -188,7 +188,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
           <option value="Fechado">Fechado</option>
           <option value="Perdido">Perdido</option>
           <option value="Sem Contato">Sem Contato</option>
-          <option value="Apolice Cancelada">Apolice Cancelada</option>
+          <option value="Cancelado">Apolice Cancelada</option>
         </select>
 
         {/* Lógica condicional para exibir Confirmar ou Alterar */}
