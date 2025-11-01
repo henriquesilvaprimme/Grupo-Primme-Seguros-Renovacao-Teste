@@ -76,15 +76,16 @@ const CircularProgressChart = ({ percentage }) => {
             strokeDashoffset: dashoffset,
           }}
         />
-        {/* Texto da Porcentagem no Centro */}
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          fontSize: '18px',
-          fontWeight: '700',
-          color: '#059669',
+      </svg> {/* <-- TAG </svg> FALTANTE ADICIONADA AQUI */}
+      {/* Texto da Porcentagem no Centro */}
+      <div style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        fontSize: '18px',
+        fontWeight: '700',
+        color: '#059669',
       }}>
         {normalizedPercentage.toFixed(1)}%
       </div>
@@ -158,7 +159,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
   // Filtro por data dos leads gerais (vindos via prop `leads`)
   const leadsFiltradosPorDataGeral = leads.filter((lead) => {
-    // LÓGICA DE EXCLUSÃO ADICIONADA: Ignora leads com status 'Cancelado'
+    // LÓGICA DE EXCLUSÃO: Ignora leads com status 'Cancelado'
     if (lead.status === 'Cancelado') return false; 
     
     const dataLeadStr = getValidDateStr(lead.createdAt);
@@ -283,6 +284,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
             <div style={{ ...compactCardStyle, minWidth: '150px' }}>
                 <p style={titleTextStyle}>Total de Renovações</p>
                 <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
+                
             </div>
 
             {/* Contador: Vendas */}
