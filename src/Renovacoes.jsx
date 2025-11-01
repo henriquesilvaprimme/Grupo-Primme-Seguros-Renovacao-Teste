@@ -664,21 +664,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                     <div className="mt-3 flex items-center justify-between">
                                         <p className="text-sm font-semibold text-gray-700">
                                             Vigência Final: <strong className="text-indigo-600">{formatarData(lead.VigenciaFinal)}</strong>
-                                        </p>
-                                        {isAdmin && (
-                                            <button
-                                                onClick={() => handleCancelarApolice(lead.id)}
-                                                disabled={isLoading}
-                                                className="flex items-center px-3 py-1 bg-red-500 text-white text-xs rounded-full hover:bg-red-600 disabled:opacity-50 transition duration-150 shadow-sm"
-                                                title="Marcar como 'Cancelado' e remover da lista"
-                                            >
-                                                <XOctagon size={14} className="mr-1" /> Apólice Cancelada
-                                            </button>
-                                        )}
-                                    </div>
-                                    <p className="mt-1 text-xs text-gray-400">
-                                        Criado em: {formatarData(lead.createdAt)}
-                                    </p>
+                                        </p>                              
                                 </div>
 
                                 {/* COLUNA 2: Observações */}
