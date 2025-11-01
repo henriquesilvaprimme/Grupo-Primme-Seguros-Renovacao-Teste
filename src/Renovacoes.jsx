@@ -744,17 +744,18 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                                 <Send size={16} className="mr-1" /> Enviar
                                             </button>
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })
-                )}
-            </div>
-            }                  
-            {/* Paginação */}
-            <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
-                <button
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })
+                )} // Linha ~752
+            </div> // Linha ~753
+// Linha 754 (Vazia - Onde estava o '}')
+
+{/* Paginação */} // Linha ~755
+<div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
+                    <button
                     onClick={handlePaginaAnterior}
                     disabled={paginaCorrigida === 1}
                     className="w-10 h-10 flex items-center justify-center bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition duration-150 shadow-md"
