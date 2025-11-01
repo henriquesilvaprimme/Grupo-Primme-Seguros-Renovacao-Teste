@@ -317,6 +317,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
     const totalPaginas = Math.max(1, Math.ceil(gerais.length / leadsPorPagina));
     const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
     const usuariosAtivos = usuarios.filter((u) => u.status === 'Ativo');
+    // Variável isAdmin calculada corretamente
     const isAdmin = usuarioLogado?.tipo === 'Admin';
 
     const inicio = (paginaCorrigida - 1) * leadsPorPagina;
@@ -630,6 +631,8 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                         lead={lead} 
                                         onUpdateStatus={handleConfirmStatus} 
                                         disabledConfirm={!isAtribuido} 
+                                        // AQUI ESTÁ A CORREÇÃO: Passando a prop isAdmin
+                                        isAdmin={isAdmin} 
                                         compact={false}
                                     />
                                     {/* Linha de Vigência Final */}
