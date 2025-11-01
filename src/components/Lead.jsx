@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 // import { Phone } from 'lucide-react'; <-- REMOVIDO: Ícone de telefone para o botão do WhatsApp não é mais necessário
 
-// Adicionado 'isAdmin' aos props
-const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
+const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   const [status, setStatus] = useState(lead.status || '');
-  // Adicionado 'Apolice Cancelada' à lista de status confirmados
+  // `isStatusConfirmed` para controlar o bloqueio da seleção e exibição do botão "Alterar"
   const [isStatusConfirmed, setIsStatusConfirmed] = useState(
-    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Cancelado' || lead.status.startsWith('Agendado')
+    // ADICIONADO 'Apólice Cancelada' à lista de status confirmados
+    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado') || lead.status === 'Apólice Cancelada'
   );
   const [showCalendar, setShowCalendar] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
@@ -17,9 +17,9 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
       case status.startsWith('Fechado'):
         return '#d4edda'; // verde claro
       case status.startsWith('Perdido'):
-        return '#f8d7da'; // vermelho claro
-      case status.startsWith('Apolice Cancelada'): // Novo status para cor
-        return '#f5c6cb'; // Rosa claro, diferente do Perdido
+        return '#f8d7da'; // vermelho claro (o mesmo para Perdido)
+      case status.startsWith('Apólice Cancelada'): // NOVO STATUS PARA COR
+        return '#f8d7da'; // Usando a mesma cor vermelha de 'Perdido' para destaque
       case status.startsWith('Em Contato'):
         return '#fff3cd'; // laranja claro
       case status.startsWith('Sem Contato'):
@@ -35,10 +35,32 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
   // Sincroniza o estado `isStatusConfirmed` quando o `lead.status` muda (ex: após um refresh de leads)
   useEffect(() => {
     setIsStatusConfirmed(
-      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Cancelado' || lead.status.startsWith('Agendado')
+      // ATUALIZADO com 'Apólice Cancelada'
+      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado') || lead.status === 'Apólice Cancelada'
     );
     setStatus(lead.status || ''); // Garante que o status exibido esteja sempre atualizado com o lead
   }, [lead.status]);
+
+  // Funções de atualização e confirmação
+
+  const enviarLeadAtualizado = async (leadId, newStatus, phone) => {
+    try {
+      await fetch('https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=alterar_status', {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({
+          lead: leadId,
+          status: newStatus,
+          phone: phone
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.error('Erro ao enviar lead:', error);
+    }
+  };
 
   const handleConfirm = () => {
     if (!status || status === 'Selecione o status') {
@@ -47,12 +69,26 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
     }
 
     enviarLeadAtualizado(lead.id, status, lead.phone);
-
-    // Após a confirmação, bloqueia a caixa de seleção e define o status como confirmado
     setIsStatusConfirmed(true);
 
     if (onUpdateStatus) {
       onUpdateStatus(lead.id, status, lead.phone); // chama o callback pra informar a atualização
+    }
+  };
+  
+  // NOVA FUNÇÃO: Botão Apólice Cancelada
+  const handleCancelPolicy = () => {
+    const newStatus = 'Apólice Cancelada';
+    // Confirma se o usuário quer realmente cancelar
+    if (window.confirm(`Tem certeza que deseja marcar a apólice do(a) ${lead.name} como CANCELADA?`)) {
+      enviarLeadAtualizado(lead.id, newStatus, lead.phone);
+      setStatus(newStatus);
+      setIsStatusConfirmed(true);
+      setShowCalendar(false);
+
+      if (onUpdateStatus) {
+        onUpdateStatus(lead.id, newStatus, lead.phone);
+      }
     }
   };
 
@@ -85,24 +121,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
     setShowCalendar(false);
   };
 
-  const enviarLeadAtualizado = async (leadId, status, phone) => {
-    try {
-      await fetch('https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=alterar_status', {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({
-          lead: leadId,
-          status: status,
-          phone: phone
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-    } catch (error) {
-      console.error('Erro ao enviar lead:', error);
-    }
-  };
   
   // Função auxiliar para formatar datas (YYYY-MM-DD para DD/MM/YYYY)
   const formatDateDisplay = (dateStr) => {
@@ -137,9 +155,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
         position: 'relative'
       }}
     >
-      {/* REMOVIDO: A pílula de status no canto superior direito foi removida
-        para evitar a duplicação com a pílula colorida que está na div externa.
-      */}
       {/* CAMPOS ATUALIZADOS AQUI */}
       <p><strong>Nome:</strong> {lead.name}</p>
       <p><strong>Modelo do veículo:</strong> {lead.vehicleModel}</p>
@@ -152,9 +167,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
       <p><strong>Vigência Final:</strong> {formatDateDisplay(lead.VigenciaFinal) || 'N/A'}</p>
       {/* FIM DOS CAMPOS ATUALIZADOS */}
       
-      {/* <p><strong>Cidade:</strong> {lead.city}</p> - REMOVIDO, POIS NÃO ESTAVA NA SUA LISTA */}
-      {/* <p><strong>Tipo de Seguro:</strong> {lead.insuranceType}</p> - REMOVIDO, POIS NÃO ESTAVA NA SUA LISTA */}
-
 
       <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <select
@@ -188,7 +200,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
           <option value="Fechado">Fechado</option>
           <option value="Perdido">Perdido</option>
           <option value="Sem Contato">Sem Contato</option>
-          {isAdmin && <option value="Cancelado">Apolice Cancelada</option>}
+          {/* A opção 'Apólice Cancelada' foi movida para um botão separado */}
         </select>
 
         {/* Lógica condicional para exibir Confirmar ou Alterar */}
@@ -253,6 +265,24 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
             Alterar
           </button>
         )}
+        
+        {/* NOVO BOTÃO: Apólice Cancelada */}
+        {!isStatusConfirmed && ( // Só exibe se o status ainda não foi confirmado
+          <button
+            onClick={handleCancelPolicy}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#dc3545', // Vermelho para "Apólice Cancelada"
+              color: '#fff',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Apólice Cancelada
+          </button>
+        )}
+
       </div>
 
       {/* REMOVIDO: Botão do WhatsApp */}
