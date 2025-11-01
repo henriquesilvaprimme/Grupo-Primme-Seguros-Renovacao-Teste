@@ -35,7 +35,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
   // Sincroniza o estado `isStatusConfirmed` quando o `lead.status` muda (ex: após um refresh de leads)
   useEffect(() => {
     setIsStatusConfirmed(
-      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Apolice Cancelada' || lead.status.startsWith('Agendado')
+      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Cancelado' || lead.status.startsWith('Agendado')
     );
     setStatus(lead.status || ''); // Garante que o status exibido esteja sempre atualizado com o lead
   }, [lead.status]);
