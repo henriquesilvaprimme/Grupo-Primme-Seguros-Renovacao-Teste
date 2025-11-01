@@ -248,26 +248,15 @@ function App() {
     });
   };
 
-  // FUNÇÃO RENOMEADA
-  const atualizarStatusRenovacaoAntigo = (id, novoStatus, phone) => {
-    if (novoStatus === 'Fechado') {
-      setRenovados((prev) => { // ESTADO ATUALIZADO
-        const atualizados = prev.map((renovados) => // VARIÁVEL ATUALIZADA
-          renovados.phone === phone ? { ...renovados, Status: novoStatus, confirmado: true } : renovados
-        );
-        return atualizados;
-      });
+  // FUNÇÃO RENOMEADA (ATUALIZADA PARA O STATUS 'CANCELADO')
+  const atualizarStatusRenovacao = (id, novoStatus, phone) => {
+    // LÓGICA ADICIONADA: Se o status for Cancelado, remove o lead da lista 'renovacoes'
+    if (novoStatus === 'Cancelado') {
+      setRenovacoes((prev) => prev.filter((lead) => lead.phone !== phone));
+      return; // Encerra a função após a remoção
     }
 
-    setRenovacoes((prev) => // ESTADO ATUALIZADO
-      prev.map((lead) =>
-        lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
-      )
-    );
-  };
-
-  // FUNÇÃO RENOMEADA
-  const atualizarStatusRenovacao = (id, novoStatus, phone) => {
+    // Lógica existente para outros status
     setRenovacoes((prev) => // ESTADO ATUALIZADO
       prev.map((lead) =>
         lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
