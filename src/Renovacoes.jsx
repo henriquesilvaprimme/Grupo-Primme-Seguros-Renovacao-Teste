@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Lead from './components/Lead';
-import { RefreshCcw, Bell, Search, Send, Edit, Save, User, ChevronLeft, ChevronRight, XOctagon } from 'lucide-react'; // Importei XOctagon
+import { RefreshCcw, Bell, Search, Send, Edit, Save, User, ChevronLeft, ChevronRight } from 'lucide-react'; // XOctagon e o comentário foram removidos
 
 // ===============================================
 // 1. CONFIGURAÇÃO
@@ -11,8 +11,7 @@ const SHEET_NAME = 'Renovações';
 const GOOGLE_SHEETS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 const ALTERAR_ATRIBUIDO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?v=alterar_atribuido&sheet=${SHEET_NAME}`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=salvarObservacao&sheet=${SHEET_NAME}`;
-// NOVO SCRIPT: URL para alterar o status do lead para "Cancelado"
-const CANCELAR_APOLICE_SCRIPT_URL = `${GOOGLE_SHEETS_SCRIPT_BASE_URL}?action=cancelarApolice&sheet=${SHEET_NAME}`;
+// A URL para CANCELAR APÓLICE foi removida
 
 // ===============================================
 // FUNÇÃO AUXILIAR PARA O FILTRO DE DATA
@@ -471,34 +470,7 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
         fetchLeadsFromSheet(SHEET_NAME);
     };
 
-    // --- NOVA FUNÇÃO: Cancelar Apólice ---
-    const handleCancelarApolice = async (leadId) => {
-        if (!window.confirm("Tem certeza que deseja marcar esta apólice como Cancelada? Esta ação a removerá da sua lista de Renovações.")) {
-            return;
-        }
-
-        setIsLoading(true);
-        try {
-            // 1. Envio para o Google Sheet para atualizar o status para "Cancelado"
-            await fetch(CANCELAR_APOLICE_SCRIPT_URL, {
-                method: 'POST', mode: 'no-cors', body: JSON.stringify({ leadId: leadId, novoStatus: 'Cancelado' }), headers: { 'Content-Type': 'application/json' },
-            });
-
-            // 2. Atualiza a lista local para que o lead desapareça imediatamente
-            await fetchLeadsFromSheet(SHEET_NAME);
-            
-            // Opcional: Mudar a página se o lead era o único ou estava no final
-            if (leadsPagina.length === 1 && paginaCorrigida > 1) {
-                 setPaginaAtual(prev => prev - 1);
-            }
-
-        } catch (error) {
-            console.error('Erro ao cancelar apólice:', error);
-            alert('Erro ao cancelar apólice. Por favor, tente novamente.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    // --- A função handleCancelarApolice foi removida conforme solicitação ---
 
     const getFullStatus = (status) => {
         return status || 'Novo';
@@ -660,11 +632,16 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                         disabledConfirm={!isAtribuido} 
                                         compact={false}
                                     />
-                                    {/* Linha de Vigência Final e Botão de Cancelamento (APENAS ADMIN) */}
-                                    <div className="mt-3 flex items-center justify-between">
+                                    {/* Linha de Vigência Final */}
+                                    <div className="mt-3 flex items-center justify-start">
                                         <p className="text-sm font-semibold text-gray-700">
                                             Vigência Final: <strong className="text-indigo-600">{formatarData(lead.VigenciaFinal)}</strong>
-                                        </p>                              
+                                        </p>
+                                        {/* Botão de Cancelar Apólice removido conforme solicitação */}
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-400">
+                                        Criado em: {formatarData(lead.createdAt)}
+                                    </p>
                                 </div>
 
                                 {/* COLUNA 2: Observações */}
@@ -744,18 +721,17 @@ const Renovacoes = ({ leads, usuarios, onUpdateStatus, transferirLead, usuarioLo
                                                 <Send size={16} className="mr-1" /> Enviar
                                             </button>
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })
-                )} // Linha ~752
-            </div> // Linha ~753
-// Linha 754 (Vazia - Onde estava o '}')
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
 
-{/* Paginação */} // Linha ~755
-<div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
-                    <button
+            {/* Paginação */}
+            <div className="flex justify-center items-center gap-6 mt-8 p-4 bg-white rounded-xl shadow-md">
+                <button
                     onClick={handlePaginaAnterior}
                     disabled={paginaCorrigida === 1}
                     className="w-10 h-10 flex items-center justify-center bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed transition duration-150 shadow-md"
