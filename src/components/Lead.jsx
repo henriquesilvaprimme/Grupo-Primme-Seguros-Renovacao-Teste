@@ -6,7 +6,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
   const [status, setStatus] = useState(lead.status || '');
   // Adicionado 'Apolice Cancelada' à lista de status confirmados
   const [isStatusConfirmed, setIsStatusConfirmed] = useState(
-    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Apolice Cancelada' || lead.status.startsWith('Agendado')
+    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Cancelado' || lead.status.startsWith('Agendado')
   );
   const [showCalendar, setShowCalendar] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
