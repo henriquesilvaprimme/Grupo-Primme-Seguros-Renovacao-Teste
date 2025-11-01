@@ -57,58 +57,42 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
           'Content-Type': 'application/json',
         },
       });
-      return true; // Sucesso
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
-      return false; // Falha
     }
   };
 
-  const handleConfirm = async () => { // Função agora é assíncrona
+  const handleConfirm = () => {
     if (!status || status === 'Selecione o status') {
       alert('Selecione um status antes de confirmar!');
       return;
     }
 
-    const success = await enviarLeadAtualizado(lead.id, status, lead.phone);
+    enviarLeadAtualizado(lead.id, status, lead.phone);
+    setIsStatusConfirmed(true);
 
-    if (success) {
-      // Após a confirmação, bloqueia a caixa de seleção e define o status como confirmado
-      setIsStatusConfirmed(true);
-
-      if (onUpdateStatus) {
-        onUpdateStatus(lead.id, status, lead.phone); // chama o callback pra informar a atualização
-      }
-    } else {
-      alert('Erro ao confirmar status. Tente novamente.');
+    if (onUpdateStatus) {
+      onUpdateStatus(lead.id, status, lead.phone); // chama o callback pra informar a atualização
     }
   };
   
-  // NOVA FUNÇÃO: Botão Apólice Cancelada - AGORA ENVIA 'Cancelado' E RECARREGA
-  const handleCancelPolicy = async () => { // Função agora é assíncrona
+  // NOVA FUNÇÃO: Botão Apólice Cancelada - AGORA ENVIA 'Cancelado'
+  const handleCancelPolicy = () => {
     const newStatus = 'Cancelado'; // Status simplificado
     // Confirma se o usuário quer realmente cancelar
     if (window.confirm(`Tem certeza que deseja marcar a apólice do(a) ${lead.name} como CANCELADA?`)) {
-      const success = await enviarLeadAtualizado(lead.id, newStatus, lead.phone); // Aguarda o envio
-      
-      if (success) {
-        setStatus(newStatus);
-        setIsStatusConfirmed(true);
-        setShowCalendar(false);
+      enviarLeadAtualizado(lead.id, newStatus, lead.phone);
+      setStatus(newStatus);
+      setIsStatusConfirmed(true);
+      setShowCalendar(false);
 
-        if (onUpdateStatus) {
-          onUpdateStatus(lead.id, newStatus, lead.phone);
-        }
-        
-        // ADICIONADO: Força o refresh da página
-        window.location.reload(); 
-      } else {
-        alert('Erro ao atualizar o status do lead. Tente novamente.');
+      if (onUpdateStatus) {
+        onUpdateStatus(lead.id, newStatus, lead.phone);
       }
     }
   };
 
-  const handleScheduleConfirm = async () => { // Função agora é assíncrona
+  const handleScheduleConfirm = () => {
     if (!scheduledDate) {
       alert('Selecione uma data para o agendamento!');
       return;
@@ -121,18 +105,13 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
     const formattedDate = selectedDate.toLocaleDateString('pt-BR');
     const newStatus = `Agendado - ${formattedDate}`;
 
-    const success = await enviarLeadAtualizado(lead.id, newStatus, lead.phone);
-    
-    if (success) {
-      setStatus(newStatus);
-      setIsStatusConfirmed(true);
-      setShowCalendar(false);
+    enviarLeadAtualizado(lead.id, newStatus, lead.phone);
+    setStatus(newStatus);
+    setIsStatusConfirmed(true);
+    setShowCalendar(false);
 
-      if (onUpdateStatus) {
-        onUpdateStatus(lead.id, newStatus, lead.phone);
-      }
-    } else {
-      alert('Erro ao agendar. Tente novamente.');
+    if (onUpdateStatus) {
+      onUpdateStatus(lead.id, newStatus, lead.phone);
     }
   };
 
