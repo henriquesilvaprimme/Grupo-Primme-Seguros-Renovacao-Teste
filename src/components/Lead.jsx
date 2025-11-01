@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 // import { Phone } from 'lucide-react'; <-- REMOVIDO: Ícone de telefone para o botão do WhatsApp não é mais necessário
 
-const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
+// AQUI: Adicionada a prop 'isAdmin'
+const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
   const [status, setStatus] = useState(lead.status || '');
   // `isStatusConfirmed` para controlar o bloqueio da seleção e exibição do botão "Alterar"
   const [isStatusConfirmed, setIsStatusConfirmed] = useState(
@@ -156,7 +157,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
       }}
     >
       {/* NOVO BOTÃO: Apólice Cancelada - Posicionado no canto superior direito */}
-      {!isStatusConfirmed && ( // Só exibe se o status ainda não foi confirmado
+      {isAdmin && !isStatusConfirmed && ( // AQUI: Adicionada a condição 'isAdmin'
         <div 
           style={{ 
             position: 'absolute', 
