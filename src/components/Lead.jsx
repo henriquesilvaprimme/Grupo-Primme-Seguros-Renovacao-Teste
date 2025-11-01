@@ -57,42 +57,58 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
           'Content-Type': 'application/json',
         },
       });
+      return true; // Sucesso
     } catch (error) {
       console.error('Erro ao enviar lead:', error);
+      return false; // Falha
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => { // Função agora é assíncrona
     if (!status || status === 'Selecione o status') {
       alert('Selecione um status antes de confirmar!');
       return;
     }
 
-    enviarLeadAtualizado(lead.id, status, lead.phone);
-    setIsStatusConfirmed(true);
+    const success = await enviarLeadAtualizado(lead.id, status, lead.phone);
 
-    if (onUpdateStatus) {
-      onUpdateStatus(lead.id, status, lead.phone); // chama o callback pra informar a atualização
+    if (success) {
+      // Após a confirmação, bloqueia a caixa de seleção e define o status como confirmado
+      setIsStatusConfirmed(true);
+
+      if (onUpdateStatus) {
+        onUpdateStatus(lead.id, status, lead.phone); // chama o callback pra informar a atualização
+      }
+    } else {
+      alert('Erro ao confirmar status. Tente novamente.');
     }
   };
   
-  // NOVA FUNÇÃO: Botão Apólice Cancelada - AGORA ENVIA 'Cancelado'
-  const handleCancelPolicy = () => {
+  // NOVA FUNÇÃO: Botão Apólice Cancelada - AGORA ENVIA 'Cancelado' E RECARREGA
+  const handleCancelPolicy = async () => { // Função agora é assíncrona
     const newStatus = 'Cancelado'; // Status simplificado
     // Confirma se o usuário quer realmente cancelar
     if (window.confirm(`Tem certeza que deseja marcar a apólice do(a) ${lead.name} como CANCELADA?`)) {
-      enviarLeadAtualizado(lead.id, newStatus, lead.phone);
-      setStatus(newStatus);
-      setIsStatusConfirmed(true);
-      setShowCalendar(false);
+      const success = await enviarLeadAtualizado(lead.id, newStatus, lead.phone); // Aguarda o envio
+      
+      if (success) {
+        setStatus(newStatus);
+        setIsStatusConfirmed(true);
+        setShowCalendar(false);
 
-      if (onUpdateStatus) {
-        onUpdateStatus(lead.id, newStatus, lead.phone);
+        if (onUpdateStatus) {
+          onUpdateStatus(lead.id, newStatus, lead.phone);
+        }
+        
+        // ADICIONADO: Força o refresh da página
+        window.location.reload(); 
+      } else {
+        alert('Erro ao atualizar o status do lead. Tente novamente.');
       }
     }
   };
 
-  const handleScheduleConfirm = () => {
+  const handleScheduleConfirm = async () => { // Função agora é assíncrona
     if (!scheduledDate) {
       alert('Selecione uma data para o agendamento!');
       return;
@@ -105,13 +121,18 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
     const formattedDate = selectedDate.toLocaleDateString('pt-BR');
     const newStatus = `Agendado - ${formattedDate}`;
 
-    enviarLeadAtualizado(lead.id, newStatus, lead.phone);
-    setStatus(newStatus);
-    setIsStatusConfirmed(true);
-    setShowCalendar(false);
+    const success = await enviarLeadAtualizado(lead.id, newStatus, lead.phone);
+    
+    if (success) {
+      setStatus(newStatus);
+      setIsStatusConfirmed(true);
+      setShowCalendar(false);
 
-    if (onUpdateStatus) {
-      onUpdateStatus(lead.id, newStatus, lead.phone);
+      if (onUpdateStatus) {
+        onUpdateStatus(lead.id, newStatus, lead.phone);
+      }
+    } else {
+      alert('Erro ao agendar. Tente novamente.');
     }
   };
 
@@ -178,7 +199,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
               fontWeight: 'bold'
             }}
           >
-            Apólice Cancelada
+            Apólice Cancelada?
           </button>
         </div>
       )}
