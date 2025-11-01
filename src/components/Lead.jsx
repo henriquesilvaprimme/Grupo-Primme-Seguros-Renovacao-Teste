@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 // import { Phone } from 'lucide-react'; <-- REMOVIDO: Ícone de telefone para o botão do WhatsApp não é mais necessário
 
-// Adicionado 'isAdmin' aos props
-const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
+const Lead = ({ lead, onUpdateStatus, disabledConfirm }) => {
   const [status, setStatus] = useState(lead.status || '');
-  // Adicionado 'Apólice Cancelada' à lista de status confirmados
+  // `isStatusConfirmed` para controlar o bloqueio da seleção e exibição do botão "Alterar"
   const [isStatusConfirmed, setIsStatusConfirmed] = useState(
-    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Apólice Cancelada' || lead.status.startsWith('Agendado')
+    lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
   );
   const [showCalendar, setShowCalendar] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
@@ -18,8 +17,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
         return '#d4edda'; // verde claro
       case status.startsWith('Perdido'):
         return '#f8d7da'; // vermelho claro
-      case status.startsWith('Apólice Cancelada'): // Novo status para cor
-        return '#f5c6cb'; // Rosa claro, diferente do Perdido
       case status.startsWith('Em Contato'):
         return '#fff3cd'; // laranja claro
       case status.startsWith('Sem Contato'):
@@ -35,7 +32,7 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
   // Sincroniza o estado `isStatusConfirmed` quando o `lead.status` muda (ex: após um refresh de leads)
   useEffect(() => {
     setIsStatusConfirmed(
-      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status === 'Apólice Cancelada' || lead.status.startsWith('Agendado')
+      lead.status === 'Em Contato' || lead.status === 'Sem Contato' || lead.status === 'Fechado' || lead.status === 'Perdido' || lead.status.startsWith('Agendado')
     );
     setStatus(lead.status || ''); // Garante que o status exibido esteja sempre atualizado com o lead
   }, [lead.status]);
@@ -140,6 +137,24 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
       {/* REMOVIDO: A pílula de status no canto superior direito foi removida
         para evitar a duplicação com a pílula colorida que está na div externa.
       */}
+      {/* {isStatusConfirmed && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            padding: '5px 10px',
+            borderRadius: '5px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            fontWeight: 'bold',
+            fontSize: '14px',
+          }}
+        >
+          {status}
+        </div>
+      )} */}
+
       {/* CAMPOS ATUALIZADOS AQUI */}
       <p><strong>Nome:</strong> {lead.name}</p>
       <p><strong>Modelo do veículo:</strong> {lead.vehicleModel}</p>
@@ -188,8 +203,6 @@ const Lead = ({ lead, onUpdateStatus, disabledConfirm, isAdmin }) => {
           <option value="Fechado">Fechado</option>
           <option value="Perdido">Perdido</option>
           <option value="Sem Contato">Sem Contato</option>
-          {/* Nova opção visível apenas para Admin */}
-          {isAdmin && <option value="Apólice Cancelada">Apólice Cancelada</option>}
         </select>
 
         {/* Lógica condicional para exibir Confirmar ou Alterar */}
