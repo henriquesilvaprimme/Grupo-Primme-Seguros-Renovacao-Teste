@@ -9,19 +9,33 @@ const Segurados = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSegurados, setFilteredSegurados] = useState([]);
   const [error, setError] = useState(null);
+  const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
 
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredSegurados(segurados);
-    } else {
-      const filtered = segurados.filter(
+    let filtered = segurados;
+
+    // Filtrar por termo de busca
+    if (searchTerm.trim() !== '') {
+      filtered = filtered.filter(
         (segurado) =>
           segurado.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           segurado.phone.includes(searchTerm)
       );
-      setFilteredSegurados(filtered);
     }
-  }, [searchTerm, segurados]);
+
+    // Filtrar por ano
+    filtered = filtered.filter((segurado) => {
+      return segurado.vehicles.some((vehicle) => {
+        const vigenciaFinal = vehicle.VigenciaFinal;
+        if (!vigenciaFinal) return false;
+        
+        const dataVigencia = new Date(vigenciaFinal);
+        return dataVigencia.getFullYear() === parseInt(anoFiltro);
+      });
+    });
+
+    setFilteredSegurados(filtered);
+  }, [searchTerm, segurados, anoFiltro]);
 
   const fetchSegurados = async () => {
     setLoading(true);
@@ -115,7 +129,6 @@ const Segurados = () => {
       });
 
       setSegurados(clientesUnicos);
-      setFilteredSegurados(clientesUnicos);
       
       if (clientesUnicos.length === 0) {
         setError('Nenhum segurado encontrado nas abas "Leads Fechados" e "Renovados".');
@@ -146,12 +159,22 @@ const Segurados = () => {
     }
   };
 
+  // Gerar lista de anos (ano atual - 5 até ano atual + 2)
+  const gerarAnosDisponiveis = () => {
+    const anoAtual = new Date().getFullYear();
+    const anos = [];
+    for (let i = anoAtual - 5; i <= anoAtual + 2; i++) {
+      anos.push(i);
+    }
+    return anos;
+  };
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Segurados Ativos</h1>
 
-        {/* Barra de busca com botão */}
+        {/* Barra de busca com botão e filtro de ano */}
         <div className="mb-6 flex gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 text-gray-400" size={20} />
@@ -163,6 +186,17 @@ const Segurados = () => {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
+          <select
+            value={anoFiltro}
+            onChange={(e) => setAnoFiltro(e.target.value)}
+            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+          >
+            {gerarAnosDisponiveis().map((ano) => (
+              <option key={ano} value={ano}>
+                {ano}
+              </option>
+            ))}
+          </select>
           <button
             onClick={fetchSegurados}
             disabled={loading}
@@ -192,7 +226,7 @@ const Segurados = () => {
 
         {/* Contador */}
         <div className="mb-4 text-gray-600">
-          {filteredSegurados.length} segurado(s) encontrado(s)
+          {filteredSegurados.length} segurado(s) encontrado(s) para o ano {anoFiltro}
         </div>
 
         {/* Grid de cards */}
