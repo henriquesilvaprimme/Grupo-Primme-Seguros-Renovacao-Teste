@@ -26,10 +26,10 @@ const Segurados = () => {
     // Filtrar por ano
     filtered = filtered.filter((segurado) => {
       return segurado.vehicles.some((vehicle) => {
-        const vigenciaFinal = vehicle.VigenciaFinal;
-        if (!vigenciaFinal) return false;
+        const vigenciaInicial = vehicle.VigenciaInicial;
+        if (!vigenciaInicial) return false;
         
-        const dataVigencia = new Date(vigenciaFinal);
+        const dataVigencia = new Date(vigenciaInicial);
         return dataVigencia.getFullYear() === parseInt(anoFiltro);
       });
     });
