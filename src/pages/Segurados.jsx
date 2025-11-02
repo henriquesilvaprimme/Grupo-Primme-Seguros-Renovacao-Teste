@@ -178,6 +178,33 @@ const Segurados = () => {
     setShowEndossoModal(true);
   };
 
+  const handleCancelar = async (segurado) => {
+    if (!window.confirm(`Tem certeza que deseja CANCELAR o seguro de ${segurado.name}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'cancelar_seguro',
+          id: segurado.id,
+          name: segurado.name
+        })
+      });
+
+      alert('Seguro cancelado com sucesso!');
+      fetchSegurados(); // Recarregar a lista
+    } catch (error) {
+      console.error('Erro ao cancelar seguro:', error);
+      alert('Erro ao cancelar seguro. Tente novamente.');
+    }
+  };
+
   // Envio com no-cors: não é possível ler a resposta.
   // Consideramos sucesso se o fetch não lançar erro de rede.
   const handleSaveEndosso = async () => {
