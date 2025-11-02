@@ -1,208 +1,184 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Phone, Calendar, Shield, User } from 'lucide-react';
-
-const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
+import React, { useState } from 'react';
+import { Search, Phone, Calendar, Car } from 'lucide-react';
 
 const Segurados = () => {
-  const [segurados, setSegurados] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredSegurados, setFilteredSegurados] = useState([]);
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredSegurados(segurados);
-    } else {
-      const filtered = segurados.filter(
-        (segurado) =>
-          segurado.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          segurado.phone.includes(searchTerm)
-      );
-      setFilteredSegurados(filtered);
-    }
-  }, [searchTerm, segurados]);
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec'; // Substitua pela URL do seu Google Apps Script
 
-  const fetchSegurados = async () => {
+  const fetchLeads = async () => {
     setLoading(true);
+    setError(null);
+    
     try {
-      // Buscar da aba "Leads Fechados"
-      const responseFechados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`);
-      const dataFechados = await responseFechados.json();
+      const [fechadosResponse, renovadosResponse] = await Promise.all([
+        fetch(`${GAS_URL}?action=pegar_fechados&termo=${encodeURIComponent(searchTerm)}`),
+        fetch(`${GAS_URL}?action=pegar_renovados&termo=${encodeURIComponent(searchTerm)}`)
+      ]);
 
-      // Buscar da aba "Renovados"
-      const responseRenovados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovados`).catch(() => ({ json: () => [] }));
-      const dataRenovados = await responseRenovados.json ? await responseRenovados.json() : [];
+      const fechados = await fechadosResponse.json();
+      const renovados = await renovadosResponse.json();
 
-      // Combinar e remover duplicatas por telefone
-      const todosClientes = [...(Array.isArray(dataFechados) ? dataFechados : []), ...(Array.isArray(dataRenovados) ? dataRenovados : [])];
-      
-      const clientesUnicos = todosClientes.reduce((acc, cliente) => {
-        const existe = acc.find(c => c.phone === cliente.phone);
-        if (!existe) {
-          acc.push({
-            name: cliente.name || cliente.Name || '',
-            phone: cliente.phone || cliente.Telefone || '',
-            vehicleModel: cliente.vehicleModel || cliente.vehiclemodel || '',
-            vehicleYearModel: cliente.vehicleYearModel || cliente.vehicleyearmodel || '',
-            city: cliente.city || '',
-            insuranceType: cliente.insuranceType || cliente.insurancetype || '',
-            Seguradora: cliente.Seguradora || '',
-            VigenciaFinal: cliente.VigenciaFinal || '',
-            VigenciaInicial: cliente.VigenciaInicial || '',
-            Responsavel: cliente.Responsavel || cliente.responsavel || '',
-            PremioLiquido: cliente.PremioLiquido || '',
-            Comissao: cliente.Comissao || '',
-            Parcelamento: cliente.Parcelamento || '',
-          });
-        } else {
-          // Se já existe, atualizar com a vigência mais recente
-          if (cliente.VigenciaFinal && new Date(cliente.VigenciaFinal) > new Date(existe.VigenciaFinal || '1900-01-01')) {
-            Object.assign(existe, {
-              VigenciaFinal: cliente.VigenciaFinal,
-              VigenciaInicial: cliente.VigenciaInicial,
-              Seguradora: cliente.Seguradora || existe.Seguradora,
-              PremioLiquido: cliente.PremioLiquido || existe.PremioLiquido,
-            });
-          }
+      const allLeads = [
+        ...(Array.isArray(fechados) ? fechados : []),
+        ...(Array.isArray(renovados) ? renovados : [])
+      ];
+
+      // Agrupar leads pelo nome e telefone
+      const groupedLeads = allLeads.reduce((acc, lead) => {
+        const key = `${lead.name}_${lead.phone}`;
+        
+        if (!acc[key]) {
+          acc[key] = {
+            name: lead.name,
+            phone: lead.phone,
+            vehicles: []
+          };
         }
+        
+        // Adicionar veículo com suas vigências
+        acc[key].vehicles.push({
+          vehicleModel: lead.vehicleModel,
+          vehicleYearModel: lead.vehicleYearModel,
+          vigenciaInicial: lead.vigenciaInicial,
+          vigenciaFinal: lead.vigenciaFinal
+        });
+        
         return acc;
-      }, []);
+      }, {});
 
-      // Ordenar por vigência final mais recente
-      clientesUnicos.sort((a, b) => {
-        const dateA = new Date(a.VigenciaFinal || '1900-01-01');
-        const dateB = new Date(b.VigenciaFinal || '1900-01-01');
+      // Converter objeto em array e ordenar por vigência mais recente
+      const leadsArray = Object.values(groupedLeads).map(lead => {
+        // Ordenar veículos por vigência final (mais recente primeiro)
+        lead.vehicles.sort((a, b) => {
+          const dateA = parseDate(a.vigenciaFinal);
+          const dateB = parseDate(b.vigenciaFinal);
+          return dateB - dateA;
+        });
+        return lead;
+      });
+
+      // Ordenar leads pela vigência final mais recente do primeiro veículo
+      leadsArray.sort((a, b) => {
+        const dateA = parseDate(a.vehicles[0]?.vigenciaFinal);
+        const dateB = parseDate(b.vehicles[0]?.vigenciaFinal);
         return dateB - dateA;
       });
 
-      setSegurados(clientesUnicos);
-      setFilteredSegurados(clientesUnicos);
-    } catch (error) {
-      console.error('Erro ao buscar segurados:', error);
-      setSegurados([]);
-      setFilteredSegurados([]);
+      setLeads(leadsArray);
+    } catch (err) {
+      console.error('Erro ao buscar leads:', err);
+      setError('Erro ao buscar leads. Verifique a URL do GAS e tente novamente.');
     } finally {
       setLoading(false);
     }
   };
 
-  const formatarData = (dataString) => {
-    if (!dataString) return 'N/A';
-    try {
-      const date = new Date(dataString);
-      if (isNaN(date.getTime())) return dataString;
-      
-      const dia = String(date.getDate()).padStart(2, '0');
-      const mes = String(date.getMonth() + 1).padStart(2, '0');
-      const ano = date.getFullYear();
-      return `${dia}/${mes}/${ano}`;
-    } catch {
-      return dataString;
-    }
+  const parseDate = (dateString) => {
+    if (!dateString) return new Date(0);
+    const [day, month, year] = dateString.split('/');
+    return new Date(year, month - 1, day);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return dateString;
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    fetchLeads();
   };
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Segurados Ativos</h1>
-
-        {/* Barra de busca com botão */}
-        <div className="mb-6 flex gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 text-gray-400" size={20} />
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Segurados Ativos</h1>
+        
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
               placeholder="Buscar por nome ou telefone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
           <button
-            onClick={fetchSegurados}
+            type="submit"
             disabled={loading}
-            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
           >
-            {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                Buscando...
-              </>
-            ) : (
-              <>
-                <Search size={20} />
-                Buscar
-              </>
-            )}
+            {loading ? 'Buscando...' : 'Buscar'}
           </button>
+        </form>
+      </div>
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          {error}
         </div>
+      )}
 
-        {/* Contador */}
-        <div className="mb-4 text-gray-600">
-          {filteredSegurados.length} segurado(s) encontrado(s)
-        </div>
-
-        {/* Grid de cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredSegurados.map((segurado, index) => (
-            <div
-              key={index}
-              className="bg-white rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow border border-gray-200"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-800">{segurado.name}</h3>
-                <Shield className="text-blue-500" size={24} />
-              </div>
-
-              <div className="space-y-2 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <Phone size={16} className="text-gray-400" />
-                  <span>{segurado.phone || 'N/A'}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <User size={16} className="text-gray-400" />
-                  <span>{segurado.Responsavel || 'N/A'}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-gray-400" />
-                  <span>Vigência: {formatarData(segurado.VigenciaFinal)}</span>
-                </div>
-
-                {segurado.vehicleModel && (
-                  <div className="mt-2 pt-2 border-t border-gray-200">
-                    <p className="text-xs text-gray-500">Veículo</p>
-                    <p className="font-medium text-gray-700">
-                      {segurado.vehicleModel} {segurado.vehicleYearModel}
-                    </p>
-                  </div>
-                )}
-
-                {segurado.Seguradora && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500">Seguradora</p>
-                    <p className="font-medium text-gray-700">{segurado.Seguradora}</p>
-                  </div>
-                )}
-
-                {segurado.insuranceType && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500">Tipo de Seguro</p>
-                    <p className="font-medium text-gray-700">{segurado.insuranceType}</p>
-                  </div>
-                )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {leads.map((lead, index) => (
+          <div key={index} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+            <div className="mb-4 pb-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">{lead.name}</h3>
+              <div className="flex items-center text-gray-600 text-sm">
+                <Phone size={16} className="mr-2" />
+                <span>{lead.phone}</span>
               </div>
             </div>
-          ))}
-        </div>
 
-        {filteredSegurados.length === 0 && !loading && (
-          <div className="text-center py-12 text-gray-500">
-            Nenhum segurado encontrado. Clique em "Buscar" para carregar os dados.
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-gray-700 flex items-center">
+                <Car size={16} className="mr-2" />
+                Veículos ({lead.vehicles.length})
+              </h4>
+              
+              {lead.vehicles.map((vehicle, vIndex) => (
+                <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-800 text-sm">
+                        {vehicle.vehicleModel || 'Modelo não informado'}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Ano: {vehicle.vehicleYearModel || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center text-xs text-gray-600 mt-2 pt-2 border-t border-gray-300">
+                    <Calendar size={14} className="mr-1" />
+                    <span>
+                      {formatDate(vehicle.vigenciaInicial)} até {formatDate(vehicle.vigenciaFinal)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        )}
+        ))}
       </div>
+
+      {!loading && leads.length === 0 && searchTerm && (
+        <div className="text-center py-12 text-gray-500">
+          Nenhum segurado encontrado.
+        </div>
+      )}
+
+      {!loading && leads.length === 0 && !searchTerm && (
+        <div className="text-center py-12 text-gray-500">
+          Use a busca acima para encontrar segurados ativos.
+        </div>
+      )}
     </div>
   );
 };
