@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Phone, Calendar, Shield, User, AlertCircle, Car } from 'lucide-react';
+import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle } from 'lucide-react';
 
 const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 
@@ -10,6 +10,20 @@ const Segurados = () => {
   const [filteredSegurados, setFilteredSegurados] = useState([]);
   const [error, setError] = useState(null);
   const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
+  const [showEndossoModal, setShowEndossoModal] = useState(false);
+  const [endossoData, setEndossoData] = useState({
+    vehicleModel: '',
+    vehicleYearModel: '',
+    premioLiquido: '',
+    comissao: '',
+    meioPagamento: '',
+    numeroParcelas: '1',
+    clienteNome: '',
+    clienteTelefone: '',
+    vigenciaInicial: '',
+    vigenciaFinal: ''
+  });
+  const [savingEndosso, setSavingEndosso] = useState(false);
 
   useEffect(() => {
     let filtered = segurados;
@@ -103,6 +117,7 @@ const Segurados = () => {
           PremioLiquido: cliente.PremioLiquido || cliente.premioLiquido || '',
           Comissao: cliente.Comissao || cliente.comissao || '',
           Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
+          Endossado: cliente.Endossado || false,
         });
         
         return acc;
@@ -141,6 +156,59 @@ const Segurados = () => {
       setFilteredSegurados([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEndossar = (segurado, vehicle) => {
+    setEndossoData({
+      vehicleModel: vehicle.vehicleModel || '',
+      vehicleYearModel: vehicle.vehicleYearModel || '',
+      premioLiquido: vehicle.PremioLiquido || '',
+      comissao: vehicle.Comissao || '',
+      meioPagamento: '',
+      numeroParcelas: '1',
+      clienteNome: segurado.name,
+      clienteTelefone: segurado.phone,
+      vigenciaInicial: vehicle.VigenciaInicial,
+      vigenciaFinal: vehicle.VigenciaFinal
+    });
+    setShowEndossoModal(true);
+  };
+
+  const handleSaveEndosso = async () => {
+    setSavingEndosso(true);
+    
+    try {
+      const params = new URLSearchParams({
+        v: 'endossar_veiculo',
+        nome: endossoData.clienteNome,
+        telefone: endossoData.clienteTelefone,
+        vigenciaInicial: endossoData.vigenciaInicial,
+        vigenciaFinal: endossoData.vigenciaFinal,
+        vehicleModel: endossoData.vehicleModel,
+        vehicleYearModel: endossoData.vehicleYearModel,
+        premioLiquido: endossoData.premioLiquido,
+        comissao: endossoData.comissao,
+        meioPagamento: endossoData.meioPagamento,
+        numeroParcelas: endossoData.numeroParcelas
+      });
+
+      const response = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?${params.toString()}`);
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        alert('Endosso salvo com sucesso!');
+        setShowEndossoModal(false);
+        // Recarregar os dados
+        fetchSegurados();
+      } else {
+        throw new Error(result.message || 'Erro ao salvar endosso');
+      }
+    } catch (error) {
+      console.error('Erro ao salvar endosso:', error);
+      alert('Erro ao salvar endosso: ' + error.message);
+    } finally {
+      setSavingEndosso(false);
     }
   };
 
@@ -272,10 +340,25 @@ const Segurados = () => {
                     <div className="space-y-2">
                       {segurado.vehicles.map((vehicle, vIndex) => (
                         <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                          <div className="mb-2">
-                            <p className="font-medium text-gray-800 text-sm">
-                              {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
-                            </p>
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-800 text-sm">
+                                {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
+                              </p>
+                              {vehicle.Endossado && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <CheckCircle size={14} className="text-green-600" />
+                                  <span className="text-xs text-green-600 font-semibold">Endossado</span>
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleEndossar(segurado, vehicle)}
+                              className="ml-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
+                            >
+                              <Edit size={12} />
+                              Endossar
+                            </button>
                           </div>
                           
                           {vehicle.Seguradora && (
@@ -306,6 +389,125 @@ const Segurados = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de Endosso */}
+      {showEndossoModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-800">Endossar Veículo</h2>
+                <button
+                  onClick={() => setShowEndossoModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Modelo do Veículo
+                  </label>
+                  <input
+                    type="text"
+                    value={endossoData.vehicleModel}
+                    onChange={(e) => setEndossoData({ ...endossoData, vehicleModel: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ano/Modelo
+                  </label>
+                  <input
+                    type="text"
+                    value={endossoData.vehicleYearModel}
+                    onChange={(e) => setEndossoData({ ...endossoData, vehicleYearModel: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Prêmio Líquido
+                  </label>
+                  <input
+                    type="text"
+                    value={endossoData.premioLiquido}
+                    onChange={(e) => setEndossoData({ ...endossoData, premioLiquido: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Comissão
+                  </label>
+                  <input
+                    type="text"
+                    value={endossoData.comissao}
+                    onChange={(e) => setEndossoData({ ...endossoData, comissao: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Meio de Pagamento
+                  </label>
+                  <select
+                    value={endossoData.meioPagamento}
+                    onChange={(e) => setEndossoData({ ...endossoData, meioPagamento: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  >
+                    <option value="">Selecione</option>
+                    <option value="CP">CP</option>
+                    <option value="CC">CC</option>
+                    <option value="Debito">Débito</option>
+                    <option value="Boleto">Boleto</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Número de Parcelas
+                  </label>
+                  <select
+                    value={endossoData.numeroParcelas}
+                    onChange={(e) => setEndossoData({ ...endossoData, numeroParcelas: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  >
+                    {[...Array(12)].map((_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        {i + 1}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowEndossoModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveEndosso}
+                    disabled={savingEndosso}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed"
+                  >
+                    {savingEndosso ? 'Salvando...' : 'Salvar'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
