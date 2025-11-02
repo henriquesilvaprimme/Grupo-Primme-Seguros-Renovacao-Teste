@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-// Adicionei IdCard para o ícone de Segurados
-import { Home, Search, Trophy, UserPlus, UserCircle, FilePlus, RefreshCw, CheckCircle, XCircle, IdCard } from 'lucide-react'; 
+// Usando Users em vez de IdCard (compatível com todas as versões)
+import { Home, Search, Trophy, UserPlus, UserCircle, FilePlus, RefreshCw, CheckCircle, XCircle, Users } from 'lucide-react'; 
 
 const Sidebar = ({ nomeUsuario }) => {
 
@@ -27,38 +27,38 @@ const Sidebar = ({ nomeUsuario }) => {
         </NavLink>
 
         <NavLink
-          to="/renovacoes" // ROTA CORRIGIDA
+          to="/renovacoes"
           className={({ isActive }) =>
             `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
               isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
             }`
           }
         >
-          <RefreshCw size={20} /> {/* Ícone mais adequado para 'Renovações' */}
+          <RefreshCw size={20} />
           Renovações
         </NavLink>
 
         <NavLink
-          to="/renovados" // ROTA CORRIGIDA
+          to="/renovados"
           className={({ isActive }) =>
             `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
               isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
             }`
           }
         >
-          <CheckCircle size={20} /> {/* Ícone mais adequado para 'Fechados' */}
+          <CheckCircle size={20} />
           Renovados
         </NavLink>
 
         <NavLink
-          to="/renovacoes-perdidas" // ROTA CORRIGIDA
+          to="/renovacoes-perdidas"
           className={({ isActive }) =>
             `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
               isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
             }`
           }
         >
-          <XCircle size={20} /> {/* Ícone mais adequado para 'Perdidos' */}
+          <XCircle size={20} />
           Renovações Perdidas
         </NavLink>
 
@@ -74,7 +74,7 @@ const Sidebar = ({ nomeUsuario }) => {
           Buscar Lead
         </NavLink>
 
-        {/* NOVO ITEM: Segurados */}
+        {/* NOVO ITEM: Segurados - usando ícone Users */}
         <NavLink
           to="/segurados"
           className={({ isActive }) =>
@@ -83,7 +83,7 @@ const Sidebar = ({ nomeUsuario }) => {
             }`
           }
         >
-          <IdCard size={20} />
+          <Users size={20} />
           Segurados
         </NavLink>
 
