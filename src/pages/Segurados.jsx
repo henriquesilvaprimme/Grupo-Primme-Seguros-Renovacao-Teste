@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle } from 'lucide-react';
+import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle , X } from 'lucide-react';
 
 const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 
@@ -392,6 +392,13 @@ const Segurados = () => {
                             >
                               <Edit size={12} />
                               Endossar
+                            </button>
+                            <button
+                              onClick={() => handleCancelar(segurado)}
+                              className="ml-2 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
+                            >
+                              <X size={12} />
+                              Cancelar
                             </button>
                           </div>
                           
