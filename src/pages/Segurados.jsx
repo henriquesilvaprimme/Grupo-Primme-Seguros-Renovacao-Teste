@@ -371,9 +371,7 @@ const Segurados = () => {
                   <span>{segurado.vehicles && segurado.vehicles.length > 0 ? segurado.vehicles[0].Seguradora : 'N/A'}</span>
                 </div>
 
-                {segurado.insuranceType && (
-                  <div className="mt-2">
-                    )}
+                
                           
                           <div className="flex items-center gap-1 text-xs text-gray-600 mt-2 pt-2 border-t border-gray-300">
                             <Calendar size={12} className="text-gray-400" />
