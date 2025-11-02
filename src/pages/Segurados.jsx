@@ -175,28 +175,41 @@ const Segurados = () => {
     setShowEndossoModal(true);
   };
 
+  // OPÇÃO 1: POST JSON com parse seguro (recomendado)
   const handleSaveEndosso = async () => {
     setSavingEndosso(true);
     
     try {
-      const params = new URLSearchParams({
+      const payload = {
         v: 'endossar_veiculo',
         nome: endossoData.clienteNome,
         telefone: endossoData.clienteTelefone,
-        vigenciaInicial: endossoData.vigenciaInicial,
-        vigenciaFinal: endossoData.vigenciaFinal,
+        vigenciaInicial: endossoData.vigenciaInicial, // 'YYYY-MM-DD'
+        vigenciaFinal: endossoData.vigenciaFinal,     // 'YYYY-MM-DD'
         vehicleModel: endossoData.vehicleModel,
         vehicleYearModel: endossoData.vehicleYearModel,
-        premioLiquido: endossoData.premioLiquido,
-        comissao: endossoData.comissao,
-        meioPagamento: endossoData.meioPagamento,
-        numeroParcelas: endossoData.numeroParcelas
+        premioLiquido: endossoData.premioLiquido,     // ex: "1234,56"
+        comissao: endossoData.comissao,               // ex: "10%" ou "10,00"
+        meioPagamento: endossoData.meioPagamento,     // "CP", "CC", "Débito", "Boleto"
+        numeroParcelas: endossoData.numeroParcelas    // "1".."12"
+      };
+
+      const response = await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
-      const response = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?${params.toString()}`);
-      const result = await response.json();
+      // Ler como texto e tentar converter para JSON
+      const text = await response.text();
+      let result;
+      try {
+        result = JSON.parse(text);
+      } catch {
+        throw new Error(text);
+      }
 
-      if (result.status === 'success') {
+      if (result.status === 'success' || result.success === true) {
         alert('Endosso salvo com sucesso!');
         setShowEndossoModal(false);
         // Recarregar os dados
@@ -206,7 +219,7 @@ const Segurados = () => {
       }
     } catch (error) {
       console.error('Erro ao salvar endosso:', error);
-      alert('Erro ao salvar endosso: ' + error.message);
+      alert('Erro ao salvar endosso: ' + (error.message || 'Falha inesperada'));
     } finally {
       setSavingEndosso(false);
     }
