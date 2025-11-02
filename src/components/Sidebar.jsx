@@ -1,132 +1,65 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-// Alterei a importação para incluir ícones mais relevantes (RefreshCw para Renovação e CheckCircle/XCircle para Fechados/Perdidos)
-import { Home, Search, Trophy, UserPlus, UserCircle, FilePlus, RefreshCw, CheckCircle, XCircle } from 'lucide-react'; 
+import { Link, useLocation } from 'react-router-dom';
+import { ShieldCheck, Users, Search, BarChart3, PlusCircle, Home, RefreshCw, CheckCircle2, XCircle, IdCard } from 'lucide-react';
 
-const Sidebar = ({ nomeUsuario }) => {
-
-  const isAdmin = nomeUsuario.tipo === 'Admin';
-
+const NavItem = ({ to, icon: Icon, label }) => {
+  const location = useLocation();
+  const active = location.pathname === to;
   return (
-    <div className="w-64 bg-white shadow-xl border-r border-gray-200 h-full p-6">
-      <h2 className="text-xl font-semibold mb-8">
-        Olá, {nomeUsuario.nome.charAt(0).toUpperCase() + nomeUsuario.nome.slice(1)}
-      </h2>
+    <Link
+      to={to}
+      className={`flex items-center gap-2 px-3 py-2 rounded-md transition-colors ${
+        active ? 'bg-blue-600 text-white' : 'text-gray-200 hover:bg-blue-700 hover:text-white'
+      }`}
+    >
+      <Icon size={18} />
+      <span className="text-sm font-medium">{label}</span>
+    </Link>
+  );
+};
 
-      <nav className="flex flex-col gap-4">
-        <NavLink
-          to="/dashboard"
-          className={({ isActive }) =>
-            `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
-              isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
-            }`
-          }
-        >
-          <Home size={20} />
-          Dashboard
-        </NavLink>
+const Sidebar = ({ isAdmin, nomeUsuario }) => {
+  return (
+    <aside className="w-64 bg-blue-900 text-white flex flex-col">
+      <div className="px-4 py-4 border-b border-blue-800">
+        <div className="flex items-center gap-2">
+          <div className="text-2xl">👑</div>
+          <div>
+            <div className="text-sm">GRUPO</div>
+            <div className="text-lg font-bold">PRIMME SEGUROS</div>
+          </div>
+        </div>
+        {nomeUsuario?.nome ? (
+          <div className="mt-3 text-xs text-blue-100">
+            Olá, <span className="font-semibold">{nomeUsuario.nome}</span>
+          </div>
+        ) : null}
+      </div>
 
-        <NavLink
-          to="/renovacoes" // ROTA CORRIGIDA
-          className={({ isActive }) =>
-            `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
-              isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
-            }`
-          }
-        >
-          <RefreshCw size={20} /> {/* Ícone mais adequado para 'Renovações' */}
-          Renovações
-        </NavLink>
-
-        <NavLink
-          to="/renovados" // ROTA CORRIGIDA
-          className={({ isActive }) =>
-            `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
-              isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
-            }`
-          }
-        >
-          <CheckCircle size={20} /> {/* Ícone mais adequado para 'Fechados' */}
-          Renovados
-        </NavLink>
-
-        <NavLink
-          to="/renovacoes-perdidas" // ROTA CORRIGIDA
-          className={({ isActive }) =>
-            `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
-              isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
-            }`
-          }
-        >
-          <XCircle size={20} /> {/* Ícone mais adequado para 'Perdidos' */}
-          Renovações Perdidas
-        </NavLink>
-
-        <NavLink
-          to="/buscar-lead"
-          className={({ isActive }) =>
-            `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
-              isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
-            }`
-          }
-        >
-          <Search size={20} />
-          Buscar Lead
-        </NavLink>
-
-        <NavLink
-          to="/ranking"
-          className={({ isActive }) =>
-            `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
-              isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
-            }`
-          }
-        >
-          <Trophy size={20} />
-          Ranking
-        </NavLink>
+      <nav className="p-3 flex-1 flex flex-col gap-1">
+        <NavItem to="/dashboard" icon={Home} label="Dashboard" />
+        <NavItem to="/renovacoes" icon={RefreshCw} label="Renovações" />
+        <NavItem to="/renovados" icon={CheckCircle2} label="Renovados" />
+        <NavItem to="/renovacoes-perdidas" icon={XCircle} label="Perdidos" />
+        <NavItem to="/buscar" icon={Search} label="Buscar Lead" />
+        {/* NOVO MENU: Segurados */}
+        <NavItem to="/segurados" icon={IdCard} label="Segurados" />
 
         {isAdmin && (
           <>
-            <NavLink
-              to="/criar-lead"
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
-                  isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
-                }`
-              }
-            >
-              <FilePlus size={20} />
-              Criar Lead
-            </NavLink>
-
-            <NavLink
-              to="/criar-usuario"
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
-                  isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
-                }`
-              }
-            >
-              <UserPlus size={20} />
-              Criar Usuário
-            </NavLink>
-
-            <NavLink
-              to="/usuarios"
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
-                  isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
-                }`
-              }
-            >
-              <UserCircle size={20} />
-              Usuários
-            </NavLink>
+            <div className="mt-3 mb-1 text-xs uppercase tracking-wider text-blue-200">Admin</div>
+            <NavItem to="/criar-usuario" icon={Users} label="Criar Usuário" />
+            <NavItem to="/gerenciar-usuarios" icon={ShieldCheck} label="Gerenciar Usuários" />
+            <NavItem to="/ranking" icon={BarChart3} label="Ranking" />
+            <NavItem to="/criar-lead" icon={PlusCircle} label="Criar Lead" />
           </>
         )}
       </nav>
-    </div>
+
+      <div className="p-3 border-t border-blue-800 text-xs text-blue-200">
+        <div>Sessão ativa</div>
+      </div>
+    </aside>
   );
 };
 
