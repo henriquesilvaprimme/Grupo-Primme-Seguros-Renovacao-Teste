@@ -339,18 +339,15 @@ const Segurados = () => {
                 )}
 
                 {/* Lista de veículos */}
-                {segurado.vehicles && segurado.vehicles.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-gray-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Car size={16} className="text-gray-400" />
-                      <p className="text-xs font-semibold text-gray-700">
-                        Veículos ({segurado.vehicles.length})
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-2">
-                    {segurado.vehicles.map((vehicle, vIndex) => (
-                      <div key={vIndex} className="bg-gray-50 p-3 rounded-lg space-y-2">
+              {segurado.vehicles && segurado.vehicles.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <Car size={16} />
+                    Veículos ({segurado.vehicles.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {segurado.vehicles.map((vehicle, index) => (
+                      <div key={index} className="bg-gray-50 p-3 rounded-lg space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <p className="font-medium text-gray-900">
@@ -382,6 +379,9 @@ const Segurados = () => {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
                     </div>
                   </div>
                 )}
