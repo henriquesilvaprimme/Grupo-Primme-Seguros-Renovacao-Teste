@@ -184,7 +184,7 @@ const Segurados = () => {
     }
 
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: {
