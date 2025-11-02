@@ -175,7 +175,8 @@ const Segurados = () => {
     setShowEndossoModal(true);
   };
 
-  // OPÇÃO 1: POST JSON com parse seguro (recomendado)
+  // Envio com no-cors: não é possível ler a resposta.
+  // Consideramos sucesso se o fetch não lançar erro de rede.
   const handleSaveEndosso = async () => {
     setSavingEndosso(true);
     
@@ -194,32 +195,24 @@ const Segurados = () => {
         numeroParcelas: endossoData.numeroParcelas    // "1".."12"
       };
 
-      const response = await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
+      await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
         method: 'POST',
+        mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      // Ler como texto e tentar converter para JSON
-      const text = await response.text();
-      let result;
-      try {
-        result = JSON.parse(text);
-      } catch {
-        throw new Error(text);
-      }
-
-      if (result.status === 'success' || result.success === true) {
-        alert('Endosso salvo com sucesso!');
-        setShowEndossoModal(false);
-        // Recarregar os dados
+      // Se chegou aqui, a requisição foi enviada.
+      // Não temos como ler resposta; assume-se sucesso.
+      alert('Solicitação de endosso enviada. Verifique os dados atualizados na listagem.');
+      setShowEndossoModal(false);
+      // Opcional: recarregar lista após um pequeno atraso para dar tempo do GAS gravar
+      setTimeout(() => {
         fetchSegurados();
-      } else {
-        throw new Error(result.message || 'Erro ao salvar endosso');
-      }
+      }, 1200);
     } catch (error) {
-      console.error('Erro ao salvar endosso:', error);
-      alert('Erro ao salvar endosso: ' + (error.message || 'Falha inesperada'));
+      console.error('Erro ao enviar endosso:', error);
+      alert('Falha ao enviar endosso (rede/CORS). Tente novamente.');
     } finally {
       setSavingEndosso(false);
     }
