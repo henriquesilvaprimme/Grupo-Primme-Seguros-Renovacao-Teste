@@ -336,11 +336,23 @@ const Segurados = () => {
           {filteredSegurados.map((segurado, index) => (
             <div
               key={index}
-              className="bg-white rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow border border-gray-200"
+              className={`rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow border ${
+                segurado.status === 'Cancelado' 
+                  ? 'bg-red-50 border-red-300' 
+                  : 'bg-white border-gray-200'
+              }`}
             >
               <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-800">{segurado.name}</h3>
-                <Shield className="text-blue-500" size={24} />
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-800">{segurado.name}</h3>
+                  {segurado.status === 'Cancelado' && (
+                    <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-red-600 text-white text-xs font-semibold rounded">
+                      <X size={12} />
+                      CANCELADO
+                    </div>
+                  )}
+                </div>
+                <Shield className={segurado.status === 'Cancelado' ? 'text-red-500' : 'text-blue-500'} size={24} />
               </div>
 
               <div className="space-y-2 text-sm text-gray-600">
@@ -386,20 +398,22 @@ const Segurados = () => {
                                 </div>
                               )}
                             </div>
-                            <button
-                              onClick={() => handleEndossar(segurado, vehicle)}
-                              className="ml-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
-                            >
-                              <Edit size={12} />
-                              Endossar
-                            </button>
-                            <button
-                              onClick={() => handleCancelar(segurado)}
-                              className="ml-2 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
-                            >
-                              <X size={12} />
-                              Cancelar
-                            </button>
+                            <div className="flex flex-col gap-2 ml-2">
+                              <button
+                                onClick={() => handleEndossar(segurado, vehicle)}
+                                className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
+                              >
+                                <Edit size={12} />
+                                Endossar
+                              </button>
+                              <button
+                                onClick={() => handleCancelar(segurado)}
+                                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
+                              >
+                                <X size={12} />
+                                Cancelar
+                              </button>
+                            </div>
                           </div>
                           
                           {vehicle.Seguradora && (
