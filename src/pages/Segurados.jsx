@@ -368,7 +368,7 @@ const Segurados = () => {
 
                 {segurado.insuranceType && (
                   <div className="mt-2">
-                    <p className="text-xs text-gray-500">Tipo de Seguro</p>
+                    <p className="text-xs text-gray-500">Seguradora</p>
                     <p className="font-medium text-gray-700">{segurado.insuranceType}</p>
                   </div>
                 )}
