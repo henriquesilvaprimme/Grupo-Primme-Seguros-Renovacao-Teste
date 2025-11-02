@@ -12,14 +12,15 @@ const Segurados = () => {
   const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
   const [showEndossoModal, setShowEndossoModal] = useState(false);
   const [endossoData, setEndossoData] = useState({
+    clienteId: '',
+    clienteNome: '',
+    clienteTelefone: '',
     vehicleModel: '',
     vehicleYearModel: '',
     premioLiquido: '',
     comissao: '',
     meioPagamento: '',
     numeroParcelas: '1',
-    clienteNome: '',
-    clienteTelefone: '',
     vigenciaInicial: '',
     vigenciaFinal: ''
   });
@@ -98,6 +99,7 @@ const Segurados = () => {
         
         if (!acc[chave]) {
           acc[chave] = {
+            id: cliente.id || cliente.ID || cliente.Id || '',
             name: nome,
             phone: telefone,
             city: cliente.city || cliente.Cidade || '',
@@ -161,14 +163,15 @@ const Segurados = () => {
 
   const handleEndossar = (segurado, vehicle) => {
     setEndossoData({
+      clienteId: segurado.id,
+      clienteNome: segurado.name,
+      clienteTelefone: segurado.phone,
       vehicleModel: vehicle.vehicleModel || '',
       vehicleYearModel: vehicle.vehicleYearModel || '',
       premioLiquido: vehicle.PremioLiquido || '',
       comissao: vehicle.Comissao || '',
       meioPagamento: '',
       numeroParcelas: '1',
-      clienteNome: segurado.name,
-      clienteTelefone: segurado.phone,
       vigenciaInicial: vehicle.VigenciaInicial,
       vigenciaFinal: vehicle.VigenciaFinal
     });
@@ -182,17 +185,11 @@ const Segurados = () => {
     
     try {
       const payload = {
-        v: 'endossar_veiculo',
-        nome: endossoData.clienteNome,
-        telefone: endossoData.clienteTelefone,
-        vigenciaInicial: endossoData.vigenciaInicial, // 'YYYY-MM-DD'
-        vigenciaFinal: endossoData.vigenciaFinal,     // 'YYYY-MM-DD'
+        action: 'endossar_veiculo',
+        id: endossoData.clienteId,
+        name: endossoData.clienteNome,
         vehicleModel: endossoData.vehicleModel,
-        vehicleYearModel: endossoData.vehicleYearModel,
-        premioLiquido: endossoData.premioLiquido,     // ex: "1234,56"
-        comissao: endossoData.comissao,               // ex: "10%" ou "10,00"
-        meioPagamento: endossoData.meioPagamento,     // "CP", "CC", "Débito", "Boleto"
-        numeroParcelas: endossoData.numeroParcelas    // "1".."12"
+        vehicleYearModel: endossoData.vehicleYearModel
       };
 
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
