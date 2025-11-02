@@ -5,13 +5,9 @@ const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyG
 
 const Segurados = () => {
   const [segurados, setSegurados] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSegurados, setFilteredSegurados] = useState([]);
-
-  useEffect(() => {
-    fetchSegurados();
-  }, []);
 
   useEffect(() => {
     if (searchTerm.trim() === '') {
@@ -33,9 +29,7 @@ const Segurados = () => {
       const responseFechados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`);
       const dataFechados = await responseFechados.json();
 
-      // Buscar da aba "Renovados" (se existir endpoint específico, ajuste aqui)
-      // Por enquanto, vamos assumir que "Renovados" também vem de pegar_clientes_fechados
-      // Se houver endpoint separado, adicione aqui
+      // Buscar da aba "Renovados"
       const responseRenovados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovados`).catch(() => ({ json: () => [] }));
       const dataRenovados = await responseRenovados.json ? await responseRenovados.json() : [];
 
@@ -107,29 +101,40 @@ const Segurados = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-xl text-gray-600">Carregando segurados...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Segurados Ativos</h1>
 
-        {/* Barra de busca */}
-        <div className="mb-6 relative">
-          <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Buscar por nome ou telefone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+        {/* Barra de busca com botão */}
+        <div className="mb-6 flex gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Buscar por nome ou telefone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            onClick={fetchSegurados}
+            disabled={loading}
+            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                Buscando...
+              </>
+            ) : (
+              <>
+                <Search size={20} />
+                Buscar
+              </>
+            )}
+          </button>
         </div>
 
         {/* Contador */}
@@ -192,9 +197,9 @@ const Segurados = () => {
           ))}
         </div>
 
-        {filteredSegurados.length === 0 && (
+        {filteredSegurados.length === 0 && !loading && (
           <div className="text-center py-12 text-gray-500">
-            Nenhum segurado encontrado.
+            Nenhum segurado encontrado. Clique em "Buscar" para carregar os dados.
           </div>
         )}
       </div>
