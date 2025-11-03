@@ -150,7 +150,7 @@ const Segurados = () => {
       setSegurados(clientesUnicos);
       
       if (clientesUnicos.length === 0) {
-        setError('Nenhum segurado encontrado nas abas "Leads Fechados" e "Renovados".');
+        setError('Nenhum segurado encontrado na aba "Renovações".');
       }
       
     } catch (error) {
