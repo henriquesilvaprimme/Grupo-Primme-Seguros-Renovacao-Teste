@@ -187,8 +187,11 @@ const Segurados = () => {
   };
 
   const handleEndossar = (segurado, vehicle) => {
+    // Obter o ID da Coluna A (único por veículo)
+    const idVeiculo = obterIDPorVeiculo(segurado, vehicle);
     setEndossoData({
       clienteId: segurado.id,
+      idSheet: idVeiculo, // ID da Coluna A, único do veículo
       clienteNome: segurado.name,
       clienteTelefone: segurado.phone,
       vehicleModel: vehicle.vehicleModel || '',
@@ -206,19 +209,16 @@ const Segurados = () => {
   // Envio com no-cors: não é possível ler a resposta.
   // Consideramos sucesso se o fetch não lançar erro de rede.
   const handleSaveEndosso = async () => {
+    // Atualiza somente o veículo que possui o ID correspondente (Coluna A)
+
     setSavingEndosso(true);
 
     try {
       const payload = {
-        action: 'endossar_veiculo',
-        id: endossoData.clienteId,
-        name: endossoData.clienteNome,
+        action: 'atualizar_dados_veiculo_por_id', // ação no GAS
+        id: endossoData.idSheet, // ID da Coluna A do veículo
         vehicleModel: endossoData.vehicleModel,
-        vehicleYearModel: endossoData.vehicleYearModel,
-        premioLiquido: endossoData.premioLiquido,
-        comissao: endossoData.comissao,
-        meioPagamento: endossoData.meioPagamento,
-        numeroParcelas: endossoData.numeroParcelas
+        vehicleYearModel: endossoData.vehicleYearModel
       };
 
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
