@@ -103,7 +103,6 @@ const Segurados = () => {
             name: nome,
             phone: telefone,
             city: cliente.city || cliente.Cidade || '',
-            insuranceType: cliente.insuranceType || cliente.insurancetype || cliente.TipoSeguro || '',
             Responsavel: cliente.Responsavel || cliente.responsavel || '',
             vehicles: []
           };
