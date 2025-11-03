@@ -365,7 +365,6 @@ const Segurados = () => {
                   <User size={16} className="text-gray-400" />
                   <span>{segurado.Responsavel || 'N/A'}</span>
                 </div>
-                )}
 
                 {/* Lista de veículos */}
                 {segurado.vehicles && segurado.vehicles.length > 0 && (
