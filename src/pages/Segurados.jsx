@@ -320,9 +320,10 @@ const Segurados = () => {
         )}
 
         {/* Contador */}
-        <div className="mb-4 text-gray-600">
-          {filteredSegurados.length} segurado(s) encontrado(s) para o ano {anoFiltro}
-        </div>
+        <div className= "mb-4 text-gray-600" >
+  {filtradoSegurados. comprimento } seguro (s) encontrado ( s )
+  {anoFiltro && ` para o ano ${anoFiltro} ` }
+</div>
 
         {/* Grid de cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
