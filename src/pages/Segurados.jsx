@@ -43,7 +43,7 @@ const Segurados = () => {
       return segurado.vehicles.some((vehicle) => {
         const vigenciaInicial = vehicle.VigenciaInicial;
         if (!vigenciaInicial) return false;
-        
+
         const dataVigencia = new Date(vigenciaInicial);
         return dataVigencia.getFullYear() === parseInt(anoFiltro);
       });
@@ -55,10 +55,10 @@ const Segurados = () => {
   const fetchSegurados = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       console.log('Iniciando busca de segurados...');
-      
+
       // Buscar da aba "Leads Fechados"
       console.log('Buscando Leads Fechados...');
       const responseFechados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`);
@@ -81,22 +81,22 @@ const Segurados = () => {
 
       // Combinar todos os clientes
       const todosClientes = [
-        ...(Array.isArray(dataFechados) ? dataFechados : []), 
+        ...(Array.isArray(dataFechados) ? dataFechados : []),
         ...(Array.isArray(dataRenovados) ? dataRenovados : [])
       ];
-      
+
       console.log('Total de clientes combinados:', todosClientes.length);
-      
+
       // Agrupar por nome e telefone, mantendo múltiplos veículos
       const clientesAgrupados = todosClientes.reduce((acc, cliente) => {
         // Normalizar os nomes dos campos
         const telefone = cliente.phone || cliente.Telefone || cliente.telefone || '';
         const nome = cliente.name || cliente.Name || cliente.nome || '';
-        
+
         if (!telefone && !nome) return acc;
-        
+
         const chave = `${nome}_${telefone}`;
-        
+
         if (!acc[chave]) {
           acc[chave] = {
             id: cliente.id || cliente.ID || cliente.Id || '',
@@ -108,7 +108,7 @@ const Segurados = () => {
             vehicles: []
           };
         }
-        
+
         // Adicionar veículo com suas vigências
         acc[chave].vehicles.push({
           vehicleModel: cliente.vehicleModel || cliente.vehiclemodel || cliente.Modelo || '',
@@ -121,7 +121,7 @@ const Segurados = () => {
           Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
           Endossado: cliente.Endossado || false,
         });
-        
+
         return acc;
       }, {});
 
@@ -146,11 +146,11 @@ const Segurados = () => {
       });
 
       setSegurados(clientesUnicos);
-      
+
       if (clientesUnicos.length === 0) {
         setError('Nenhum segurado encontrado nas abas "Leads Fechados" e "Renovados".');
       }
-      
+
     } catch (error) {
       console.error('Erro ao buscar segurados:', error);
       setError(error.message || 'Erro ao buscar segurados. Verifique o console para mais detalhes.');
@@ -182,7 +182,7 @@ const Segurados = () => {
   // Consideramos sucesso se o fetch não lançar erro de rede.
   const handleSaveEndosso = async () => {
     setSavingEndosso(true);
-    
+
     try {
       const payload = {
         action: 'endossar_veiculo',
@@ -253,7 +253,7 @@ const Segurados = () => {
     try {
       const date = new Date(dataString);
       if (isNaN(date.getTime())) return dataString;
-      
+
       const dia = String(date.getDate()).padStart(2, '0');
       const mes = String(date.getMonth() + 1).padStart(2, '0');
       const ano = date.getFullYear();
@@ -261,6 +261,12 @@ const Segurados = () => {
     } catch {
       return dataString;
     }
+  };
+
+  const formatarID = (id) => {
+    if (!id) return 'N/A';
+    const idString = String(id);
+    return idString.length > 5 ? idString.slice(-5) : idString;
   };
 
   // Gerar lista de anos (ano atual - 5 até ano atual + 2)
@@ -372,7 +378,7 @@ const Segurados = () => {
                         Veículos ({segurado.vehicles.length})
                       </p>
                     </div>
-                    
+
                     <div className="space-y-2">
                       {segurado.vehicles.map((vehicle, vIndex) => (
                         <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
@@ -380,6 +386,9 @@ const Segurados = () => {
                             <div className="flex-1">
                               <p className="font-medium text-gray-800 text-sm">
                                 {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                ID: {formatarID(segurado.id)}
                               </p>
                               {vehicle.Endossado && (
                                 <div className="flex items-center gap-1 mt-1">
@@ -405,13 +414,13 @@ const Segurados = () => {
                               </button>
                             </div>
                           </div>
-                          
+
                           {vehicle.Seguradora && (
                             <p className="text-xs text-gray-600 mb-1">
                               Seguradora: {vehicle.Seguradora}
                             </p>
                           )}
-                          
+
                           <div className="flex items-center gap-1 text-xs text-gray-600 mt-2 pt-2 border-t border-gray-300">
                             <Calendar size={12} className="text-gray-400" />
                             <span>
