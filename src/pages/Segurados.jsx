@@ -9,7 +9,7 @@ const Segurados = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSegurados, setFilteredSegurados] = useState([]);
   const [error, setError] = useState(null);
-  const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
+  const [anoFiltro, setAnoFiltro] = useState ('');
   const [showEndossoModal, setShowEndossoModal] = useState(false);
   const [endossoData, setEndossoData] = useState({
     clienteId: '',
