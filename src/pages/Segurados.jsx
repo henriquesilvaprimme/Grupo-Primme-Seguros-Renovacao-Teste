@@ -59,30 +59,25 @@ const Segurados = () => {
     try {
       console.log('Iniciando busca de segurados...');
       
-      // Buscar da aba "Leads Fechados"
-      console.log('Buscando Leads Fechados...');
-      const responseFechados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`);
-      const dataFechados = await responseFechados.json();
-      console.log('Leads Fechados recebidos:', dataFechados);
 
-      // Buscar da aba "Renovados"
-      console.log('Buscando Renovados...');
-      const responseRenovados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovados`);
-      const dataRenovados = await responseRenovados.json();
-      console.log('Renovados recebidos:', dataRenovados);
+      // Buscar da aba "Renovações"
+      console.log('Buscando Renovações...');
+      const responseRenovações = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovacoes`);
+      const dataRenovações = await responseRenovações.json();
+      console.log('Renovações recebidos:', dataRenovações);
 
       // Verificar se há erros nas respostas
       if (dataFechados.status === 'error') {
         throw new Error(`Erro em Leads Fechados: ${dataFechados.message}`);
       }
-      if (dataRenovados.status === 'error') {
-        throw new Error(`Erro em Renovados: ${dataRenovados.message}`);
+      if (dataRenovações.status === 'error') {
+        throw new Error(`Erro em Renovações: ${dataRenovações.message}`);
       }
 
       // Combinar todos os clientes
       const todosClientes = [
         ...(Array.isArray(dataFechados) ? dataFechados : []), 
-        ...(Array.isArray(dataRenovados) ? dataRenovados : [])
+        ...(Array.isArray(dataRenovações) ? dataRenovações : [])
       ];
       
       console.log('Total de clientes combinados:', todosClientes.length);
@@ -150,7 +145,7 @@ const Segurados = () => {
       setSegurados(clientesUnicos);
       
       if (clientesUnicos.length === 0) {
-        setError('Nenhum segurado encontrado na aba "Renovações".');
+        setError('Nenhum segurado encontrado nas abas "Leads Fechados" e "Renovações".');
       }
       
     } catch (error) {
