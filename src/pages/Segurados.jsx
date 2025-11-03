@@ -207,46 +207,6 @@ const Segurados = () => {
     }
   };
 
-  const handleEndossar = async (segurado) => {
-    if (!window.confirm(`Tem certeza que deseja ENDOSSAR o seguro de ${segurado.nome}?`)) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // Para cada veículo do segurado, enviar para endosso
-      for (const veiculo of segurado.veiculos) {
-        await window.google.script.run
-          .withSuccessHandler(() => {
-            console.log('Endosso registrado com sucesso para veículo:', veiculo.placa);
-          })
-          .withFailureHandler((error) => {
-            console.error('Erro ao endossar veículo:', error);
-            alert('Erro ao registrar endosso para veículo ' + veiculo.placa + ': ' + error.message);
-          })
-          .endossar_veiculo(
-            segurado.id,
-            segurado.nome,
-            veiculo.placa,
-            veiculo.marca,
-            veiculo.modelo,
-            veiculo.anoModelo,
-            veiculo.vigenciaInicial,
-            veiculo.vigenciaFinal
-          );
-      }
-
-      alert('Endosso(s) registrado(s) com sucesso!');
-      fetchSegurados();
-    } catch (error) {
-      console.error('Erro ao endossar:', error);
-      alert('Erro ao registrar endosso');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Envio com no-cors: não é possível ler a resposta.
   // Consideramos sucesso se o fetch não lançar erro de rede.
   const handleSaveEndosso = async () => {
@@ -462,9 +422,6 @@ const Segurados = () => {
                                 onClick={() => handleEndossar(segurado)}
                                 className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors flex items-center gap-1"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M12 5v14M5 12h14"/>
-                                </svg>
                                 Endossar
                               </button>
                             </div>
