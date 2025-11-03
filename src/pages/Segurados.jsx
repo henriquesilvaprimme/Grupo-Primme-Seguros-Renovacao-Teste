@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle, Building2 } from 'lucide-react';
+import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle } from 'lucide-react';
 
 const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 
@@ -326,11 +326,6 @@ const Segurados = () => {
                   <span>{segurado.Responsavel || 'N/A'}</span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Building2 size={16} className="text-gray-400" />
-                  <span>{segurado.vehicles && segurado.vehicles.length > 0 ? segurado.vehicles[0].Seguradora : 'N/A'}</span>
-                </div>
-
                 {segurado.insuranceType && (
                   <div className="mt-2">
                     <p className="text-xs text-gray-500">Tipo de Seguro</p>
@@ -339,49 +334,53 @@ const Segurados = () => {
                 )}
 
                 {/* Lista de veículos */}
-              {segurado.vehicles && segurado.vehicles.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                    <Car size={16} />
-                    Veículos ({segurado.vehicles.length})
-                  </h4>
-                  <div className="space-y-2">
-                    {segurado.vehicles.map((vehicle, index) => (
-                      <div key={index} className="bg-gray-50 p-3 rounded-lg space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">
-                              {vehicle.Modelo} {vehicle.AnoModelo}
-                            </p>
-                            <div className="flex items-center gap-1 text-xs text-gray-600 mt-2 pt-2 border-t border-gray-300">
-                              <Calendar size={12} className="text-gray-400" />
-                              <span>
-                                {formatarData(vehicle.VigenciaInicial)} até {formatarData(vehicle.VigenciaFinal)}
-                              </span>
+                {segurado.vehicles && segurado.vehicles.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Car size={16} className="text-gray-400" />
+                      <p className="text-xs font-semibold text-gray-700">
+                        Veículos ({segurado.vehicles.length})
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {segurado.vehicles.map((vehicle, vIndex) => (
+                        <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-800 text-sm">
+                                {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
+                              </p>
+                              {vehicle.Endossado && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <CheckCircle size={14} className="text-green-600" />
+                                  <span className="text-xs text-green-600 font-semibold">Endossado</span>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                          <div className="flex flex-col gap-2 ml-4">
                             <button
-                              onClick={() => handleEndosso(segurado, vehicle)}
-                              className="px-3 py-1.5 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap"
+                              onClick={() => handleEndossar(segurado, vehicle)}
+                              className="ml-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
                             >
                               <Edit size={12} />
                               Endossar
                             </button>
-                            <button
-                              onClick={() => handleCancelar(segurado, vehicle)}
-                              className="px-3 py-1.5 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors flex items-center gap-1 whitespace-nowrap"
-                            >
-                              <X size={12} />
-                              Cancelar
-                            </button>
+                          </div>
+                          
+                          {vehicle.Seguradora && (
+                            <p className="text-xs text-gray-600 mb-1">
+                              Seguradora: {vehicle.Seguradora}
+                            </p>
+                          )}
+                          
+                          <div className="flex items-center gap-1 text-xs text-gray-600 mt-2 pt-2 border-t border-gray-300">
+                            <Calendar size={12} className="text-gray-400" />
+                            <span>
+                              {formatarData(vehicle.VigenciaInicial)} até {formatarData(vehicle.VigenciaFinal)}
+                            </span>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                      ))}
                     </div>
                   </div>
                 )}
