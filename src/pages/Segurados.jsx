@@ -39,15 +39,17 @@ const Segurados = () => {
     }
 
     // Filtrar por ano
-    filtered = filtered.filter((segurado) => {
-      return segurado.vehicles.some((vehicle) => {
-        const vigenciaInicial = vehicle.VigenciaInicial;
-        if (!vigenciaInicial) return false;
-        
-        const dataVigencia = new Date(vigenciaInicial);
-        return dataVigencia.getFullYear() === parseInt(anoFiltro);
-      });
+    if (anoFiltro) {
+  filtrado = filtrado. filter ( ( segurado ) => {
+     return segurado. veículos . some ( ( veículo ) => {
+       const vigenciaInicial = veículo. VigenciaInicial ;
+       if (!vigenciaInicial) return  false ;
+      
+      const dataVigencia = new  Date (vigenciaInicial);
+       return dataVigencia. getFullYear () === parseInt (anoFiltro);
     });
+  });
+}
 
     setFilteredSegurados(filtered);
   }, [searchTerm, segurados, anoFiltro]);
