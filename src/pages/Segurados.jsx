@@ -9,7 +9,7 @@ const Segurados = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSegurados, setFilteredSegurados] = useState([]);
   const [error, setError] = useState(null);
-  const [anoFiltro, setAnoFiltro] = useState(''); // campo em branco por padrão
+  const [anoFiltro, setAnoFiltro] = useState('');
   const [showEndossoModal, setShowEndossoModal] = useState(false);
   const [endossoData, setEndossoData] = useState({
     clienteId: '',
@@ -26,10 +26,12 @@ const Segurados = () => {
   });
   const [savingEndosso, setSavingEndosso] = useState(false);
 
+  // map[key] = { status: 'idle'|'loading'|'found'|'not_found'|'error'|'no_cors', id, display }
+  const [vehicleLeadIds, setVehicleLeadIds] = useState({});
+
   useEffect(() => {
     let filtered = segurados;
 
-    // Filtrar por termo de busca
     if (searchTerm.trim() !== '') {
       filtered = filtered.filter(
         (segurado) =>
@@ -38,7 +40,6 @@ const Segurados = () => {
       );
     }
 
-    // Filtrar por ano (aplica somente se anoFiltro não estiver em branco)
     if (anoFiltro !== '' && anoFiltro !== null && typeof anoFiltro !== 'undefined') {
       filtered = filtered.filter((segurado) =>
         (segurado.vehicles || []).some((vehicle) => {
@@ -67,19 +68,15 @@ const Segurados = () => {
       const dataRenovacoes = await responseRenovacoes.json();
       console.log('Renovações recebidos:', dataRenovacoes);
 
-      // Se a API retornar um objeto de status de erro
       if (dataRenovacoes && dataRenovacoes.status === 'error') {
         throw new Error(`Erro em Renovações: ${dataRenovacoes.message}`);
       }
 
-      // Combinar todos os clientes (garantir que é array)
       const todosClientes = Array.isArray(dataRenovacoes) ? dataRenovacoes : [];
 
       console.log('Total de clientes recebidos:', todosClientes.length);
 
-      // Agrupar por nome e telefone, mantendo múltiplos veículos
       const clientesAgrupados = todosClientes.reduce((acc, cliente) => {
-        // Normalizar os nomes dos campos
         const telefone = cliente.phone || cliente.Telefone || cliente.telefone || '';
         const nome = cliente.name || cliente.Name || cliente.nome || '';
 
@@ -95,19 +92,17 @@ const Segurados = () => {
             city: cliente.city || cliente.Cidade || '',
             insuranceType: cliente.insuranceType || cliente.insurancetype || cliente.TipoSeguro || '',
             Responsavel: cliente.Responsavel || cliente.responsavel || '',
-            // garantir propriedade de status em lowercase para uso consistente
             status: cliente.Status || cliente.status || '',
             vehicles: []
           };
         }
 
-        // Adicionar veículo com suas vigências
         acc[chave].vehicles.push({
           vehicleModel: cliente.vehicleModel || cliente.vehiclemodel || cliente.Modelo || '',
           vehicleYearModel: cliente.vehicleYearModel || cliente.vehicleyearmodel || cliente.AnoModelo || '',
           VigenciaInicial: cliente.VigenciaInicial || cliente.vigenciaInicial || '',
           VigenciaFinal: cliente.VigenciaFinal || cliente.vigenciaFinal || '',
-          Seguradora: cliente.Seguradora || cliente.seguradora || '',
+          Seguradora: cliente.Seguradora || cliente.seguradora || cliente.insuranceType || '',
           PremioLiquido: cliente.PremioLiquido || cliente.premioLiquido || '',
           Comissao: cliente.Comissao || cliente.comissao || '',
           Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
@@ -119,7 +114,6 @@ const Segurados = () => {
         return acc;
       }, {});
 
-      // Converter objeto em array e ordenar veículos por vigência final mais recente
       const clientesUnicos = Object.values(clientesAgrupados).map(cliente => {
         cliente.vehicles.sort((a, b) => {
           const dateA = new Date(a.VigenciaFinal || '1900-01-01');
@@ -129,9 +123,6 @@ const Segurados = () => {
         return cliente;
       });
 
-      console.log('Clientes únicos processados:', clientesUnicos.length);
-
-      // Ordenar por vigência final mais recente do primeiro veículo
       clientesUnicos.sort((a, b) => {
         const dateA = new Date(a.vehicles[0]?.VigenciaFinal || '1900-01-01');
         const dateB = new Date(b.vehicles[0]?.VigenciaFinal || '1900-01-01');
@@ -171,7 +162,6 @@ const Segurados = () => {
     setShowEndossoModal(true);
   };
 
-  // Helpers para normalização/comparação
   const normalizeStr = (s) => (s === null || s === undefined ? '' : String(s).trim());
   const normalizeDateForCompare = (d) => {
     if (!d && d !== 0) return '';
@@ -182,87 +172,288 @@ const Segurados = () => {
     return String(d).trim();
   };
 
-  // Nova lógica: procura por correspondência dos cinco campos no estado local.
-  // Só envia a requisição e marca Status como "Cancelado" se encontrar correspondência.
+  const makeVehicleKey = (segurado, vehicle) => {
+    const nome = normalizeStr(segurado.name);
+    const phone = normalizeStr(segurado.phone);
+    const model = normalizeStr(vehicle.vehicleModel || vehicle.vehiclemodel || '');
+    const year = normalizeStr(vehicle.vehicleYearModel || vehicle.anoModelo || '');
+    const seguradora = normalizeStr(vehicle.Seguradora || vehicle.seguradora || '');
+    const ini = normalizeDateForCompare(vehicle.VigenciaInicial);
+    const fim = normalizeDateForCompare(vehicle.VigenciaFinal);
+    return `${nome}|${phone}|${model}|${year}|${seguradora}|${ini}|${fim}`;
+  };
+
+  // Busca no GAS pelo lead correspondente aos campos.
+  // ATENÇÃO: com mode: 'no-cors' a resposta será opaca e não poderá ser lida pelo navegador.
+  // Neste caso retornamos null e setamos status 'no_cors' para informar o usuário.
+  const fetchLeadByFields = async (segurado, vehicle) => {
+    const payload = {
+      action: 'buscar_lead_por_campos',
+      name: normalizeStr(segurado.name),
+      vehicleModel: normalizeStr(vehicle.vehicleModel),
+      vehicleYearModel: normalizeStr(vehicle.vehicleYearModel),
+      Seguradora: normalizeStr(vehicle.Seguradora || vehicle.seguradora || segurado.insuranceType || ''),
+      VigenciaInicial: normalizeDateForCompare(vehicle.VigenciaInicial),
+      VigenciaFinal: normalizeDateForCompare(vehicle.VigenciaFinal)
+    };
+
+    try {
+      const response = await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
+        method: 'POST',
+        mode: 'no-cors', // conforme solicitado: manter no-cors
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      // Se a resposta for opaca (devido a no-cors), não conseguimos ler JSON
+      if (response && response.type === 'opaque') {
+        return null; // sinaliza que não foi possível ler por no-cors
+      }
+
+      // Tentar ler JSON (caso o navegador permita)
+      const data = await response.json();
+
+      if (!data) return null;
+      if (data.status === 'error') {
+        throw new Error(data.message || 'Erro do servidor ao buscar lead por campos');
+      }
+
+      const results = Array.isArray(data) ? data : (data.results || []);
+      if (results.length === 0) return null;
+
+      const nome = normalizeStr(payload.name);
+      const model = normalizeStr(payload.vehicleModel);
+      const year = normalizeStr(payload.vehicleYearModel);
+      const seguradora = normalizeStr(payload.Seguradora);
+      const ini = normalizeDateForCompare(payload.VigenciaInicial);
+      const fim = normalizeDateForCompare(payload.VigenciaFinal);
+
+      const match = results.find(r => {
+        const rName = normalizeStr(r.name || r.Name || r.Nome || '');
+        const rModel = normalizeStr(r.vehicleModel || r.vehiclemodel || r.Modelo || '');
+        const rYear = normalizeStr(r.vehicleYearModel || r.vehicleyearmodel || r.AnoModelo || '');
+        const rSeg = normalizeStr(r.Seguradora || r.seguradora || r.insuranceType || '');
+        const rIni = normalizeDateForCompare(r.VigenciaInicial || r.vigenciaInicial || r.vigencia || r.Inicio || r.start);
+        const rFim = normalizeDateForCompare(r.VigenciaFinal || r.vigenciaFinal || r.end || r.Final);
+
+        return (
+          rName === nome &&
+          rModel === model &&
+          rYear === year &&
+          rSeg === seguradora &&
+          rIni === ini &&
+          rFim === fim
+        );
+      }) || results[0];
+
+      if (!match) return null;
+
+      return { id: match.id || match.ID || match.Id || '', full: match };
+    } catch (err) {
+      console.error('Erro em fetchLeadByFields:', err);
+      return null;
+    }
+  };
+
+  const handleBuscarId = async (segurado, vehicle) => {
+    const key = makeVehicleKey(segurado, vehicle);
+    setVehicleLeadIds(prev => ({ ...prev, [key]: { status: 'loading' } }));
+
+    try {
+      const res = await fetchLeadByFields(segurado, vehicle);
+
+      if (res === null) {
+        // Não foi possível ler resposta (provavelmente no-cors)
+        setVehicleLeadIds(prev => ({ ...prev, [key]: { status: 'no_cors' } }));
+        return;
+      }
+
+      if (!res || !res.id) {
+        setVehicleLeadIds(prev => ({ ...prev, [key]: { status: 'not_found' } }));
+        return;
+      }
+
+      const idStr = String(res.id);
+      const last5 = idStr.slice(-5).padStart(5, '*');
+      setVehicleLeadIds(prev => ({ ...prev, [key]: { status: 'found', id: idStr, display: last5 } }));
+    } catch (err) {
+      console.error('Erro ao buscar ID:', err);
+      setVehicleLeadIds(prev => ({ ...prev, [key]: { status: 'error', message: err.message } }));
+    }
+  };
+
+  // Cancelar: busca lead no GAS e só prossegue se encontrar correspondência exata.
+  // Se a busca retornar null por no-cors, a operação é abortada (não enviamos cancelamento),
+  // pois não conseguimos verificar os dados no servidor quando mode: 'no-cors' está ativo.
   const handleCancelar = async (segurado, vehicle) => {
     const nome = normalizeStr(segurado.name);
     const vehicleModel = normalizeStr(vehicle?.vehicleModel);
     const vehicleYearModel = normalizeStr(vehicle?.vehicleYearModel);
     const VigenciaInicial = normalizeDateForCompare(vehicle?.VigenciaInicial);
     const VigenciaFinal = normalizeDateForCompare(vehicle?.VigenciaFinal);
+    const seguradora = normalizeStr(vehicle.Seguradora || vehicle.seguradora || segurado.insuranceType || '');
 
     const confirmMsg = `Tem certeza que deseja CANCELAR o seguro de ${nome} - ${vehicleModel} ${vehicleYearModel}?`;
     if (!window.confirm(confirmMsg)) {
       return;
     }
 
-    // Verificar se existe correspondência no estado atual
-    let encontrouCorrespondencia = false;
-
-    setSegurados((prev) =>
-      prev.map((s) => {
-        // comparar apenas pelo name (conforme solicitado) e pelos campos do veículo
-        if (normalizeStr(s.name) !== nome) return s;
-
-        const vehiclesAtualizados = s.vehicles.map((v) => {
-          const vModel = normalizeStr(v.vehicleModel);
-          const vYear = normalizeStr(v.vehicleYearModel);
-          const vIni = normalizeDateForCompare(v.VigenciaInicial);
-          const vFim = normalizeDateForCompare(v.VigenciaFinal);
-
-          if (
-            vModel === vehicleModel &&
-            vYear === vehicleYearModel &&
-            vIni === VigenciaInicial &&
-            vFim === VigenciaFinal
-          ) {
-            encontrouCorrespondencia = true;
-            return {
-              ...v,
-              Status: 'Cancelado',
-              DataCancelamento: new Date().toISOString()
-            };
-          }
-          return v;
-        });
-
-        return { ...s, vehicles: vehiclesAtualizados };
-      })
-    );
-
-    if (!encontrouCorrespondencia) {
-      alert('Não foi encontrada nenhuma correspondência exata para os dados informados. Operação abortada.');
+    // Buscar lead no GAS
+    let foundLead = null;
+    try {
+      foundLead = await fetchLeadByFields(segurado, vehicle);
+    } catch (err) {
+      console.error('Erro buscando lead no GAS:', err);
+      alert('Erro ao buscar lead no servidor. Verifique o console.');
       return;
     }
 
-    // Montar payload sem o id, apenas com os campos solicitados
+    if (foundLead === null) {
+      // resposta opaca / no-cors: não podemos verificar no servidor
+      alert('Não foi possível ler a resposta do servidor (mode: no-cors). Para proteger os dados, o cancelamento foi abortado. Habilite CORS no GAS para permitir verificação.');
+      // marca visualmente que a tentativa de leitura foi bloqueada
+      const key = makeVehicleKey(segurado, vehicle);
+      setVehicleLeadIds(prev => ({ ...prev, [key]: { status: 'no_cors' } }));
+      return;
+    }
+
+    if (!foundLead || !foundLead.id) {
+      alert('Nenhum lead correspondeu exatamente aos dados informados. Operação abortada.');
+      return;
+    }
+
+    // validar campos do registro retornado
+    const idFromSheet = String(foundLead.id);
+    const matchName = normalizeStr(foundLead.full.name || foundLead.full.Name || '');
+    const matchModel = normalizeStr(foundLead.full.vehicleModel || foundLead.full.vehiclemodel || '');
+    const matchYear = normalizeStr(foundLead.full.vehicleYearModel || foundLead.full.vehicleyearmodel || foundLead.full.AnoModelo || '');
+    const matchSeg = normalizeStr(foundLead.full.Seguradora || foundLead.full.seguradora || foundLead.full.insuranceType || '');
+    const matchIni = normalizeDateForCompare(foundLead.full.VigenciaInicial || foundLead.full.vigenciaInicial || '');
+    const matchFim = normalizeDateForCompare(foundLead.full.VigenciaFinal || foundLead.full.vigenciaFinal || '');
+
+    if (
+      matchName !== nome ||
+      matchModel !== vehicleModel ||
+      matchYear !== vehicleYearModel ||
+      matchSeg !== seguradora ||
+      matchIni !== VigenciaInicial ||
+      matchFim !== VigenciaFinal
+    ) {
+      alert('Os dados encontrados na planilha não conferem exatamente com os dados do cartão. Operação abortada.');
+      return;
+    }
+
+    // Enviar cancelamento para o GAS (mantendo mode: 'no-cors' conforme solicitado)
     const payload = {
       action: 'cancelar_seguro',
+      id: idFromSheet,
       name: nome,
       vehicleModel,
       vehicleYearModel,
+      Seguradora: seguradora,
       VigenciaInicial,
       VigenciaFinal
     };
 
     try {
-      // Enviar solicitação ao GAS (sem id). Mantive no-cors como no seu original.
-      await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
+      const resp = await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
         method: 'POST',
-        mode: 'no-cors', // ideal remover se você puder habilitar CORS no GAS
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        mode: 'no-cors', // mantido conforme solicitado
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      alert('Solicitação de cancelamento enviada. Veículo marcado como "Cancelado" localmente (se os dados bateram).');
-      // Recarregar para garantir consistência com planilha/GAS
-      setTimeout(fetchSegurados, 1200);
+      // Se resp for opaco, não conseguimos ler confirmação. Ainda assim atualizamos localmente
+      // porque já validamos os dados comparando com o resultado lido anteriormente.
+      if (resp && resp.type === 'opaque') {
+        // atualizar estado local otimista
+        setSegurados((prev) =>
+          prev.map((s) => {
+            if (normalizeStr(s.name) !== nome) return s;
+
+            const vehiclesAtualizados = s.vehicles.map((v) => {
+              const vModel = normalizeStr(v.vehicleModel);
+              const vYear = normalizeStr(v.vehicleYearModel);
+              const vIni = normalizeDateForCompare(v.VigenciaInicial);
+              const vFim = normalizeDateForCompare(v.VigenciaFinal);
+              const vSeg = normalizeStr(v.Seguradora || v.seguradora || '');
+
+              if (
+                vModel === vehicleModel &&
+                vYear === vehicleYearModel &&
+                vIni === VigenciaInicial &&
+                vFim === VigenciaFinal &&
+                vSeg === seguradora
+              ) {
+                return {
+                  ...v,
+                  Status: 'Cancelado',
+                  DataCancelamento: new Date().toISOString()
+                };
+              }
+              return v;
+            });
+
+            return { ...s, vehicles: vehiclesAtualizados };
+          })
+        );
+
+        const key = makeVehicleKey(segurado, vehicle);
+        setVehicleLeadIds(prev => ({ ...prev, [key]: { status: 'found', id: idFromSheet, display: String(idFromSheet).slice(-5) } }));
+
+        alert('Requisição enviada (no-cors). Não foi possível ler a resposta do servidor para confirmação. Verifique a planilha manualmente.');
+        setTimeout(fetchSegurados, 1500);
+        return;
+      }
+
+      // tentar ler resposta caso não seja opaca
+      const respJson = await resp.json();
+      if (respJson && respJson.status === 'error') {
+        throw new Error(respJson.message || 'Erro ao cancelar no servidor');
+      }
+
+      // atualizar localmente após sucesso
+      setSegurados((prev) =>
+        prev.map((s) => {
+          if (normalizeStr(s.name) !== nome) return s;
+
+          const vehiclesAtualizados = s.vehicles.map((v) => {
+            const vModel = normalizeStr(v.vehicleModel);
+            const vYear = normalizeStr(v.vehicleYearModel);
+            const vIni = normalizeDateForCompare(v.VigenciaInicial);
+            const vFim = normalizeDateForCompare(v.VigenciaFinal);
+            const vSeg = normalizeStr(v.Seguradora || v.seguradora || '');
+
+            if (
+              vModel === vehicleModel &&
+              vYear === vehicleYearModel &&
+              vIni === VigenciaInicial &&
+              vFim === VigenciaFinal &&
+              vSeg === seguradora
+            ) {
+              return {
+                ...v,
+                Status: 'Cancelado',
+                DataCancelamento: new Date().toISOString()
+              };
+            }
+            return v;
+          });
+
+          return { ...s, vehicles: vehiclesAtualizados };
+        })
+      );
+
+      const key = makeVehicleKey(segurado, vehicle);
+      setVehicleLeadIds(prev => ({ ...prev, [key]: { status: 'found', id: idFromSheet, display: String(idFromSheet).slice(-5) } }));
+
+      alert('Cancelamento efetuado com sucesso (confirmado pelo servidor).');
+      setTimeout(fetchSegurados, 1000);
     } catch (err) {
       console.error('Erro ao enviar cancelamento:', err);
-      alert('Erro ao enviar cancelamento. Tente novamente.');
-      // Em caso de erro de rede, você pode querer reverter a atualização local — não faço isso automaticamente aqui.
+      alert('Erro ao enviar cancelamento. Verifique o console.');
     }
   };
 
@@ -284,7 +475,7 @@ const Segurados = () => {
 
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
         method: 'POST',
-        mode: 'no-cors',
+        mode: 'no-cors', // mantido conforme seu pedido
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
@@ -318,7 +509,6 @@ const Segurados = () => {
     }
   };
 
-  // Gerar lista de anos (ano atual - 5 até ano atual + 2)
   const gerarAnosDisponiveis = () => {
     const anoAtual = new Date().getFullYear();
     const anos = [];
@@ -333,7 +523,6 @@ const Segurados = () => {
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">Segurados Ativos</h1>
 
-        {/* Barra de busca com botão e filtro de ano */}
         <div className="mb-6 flex gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 text-gray-400" size={20} />
@@ -351,7 +540,6 @@ const Segurados = () => {
             onChange={(e) => setAnoFiltro(e.target.value)}
             className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
           >
-            {/* opção em branco = sem filtro */}
             <option value="">Todos (sem filtro)</option>
             {gerarAnosDisponiveis().map((ano) => (
               <option key={ano} value={ano}>
@@ -379,7 +567,6 @@ const Segurados = () => {
           </button>
         </div>
 
-        {/* Mensagem de erro */}
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
             <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
@@ -387,13 +574,11 @@ const Segurados = () => {
           </div>
         )}
 
-        {/* Contador */}
         <div className="mb-4 text-gray-600">
           {filteredSegurados.length} segurado(s) encontrado(s)
           {anoFiltro && ` para o ano ${anoFiltro}`}
         </div>
 
-        {/* Grid de cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredSegurados.map((segurado, index) => (
             <div
@@ -435,7 +620,6 @@ const Segurados = () => {
                   </div>
                 )}
 
-                {/* Lista de veículos */}
                 {segurado.vehicles && segurado.vehicles.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
                     <div className="flex items-center gap-2 mb-2">
@@ -446,63 +630,94 @@ const Segurados = () => {
                     </div>
 
                     <div className="space-y-2">
-                      {segurado.vehicles.map((vehicle, vIndex) => (
-                        <div key={vIndex} className={`rounded-lg p-3 border ${vehicle.Status === "Cancelado" ? "bg-red-50 border-red-300" : "bg-gray-50 border-gray-200"}`}>
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-800 text-sm">
-                                {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
-                                {vehicle.Status === "Cancelado" && <span className="ml-2 text-red-600 font-bold">Cancelado</span>}
-                              </p>
-                              {vehicle.Endossado && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <CheckCircle size={14} className="text-green-600" />
-                                  <span className="text-xs text-green-600 font-semibold">Endossado</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex flex-col gap-2 ml-2">
-                              <button
-                                onClick={() => handleEndossar(segurado, vehicle)}
-                                className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
-                              >
-                                <Edit size={12} />
-                                Endossar
-                              </button>
-                              {vehicle.Status !== "Cancelado" && (
+                      {segurado.vehicles.map((vehicle, vIndex) => {
+                        const key = makeVehicleKey(segurado, vehicle);
+                        const idInfo = vehicleLeadIds[key] || { status: 'idle' };
+
+                        return (
+                          <div key={vIndex} className={`rounded-lg p-3 border ${vehicle.Status === "Cancelado" ? "bg-red-50 border-red-300" : "bg-gray-50 border-gray-200"}`}>
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-800 text-sm">
+                                  {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
+                                  {vehicle.Status === "Cancelado" && <span className="ml-2 text-red-600 font-bold">Cancelado</span>}
+                                </p>
+                                {vehicle.Endossado && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <CheckCircle size={14} className="text-green-600" />
+                                    <span className="text-xs text-green-600 font-semibold">Endossado</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex flex-col gap-2 ml-2">
                                 <button
-                                  onClick={() => handleCancelar(segurado, vehicle)}
-                                  className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
+                                  onClick={() => handleEndossar(segurado, vehicle)}
+                                  className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
                                 >
-                                  <X size={12} />
-                                  Cancelar
+                                  <Edit size={12} />
+                                  Endossar
+                                </button>
+                                {vehicle.Status !== "Cancelado" && (
+                                  <button
+                                    onClick={() => handleCancelar(segurado, vehicle)}
+                                    className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
+                                  >
+                                    <X size={12} />
+                                    Cancelar
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {vehicle.Seguradora && (
+                              <p className="text-xs text-gray-600 mb-1">
+                                Seguradora: {vehicle.Seguradora}
+                              </p>
+                            )}
+
+                            <div className="flex items-center gap-2 mt-1">
+                              {idInfo.status === 'idle' && (
+                                <button
+                                  onClick={() => handleBuscarId(segurado, vehicle)}
+                                  className="text-xs text-blue-600 hover:underline"
+                                >
+                                  Buscar ID do lead
                                 </button>
                               )}
+                              {idInfo.status === 'loading' && (
+                                <span className="text-xs text-gray-500">Buscando ID...</span>
+                              )}
+                              {idInfo.status === 'found' && (
+                                <span className="text-xs text-gray-700">Lead ID: ****{String(idInfo.display).slice(-5)}</span>
+                              )}
+                              {idInfo.status === 'not_found' && (
+                                <span className="text-xs text-gray-500">ID não encontrado</span>
+                              )}
+                              {idInfo.status === 'no_cors' && (
+                                <span className="text-xs text-orange-600">Resposta bloqueada por no-cors — não é possível obter ID</span>
+                              )}
+                              {idInfo.status === 'error' && (
+                                <span className="text-xs text-red-500">Erro ao buscar ID</span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1 text-xs text-gray-600 mt-2 pt-2 border-t border-gray-300">
+                              <Calendar size={12} className="text-gray-400" />
+                              <span>
+                                {formatarData(vehicle.VigenciaInicial)} até {formatarData(vehicle.VigenciaFinal)}
+                                {vehicle.Status === "Cancelado" && vehicle.DataCancelamento && (
+                                  <>
+                                    <span className="mx-2 text-gray-400">|</span>
+                                    <span className="text-red-600 font-semibold">
+                                      Cancelado em: {formatarData(vehicle.DataCancelamento)}
+                                    </span>
+                                  </>
+                                )}
+                              </span>
                             </div>
                           </div>
-
-                          {vehicle.Seguradora && (
-                            <p className="text-xs text-gray-600 mb-1">
-                              Seguradora: {vehicle.Seguradora}
-                            </p>
-                          )}
-
-                          <div className="flex items-center gap-1 text-xs text-gray-600 mt-2 pt-2 border-t border-gray-300">
-                            <Calendar size={12} className="text-gray-400" />
-                            <span>
-                              {formatarData(vehicle.VigenciaInicial)} até {formatarData(vehicle.VigenciaFinal)}
-                              {vehicle.Status === "Cancelado" && vehicle.DataCancelamento && (
-                                <>
-                                  <span className="mx-2 text-gray-400">|</span>
-                                  <span className="text-red-600 font-semibold">
-                                    Cancelado em: {formatarData(vehicle.DataCancelamento)}
-                                  </span>
-                                </>
-                              )}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -518,7 +733,6 @@ const Segurados = () => {
         )}
       </div>
 
-      {/* Modal de Endosso */}
       {showEndossoModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
