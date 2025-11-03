@@ -268,26 +268,63 @@ const Segurados = () => {
     setSavingEndosso(true);
 
     try {
-      const payload = {
+      // 1. Atualizar Renovações (vehicleModel e vehicleYearModel)
+      const payloadUpdate = {
         action: 'endossar_veiculo',
         id: endossoData.clienteId,
         name: endossoData.clienteNome,
         vehicleModel: endossoData.vehicleModel,
-        vehicleYearModel: endossoData.vehicleYearModel,
-        premioLiquido: endossoData.premioLiquido,
-        comissao: endossoData.comissao,
-        meioPagamento: endossoData.meioPagamento,
-        numeroParcelas: endossoData.numeroParcelas
+        vehicleYearModel: endossoData.vehicleYearModel
       };
 
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payloadUpdate)
       });
 
-      alert('Solicitação de endosso enviada. Verifique os dados atualizados na listagem.');
+      // 2. Registrar endosso em "Relatorios de Seguros Novos"
+      const payloadRegister = {
+        action: 'registrar_endosso',
+        id: endossoData.clienteId,
+        name: endossoData.clienteNome,
+        seguradora: endossoData.Seguradora || '',
+        premioLiquido: endossoData.premioLiquido,
+        comissao: endossoData.comissao,
+        meioPagamento: endossoData.meioPagamento,
+        parcelamento: endossoData.numeroParcelas
+      };
+
+      await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadRegister)
+      });
+
+      // Atualizar localmente (marcar como Endossado)
+      setSegurados((prev) =>
+        prev.map((s) => {
+          if (s.name !== endossoData.clienteNome) return s;
+          const vehiclesAtualizados = s.vehicles.map((v) => {
+            if (
+              v.vehicleModel === endossoData.vehicleModel &&
+              v.vehicleYearModel === endossoData.vehicleYearModel
+            ) {
+              return {
+                ...v,
+                Endossado: true,
+                vehicleModel: endossoData.vehicleModel,
+                vehicleYearModel: endossoData.vehicleYearModel
+              };
+            }
+            return v;
+          });
+          return { ...s, vehicles: vehiclesAtualizados };
+        })
+      );
+
       setShowEndossoModal(false);
       setTimeout(fetchSegurados, 1200);
     } catch (err) {
