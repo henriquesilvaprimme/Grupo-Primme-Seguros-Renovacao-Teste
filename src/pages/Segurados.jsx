@@ -47,18 +47,16 @@ const Segurados = () => {
       );
     }
 
-    // Filtrar por ano (se especificado)
-    if (anoFiltro && anoFiltro !== '') {
-      filtered = filtered.filter((segurado) => {
-        return segurado.vehicles.some((vehicle) => {
-          const vigenciaInicial = vehicle.VigenciaInicial;
-          if (!vigenciaInicial) return false;
-
-          const dataVigencia = new Date(vigenciaInicial);
-          return dataVigencia.getFullYear() === parseInt(anoFiltro);
-        });
+    // Filtrar por ano
+    filtered = filtered.filter((segurado) => {
+      return segurado.vehicles.some((vehicle) => {
+        const vigenciaInicial = vehicle.VigenciaInicial;
+        if (!vigenciaInicial) return false;
+        
+        const dataVigencia = new Date(vigenciaInicial);
+        return dataVigencia.getFullYear() === parseInt(anoFiltro);
       });
-    }
+    });
 
     setFilteredSegurados(filtered);
   }, [searchTerm, segurados, anoFiltro]);
@@ -90,7 +88,6 @@ const Segurados = () => {
 
       // Agrupar por nome e telefone, mantendo múltiplos veículos
       const clientesAgrupados = todosClientes.reduce((acc, cliente) => {
-        // Normalizar os nomes dos campos
         const telefone = cliente.phone || cliente.Telefone || cliente.telefone || '';
         const nome = cliente.name || cliente.Name || cliente.nome || '';
 
@@ -110,7 +107,6 @@ const Segurados = () => {
           };
         }
 
-        // Adicionar veículo com suas vigências
         acc[chave].vehicles.push({
           vehicleModel: cliente.vehicleModel || cliente.vehiclemodel || cliente.Modelo || '',
           vehicleYearModel: cliente.vehicleYearModel || cliente.vehicleyearmodel || cliente.AnoModelo || '',
@@ -128,178 +124,6 @@ const Segurados = () => {
 
       setSegurados(Object.values(clientesAgrupados));
       setFilteredSegurados(Object.values(clientesAgrupados));
-    } catch (error) {
-      console.error('Erro ao buscar segurados:', error);
-      setError(error.message || 'Erro ao buscar segurados. Verifique o console para mais detalhes.');
-      setSegurados([]);
-      setFilteredSegurados([]);
-    } finally {
-      setLoading(false);
-    }
-  }mport React, { useState, useEffect } from 'react';
-import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle } from 'lucide-react';
-
-const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
-
-const Segurados = () => {
-  const [segurados, setSegurados] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filteredSegurados, setFilteredSegurados] = useState([]);
-  const [error, setError] = useState(null);
-  const [anoFiltro, setAnoFiltro] = useState('');
-  const [showEndossoModal, setShowEndossoModal] = useState(false);
-  const [endossoData, setEndossoData] = useState({
-    clienteId: '',
-    clienteNome: '',
-    clienteTelefone: '',
-    vehicleModel: '',
-    vehicleYearModel: '',
-    premioLiquido: '',
-    comissao: '',
-    meioPagamento: '',
-    numeroParcelas: '1',
-    vigenciaInicial: '',
-    vigenciaFinal: ''
-  });
-  const [savingEndosso, setSavingEndosso] = useState(false);
-  const [showCancelarModal, setShowCancelarModal] = useState(false);
-  const [cancelarData, setCancelarData] = useState({
-    clienteId: '',
-    clienteNome: '',
-    clienteTelefone: '',
-    vehicleModel: '',
-    vehicleYearModel: ''
-  });
-  const [savingCancelar, setSavingCancelar] = useState(false);
-
-  useEffect(() => {
-    let filtered = segurados;
-
-    // Filtrar por termo de busca
-    if (searchTerm.trim() !== '') {
-      filtered = filtered.filter(
-        (segurado) =>
-          segurado.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          segurado.phone.includes(searchTerm)
-      );
-    }
-
-    // Filtrar por ano (se especificado)
-    if (anoFiltro && anoFiltro !== '') {
-      filtered = filtered.filter((segurado) => {
-        return segurado.vehicles.some((vehicle) => {
-          const vigenciaInicial = vehicle.VigenciaInicial;
-          if (!vigenciaInicial) return false;
-
-          const dataVigencia = new Date(vigenciaInicial);
-          return dataVigencia.getFullYear() === parseInt(anoFiltro);
-        });
-      });
-    }
-
-    setFilteredSegurados(filtered);
-  }, [searchTerm, segurados, anoFiltro]);
-
-  const fetchSegurados = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      console.log('Iniciando busca de segurados...');
-      
-      // Buscar da aba "Leads Fechados"
-      console.log('Buscando Leads Fechados...');
-      const responseFechados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`);
-      const dataFechados = await responseFechados.json();
-      console.log('Leads Fechados recebidos:', dataFechados);
-
-      // Buscar da aba "Renovados"
-      console.log('Buscando Renovados...');
-      const responseRenovados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovados`);
-      const dataRenovados = await responseRenovados.json();
-      console.log('Renovados recebidos:', dataRenovados);
-
-      // Verificar se há erros nas respostas
-      if (dataFechados.status === 'error') {
-        throw new Error(`Erro em Leads Fechados: ${dataFechados.message}`);
-      }
-      if (dataRenovados.status === 'error') {
-        throw new Error(`Erro em Renovados: ${dataRenovados.message}`);
-      }
-
-      // Combinar todos os clientes
-      const todosClientes = [
-        ...(Array.isArray(dataFechados) ? dataFechados : []), 
-        ...(Array.isArray(dataRenovados) ? dataRenovados : [])
-      ];
-      
-      console.log('Total de clientes combinados:', todosClientes.length);
-      
-      // Agrupar por nome e telefone, mantendo múltiplos veículos
-      const clientesAgrupados = todosClientes.reduce((acc, cliente) => {
-        // Normalizar os nomes dos campos
-        const telefone = cliente.phone || cliente.Telefone || cliente.telefone || '';
-        const nome = cliente.name || cliente.Name || cliente.nome || '';
-        
-        if (!telefone && !nome) return acc;
-        
-        const chave = `${nome}_${telefone}`;
-        
-        if (!acc[chave]) {
-          acc[chave] = {
-            id: cliente.id || cliente.ID || cliente.Id || '',
-            name: nome,
-            phone: telefone,
-            city: cliente.city || cliente.Cidade || '',
-            insuranceType: cliente.insuranceType || cliente.insurancetype || cliente.TipoSeguro || '',
-            Responsavel: cliente.Responsavel || cliente.responsavel || '',
-            vehicles: []
-          };
-        }
-        
-        // Adicionar veículo com suas vigências
-        acc[chave].vehicles.push({
-          vehicleModel: cliente.vehicleModel || cliente.vehiclemodel || cliente.Modelo || '',
-          vehicleYearModel: cliente.vehicleYearModel || cliente.vehicleyearmodel || cliente.AnoModelo || '',
-          VigenciaInicial: cliente.VigenciaInicial || cliente.vigenciaInicial || '',
-          VigenciaFinal: cliente.VigenciaFinal || cliente.vigenciaFinal || '',
-          Seguradora: cliente.Seguradora || cliente.seguradora || '',
-          PremioLiquido: cliente.PremioLiquido || cliente.premioLiquido || '',
-          Comissao: cliente.Comissao || cliente.comissao || '',
-          Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
-          Endossado: cliente.Endossado || false,
-        });
-        
-        return acc;
-      }, {});
-
-      // Converter objeto em array
-      const clientesUnicos = Object.values(clientesAgrupados).map(cliente => {
-        // Ordenar veículos por vigência final mais recente
-        cliente.vehicles.sort((a, b) => {
-          const dateA = new Date(a.VigenciaFinal || '1900-01-01');
-          const dateB = new Date(b.VigenciaFinal || '1900-01-01');
-          return dateB - dateA;
-        });
-        return cliente;
-      });
-
-      console.log('Clientes únicos processados:', clientesUnicos.length);
-
-      // Ordenar por vigência final mais recente do primeiro veículo
-      clientesUnicos.sort((a, b) => {
-        const dateA = new Date(a.vehicles[0]?.VigenciaFinal || '1900-01-01');
-        const dateB = new Date(b.vehicles[0]?.VigenciaFinal || '1900-01-01');
-        return dateB - dateA;
-      });
-
-      setSegurados(clientesUnicos);
-      
-      if (clientesUnicos.length === 0) {
-        setError('Nenhum segurado encontrado nas abas "Leads Fechados" e "Renovados".');
-      }
-      
     } catch (error) {
       console.error('Erro ao buscar segurados:', error);
       setError(error.message || 'Erro ao buscar segurados. Verifique o console para mais detalhes.');
@@ -327,13 +151,48 @@ const Segurados = () => {
     setShowEndossoModal(true);
   };
 
+  const confirmarEndosso = async () => {
+    setSavingEndosso(true);
+
+    try {
+      const response = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=endossar_veiculo`, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          clienteId: endossoData.clienteId,
+          clienteNome: endossoData.clienteNome,
+          clienteTelefone: endossoData.clienteTelefone,
+          vehicleModel: endossoData.vehicleModel,
+          vehicleYearModel: endossoData.vehicleYearModel,
+          seguradora: endossoData.seguradora,
+          premioLiquido: endossoData.premioLiquido,
+          comissao: endossoData.comissao,
+          parcelamento: endossoData.parcelamento,
+        }),
+      });
+
+      setTimeout(() => {
+        setShowEndossoModal(false);
+        setSavingEndosso(false);
+        fetchSegurados();
+      }, 1000);
+    } catch (error) {
+      console.error('Erro ao endossar:', error);
+      alert('Erro ao endossar veículo. Tente novamente.');
+      setSavingEndosso(false);
+    }
+  };
+
   const handleCancelar = (segurado, vehicle) => {
     setCancelarData({
       clienteId: segurado.id,
       clienteNome: segurado.name,
       clienteTelefone: segurado.phone,
-      vehicleModel: vehicle.vehicleModel || '',
-      vehicleYearModel: vehicle.vehicleYearModel || ''
+      vehicleModel: vehicle.vehicleModel,
+      vehicleYearModel: vehicle.vehicleYearModel,
     });
     setShowCancelarModal(true);
   };
@@ -342,41 +201,32 @@ const Segurados = () => {
     setSavingCancelar(true);
 
     try {
-      const payload = {
-        v: 'cancelar_renovacao',
-        phone: cancelarData.clienteTelefone,
-        name: cancelarData.clienteNome
-      };
-
-      console.log('Enviando cancelamento:', payload);
-
-      const response = await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
-        mode: 'no-cors',
+      const response = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=cancelar_renovacao`, {
         method: 'POST',
+        mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          clienteId: cancelarData.clienteId,
+          clienteNome: cancelarData.clienteNome,
+          clienteTelefone: cancelarData.clienteTelefone,
+          vehicleModel: cancelarData.vehicleModel,
+          vehicleYearModel: cancelarData.vehicleYearModel,
+        }),
       });
 
-      // Com mode: 'no-cors', não podemos ler a resposta, então assumimos sucesso
-      console.log('Cancelamento enviado com sucesso');
-      alert('Renovação cancelada com sucesso!');
-      setShowCancelarModal(false);
-
-      // Aguardar um pouco antes de recarregar para dar tempo do servidor processar
       setTimeout(() => {
+        setShowCancelarModal(false);
+        setSavingCancelar(false);
         fetchSegurados();
       }, 1000);
-
     } catch (error) {
       console.error('Erro ao cancelar:', error);
-      alert('Erro ao cancelar renovação. Verifique o console.');
-    } finally {
+      alert('Erro ao cancelar renovação. Tente novamente.');
       setSavingCancelar(false);
     }
   };
-
 
   // Envio com no-cors: não é possível ler a resposta.
   // Consideramos sucesso se o fetch não lançar erro de rede.
@@ -566,14 +416,13 @@ const Segurados = () => {
                               <Edit size={12} />
                               Endossar
                             </button>
-                              <button
-                                onClick={() => handleCancelar(segurado, vehicle)}
-                                className="ml-2 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
-                              >
-                                <X className="w-4 h-4" />
-                                Cancelar
-                              </button>
-                              
+                            <button
+                              onClick={() => handleCancelar(segurado, vehicle)}
+                              className="ml-2 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
+                            >
+                              <X size={12} />
+                              Cancelar
+                            </button>
                           </div>
                           
                           {vehicle.Seguradora && (
@@ -722,68 +571,62 @@ const Segurados = () => {
             </div>
           </div>
         </div>
-      )}
+
 
       {/* Modal de Cancelamento */}
       {showCancelarModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-gray-900">Confirmar Cancelamento</h3>
-              <button
-                onClick={() => setShowCancelarModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="mb-6">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <p className="text-red-800 font-medium mb-2">
-                  ⚠️ Atenção: Esta ação não pode ser desfeita!
-                </p>
-                <p className="text-red-700 text-sm">
-                  Você está prestes a cancelar a renovação deste cliente.
-                </p>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Cancelar Renovação</h2>
+                <button
+                  onClick={() => setShowCancelarModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
               </div>
 
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-600">Cliente:</p>
-                  <p className="font-semibold text-gray-900">{cancelarData.clienteNome}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Telefone:</p>
-                  <p className="font-semibold text-gray-900">{cancelarData.clienteTelefone}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Veículo:</p>
-                  <p className="font-semibold text-gray-900">
+              <div className="space-y-4 mb-6">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800 font-medium mb-2">
+                    ⚠️ Atenção: Esta ação irá cancelar a renovação
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    Cliente: <span className="font-semibold">{cancelarData.clienteNome}</span>
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    Telefone: <span className="font-semibold">{cancelarData.clienteTelefone}</span>
+                  </p>
+                  <p className="text-sm text-gray-700 mt-2">
+                    Veículo: <span className="font-semibold">
                     {cancelarData.vehicleModel} - {cancelarData.vehicleYearModel}
+                    </span>
                   </p>
                 </div>
               </div>
-            </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowCancelarModal(false)}
-                disabled={savingCancelar}
-                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-              >
-                Voltar
-              </button>
-              <button
-                onClick={confirmarCancelamento}
-                disabled={savingCancelar}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {savingCancelar ? 'Cancelando...' : 'Confirmar Cancelamento'}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCancelarModal(false)}
+                  disabled={savingCancelar}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Voltar
+                </button>
+                <button
+                  onClick={confirmarCancelamento}
+                  disabled={savingCancelar}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingCancelar ? 'Cancelando...' : 'Confirmar Cancelamento'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
       )}
     </div>
   );
