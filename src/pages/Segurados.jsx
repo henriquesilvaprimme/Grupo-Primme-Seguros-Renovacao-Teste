@@ -60,6 +60,150 @@ const Segurados = () => {
       });
     }
 
+    
+    });
+
+    setFilteredSegurados(filtered);
+  }, [searchTerm, segurados, anoFiltro]);
+
+  const fetchSegurados = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log('Iniciando busca de segurados...');
+
+      // Buscar APENAS da aba "Renovações"
+      console.log('Buscando Renovações...');
+      const responseRenovacoes = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovacoes`, {
+        mode: 'no-cors'
+      });
+      const dataRenovacoes = await responseRenovacoes.json();
+      console.log('Renovações recebidas:', dataRenovacoes);
+
+      // Verificar se há erros nas respostas
+      if (dataRenovacoes.status === 'error') {
+        throw new Error(`Erro em Renovações: ${dataRenovacoes.message}`);
+      }
+
+      // Usar apenas os dados de Renovações
+      const todosClientes = Array.isArray(dataRenovacoes) ? dataRenovacoes : [];
+
+      console.log('Total de clientes:', todosClientes.length);
+
+      // Agrupar por nome e telefone, mantendo múltiplos veículos
+      const clientesAgrupados = todosClientes.reduce((acc, cliente) => {
+        // Normalizar os nomes dos campos
+        const telefone = cliente.phone || cliente.Telefone || cliente.telefone || '';
+        const nome = cliente.name || cliente.Name || cliente.nome || '';
+
+        if (!telefone && !nome) return acc;
+
+        const chave = `${nome}_${telefone}`;
+
+        if (!acc[chave]) {
+          acc[chave] = {
+            id: cliente.id || cliente.ID || cliente.Id || '',
+            name: nome,
+            phone: telefone,
+            city: cliente.city || cliente.Cidade || '',
+            insuranceType: cliente.insuranceType || cliente.insurancetype || cliente.TipoSeguro || '',
+            Responsavel: cliente.Responsavel || cliente.responsavel || '',
+            vehicles: []
+          };
+        }
+
+        // Adicionar veículo com suas vigências
+        acc[chave].vehicles.push({
+          vehicleModel: cliente.vehicleModel || cliente.vehiclemodel || cliente.Modelo || '',
+          vehicleYearModel: cliente.vehicleYearModel || cliente.vehicleyearmodel || cliente.AnoModelo || '',
+          VigenciaInicial: cliente.VigenciaInicial || cliente.vigenciaInicial || '',
+          VigenciaFinal: cliente.VigenciaFinal || cliente.vigenciaFinal || '',
+          Seguradora: cliente.Seguradora || cliente.seguradora || '',
+          PremioLiquido: cliente.PremioLiquido || cliente.premioLiquido || '',
+          Comissao: cliente.Comissao || cliente.comissao || '',
+          Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
+          Endossado: cliente.Endossado || false,
+        });
+
+        return acc;
+      }, {});
+
+      setSegurados(Object.values(clientesAgrupados));
+      setFilteredSegurados(Object.values(clientesAgrupados));
+    } catch (error) {
+      console.error('Erro ao buscar segurados:', error);
+      setError(error.message || 'Erro ao buscar segurados. Verifique o console para mais detalhes.');
+      setSegurados([]);
+      setFilteredSegurados([]);
+    } finally {
+      setLoading(false);
+    }
+  }mport React, { useState, useEffect } from 'react';
+import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle } from 'lucide-react';
+
+const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
+
+const Segurados = () => {
+  const [segurados, setSegurados] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredSegurados, setFilteredSegurados] = useState([]);
+  const [error, setError] = useState(null);
+  const [anoFiltro, setAnoFiltro] = useState('');
+  const [showEndossoModal, setShowEndossoModal] = useState(false);
+  const [endossoData, setEndossoData] = useState({
+    clienteId: '',
+    clienteNome: '',
+    clienteTelefone: '',
+    vehicleModel: '',
+    vehicleYearModel: '',
+    premioLiquido: '',
+    comissao: '',
+    meioPagamento: '',
+    numeroParcelas: '1',
+    vigenciaInicial: '',
+    vigenciaFinal: ''
+  });
+  const [savingEndosso, setSavingEndosso] = useState(false);
+  const [showCancelarModal, setShowCancelarModal] = useState(false);
+  const [cancelarData, setCancelarData] = useState({
+    clienteId: '',
+    clienteNome: '',
+    clienteTelefone: '',
+    vehicleModel: '',
+    vehicleYearModel: ''
+  });
+  const [savingCancelar, setSavingCancelar] = useState(false);
+
+  useEffect(() => {
+    let filtered = segurados;
+
+    // Filtrar por termo de busca
+    if (searchTerm.trim() !== '') {
+      filtered = filtered.filter(
+        (segurado) =>
+          segurado.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          segurado.phone.includes(searchTerm)
+      );
+    }
+
+    // Filtrar por ano (se especificado)
+    if (anoFiltro && anoFiltro !== '') {
+      filtered = filtered.filter((segurado) => {
+        return segurado.vehicles.some((vehicle) => {
+          const vigenciaInicial = vehicle.VigenciaInicial;
+          if (!vigenciaInicial) return false;
+
+          const dataVigencia = new Date(vigenciaInicial);
+          return dataVigencia.getFullYear() === parseInt(anoFiltro);
+        });
+      });
+    }
+
+    
+    });
+
     setFilteredSegurados(filtered);
   }, [searchTerm, segurados, anoFiltro]);
 
@@ -189,10 +333,6 @@ const Segurados = () => {
     setShowEndossoModal(true);
   };
 
-  // Envio com no-cors: não é possível ler a resposta.
-  // Consideramos sucesso se o fetch não lançar erro de rede.
-  
-
   const handleCancelar = (segurado, vehicle) => {
     setCancelarData({
       clienteId: segurado.id,
@@ -217,6 +357,7 @@ const Segurados = () => {
       console.log('Enviando cancelamento:', payload);
 
       const response = await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
+        mode: 'no-cors',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -224,16 +365,16 @@ const Segurados = () => {
         body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
-      console.log('Resposta do cancelamento:', result);
+      // Com mode: 'no-cors', não podemos ler a resposta, então assumimos sucesso
+      console.log('Cancelamento enviado com sucesso');
+      alert('Renovação cancelada com sucesso!');
+      setShowCancelarModal(false);
 
-      if (result.success) {
-        alert('Renovação cancelada com sucesso!');
-        setShowCancelarModal(false);
-        fetchSegurados(); // Recarregar a lista
-      } else {
-        alert('Erro ao cancelar renovação: ' + (result.message || 'Erro desconhecido'));
-      }
+      // Aguardar um pouco antes de recarregar para dar tempo do servidor processar
+      setTimeout(() => {
+        fetchSegurados();
+      }, 1000);
+
     } catch (error) {
       console.error('Erro ao cancelar:', error);
       alert('Erro ao cancelar renovação. Verifique o console.');
@@ -241,7 +382,11 @@ const Segurados = () => {
       setSavingCancelar(false);
     }
   };
-const handleSaveEndosso = async () => {
+
+
+  // Envio com no-cors: não é possível ler a resposta.
+  // Consideramos sucesso se o fetch não lançar erro de rede.
+  const handleSaveEndosso = async () => {
     setSavingEndosso(true);
     
     try {
@@ -429,11 +574,12 @@ const handleSaveEndosso = async () => {
                             </button>
                               <button
                                 onClick={() => handleCancelar(segurado, vehicle)}
-                                className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center gap-1.5"
+                                className="ml-2 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
                               >
                                 <X className="w-4 h-4" />
                                 Cancelar
                               </button>
+                              
                           </div>
                           
                           {vehicle.Seguradora && (
