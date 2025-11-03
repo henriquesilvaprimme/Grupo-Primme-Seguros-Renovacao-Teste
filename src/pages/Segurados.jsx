@@ -60,9 +60,6 @@ const Segurados = () => {
       });
     }
 
-    
-    });
-
     setFilteredSegurados(filtered);
   }, [searchTerm, segurados, anoFiltro]);
 
