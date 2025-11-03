@@ -120,6 +120,8 @@ const Segurados = () => {
           Comissao: cliente.Comissao || cliente.comissao || '',
           Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
           Endossado: cliente.Endossado || false,
+          Status: cliente.Status || cliente.status || "",
+          DataCancelamento: cliente.DataCancelamento || cliente.dataCancelamento || "",
         });
         
         return acc;
@@ -385,11 +387,12 @@ const Segurados = () => {
                     
                     <div className="space-y-2">
                       {segurado.vehicles.map((vehicle, vIndex) => (
-                        <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <div key={vIndex} className={`rounded-lg p-3 border ${vehicle.Status === "Cancelado" ? "bg-red-50 border-red-300" : "bg-gray-50 border-gray-200"}`}>
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <p className="font-medium text-gray-800 text-sm">
                                 {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
+                                {vehicle.Status === "Cancelado" && <span className="ml-2 text-red-600 font-bold">Cancelado</span>}
                               </p>
                               {vehicle.Endossado && (
                                 <div className="flex items-center gap-1 mt-1">
@@ -406,6 +409,7 @@ const Segurados = () => {
                                 <Edit size={12} />
                                 Endossar
                               </button>
+                              {vehicle.Status !== "Cancelado" && (
                               <button
                                 onClick={() => handleCancelar(segurado)}
                                 className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
@@ -413,6 +417,7 @@ const Segurados = () => {
                                 <X size={12} />
                                 Cancelar
                               </button>
+                              )}
                             </div>
                           </div>
                           
@@ -426,6 +431,14 @@ const Segurados = () => {
                             <Calendar size={12} className="text-gray-400" />
                             <span>
                               {formatarData(vehicle.VigenciaInicial)} até {formatarData(vehicle.VigenciaFinal)}
+                              {vehicle.Status === "Cancelado" && vehicle.DataCancelamento && (
+                                <>
+                                  <span className="mx-2 text-gray-400">|</span>
+                                  <span className="text-red-600 font-semibold">
+                                    Cancelado em: {formatarData(vehicle.DataCancelamento)}
+                                  </span>
+                                </>
+                              )}
                             </span>
                           </div>
                         </div>
