@@ -171,42 +171,98 @@ const Segurados = () => {
     setShowEndossoModal(true);
   };
 
-  // Agora recebe o veículo também e envia os campos solicitados
+  // Helpers para normalização/comparação
+  const normalizeStr = (s) => (s === null || s === undefined ? '' : String(s).trim());
+  const normalizeDateForCompare = (d) => {
+    if (!d && d !== 0) return '';
+    const dt = new Date(d);
+    if (!isNaN(dt.getTime())) {
+      return dt.toISOString().slice(0, 10); // YYYY-MM-DD
+    }
+    return String(d).trim();
+  };
+
+  // Nova lógica: procura por correspondência dos cinco campos no estado local.
+  // Só envia a requisição e marca Status como "Cancelado" se encontrar correspondência.
   const handleCancelar = async (segurado, vehicle) => {
-    const modelo = vehicle?.vehicleModel || 'veículo';
-    const anoModelo = vehicle?.vehicleYearModel || '';
-    const confirmMsg = `Tem certeza que deseja CANCELAR o seguro de ${segurado.name} - ${modelo} ${anoModelo}?`;
+    const nome = normalizeStr(segurado.name);
+    const vehicleModel = normalizeStr(vehicle?.vehicleModel);
+    const vehicleYearModel = normalizeStr(vehicle?.vehicleYearModel);
+    const VigenciaInicial = normalizeDateForCompare(vehicle?.VigenciaInicial);
+    const VigenciaFinal = normalizeDateForCompare(vehicle?.VigenciaFinal);
+
+    const confirmMsg = `Tem certeza que deseja CANCELAR o seguro de ${nome} - ${vehicleModel} ${vehicleYearModel}?`;
     if (!window.confirm(confirmMsg)) {
       return;
     }
 
-    try {
-      // Montar payload com campos necessários para identificar o lead/registro específico
-      const payload = {
-        action: 'cancelar_seguro',
-        id: segurado.id || '',
-        name: segurado.name || '',
-        vehicleModel: vehicle?.vehicleModel || '',
-        vehicleYearModel: vehicle?.vehicleYearModel || '',
-        VigenciaInicial: vehicle?.VigenciaInicial || '',
-        VigenciaFinal: vehicle?.VigenciaFinal || ''
-      };
+    // Verificar se existe correspondência no estado atual
+    let encontrouCorrespondencia = false;
 
+    setSegurados((prev) =>
+      prev.map((s) => {
+        // comparar apenas pelo name (conforme solicitado) e pelos campos do veículo
+        if (normalizeStr(s.name) !== nome) return s;
+
+        const vehiclesAtualizados = s.vehicles.map((v) => {
+          const vModel = normalizeStr(v.vehicleModel);
+          const vYear = normalizeStr(v.vehicleYearModel);
+          const vIni = normalizeDateForCompare(v.VigenciaInicial);
+          const vFim = normalizeDateForCompare(v.VigenciaFinal);
+
+          if (
+            vModel === vehicleModel &&
+            vYear === vehicleYearModel &&
+            vIni === VigenciaInicial &&
+            vFim === VigenciaFinal
+          ) {
+            encontrouCorrespondencia = true;
+            return {
+              ...v,
+              Status: 'Cancelado',
+              DataCancelamento: new Date().toISOString()
+            };
+          }
+          return v;
+        });
+
+        return { ...s, vehicles: vehiclesAtualizados };
+      })
+    );
+
+    if (!encontrouCorrespondencia) {
+      alert('Não foi encontrada nenhuma correspondência exata para os dados informados. Operação abortada.');
+      return;
+    }
+
+    // Montar payload sem o id, apenas com os campos solicitados
+    const payload = {
+      action: 'cancelar_seguro',
+      name: nome,
+      vehicleModel,
+      vehicleYearModel,
+      VigenciaInicial,
+      VigenciaFinal
+    };
+
+    try {
+      // Enviar solicitação ao GAS (sem id). Mantive no-cors como no seu original.
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
         method: 'POST',
-        mode: 'no-cors', // mantenha se seu GAS não suporta CORS; idealmente remova e habilite CORS no GAS
+        mode: 'no-cors', // ideal remover se você puder habilitar CORS no GAS
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload)
       });
 
-      alert('Solicitação de cancelamento enviada com sucesso!');
-      // Recarregar a lista para refletir o cancelamento (o GAS/planilha deve efetivar a mudança)
-      fetchSegurados();
+      alert('Solicitação de cancelamento enviada. Veículo marcado como "Cancelado" localmente (se os dados bateram).');
+      // Recarregar para garantir consistência com planilha/GAS
+      setTimeout(fetchSegurados, 1200);
     } catch (err) {
-      console.error('Erro ao cancelar seguro:', err);
-      alert('Erro ao cancelar seguro. Tente novamente.');
+      console.error('Erro ao enviar cancelamento:', err);
+      alert('Erro ao enviar cancelamento. Tente novamente.');
+      // Em caso de erro de rede, você pode querer reverter a atualização local — não faço isso automaticamente aqui.
     }
   };
 
