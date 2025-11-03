@@ -171,27 +171,39 @@ const Segurados = () => {
     setShowEndossoModal(true);
   };
 
-  const handleCancelar = async (segurado) => {
-    if (!window.confirm(`Tem certeza que deseja CANCELAR o seguro de ${segurado.name}?`)) {
+  // Agora recebe o veículo também e envia os campos solicitados
+  const handleCancelar = async (segurado, vehicle) => {
+    const modelo = vehicle?.vehicleModel || 'veículo';
+    const anoModelo = vehicle?.vehicleYearModel || '';
+    const confirmMsg = `Tem certeza que deseja CANCELAR o seguro de ${segurado.name} - ${modelo} ${anoModelo}?`;
+    if (!window.confirm(confirmMsg)) {
       return;
     }
 
     try {
+      // Montar payload com campos necessários para identificar o lead/registro específico
+      const payload = {
+        action: 'cancelar_seguro',
+        id: segurado.id || '',
+        name: segurado.name || '',
+        vehicleModel: vehicle?.vehicleModel || '',
+        vehicleYearModel: vehicle?.vehicleYearModel || '',
+        VigenciaInicial: vehicle?.VigenciaInicial || '',
+        VigenciaFinal: vehicle?.VigenciaFinal || ''
+      };
+
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
         method: 'POST',
-        mode: 'no-cors',
+        mode: 'no-cors', // mantenha se seu GAS não suporta CORS; idealmente remova e habilite CORS no GAS
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          action: 'cancelar_seguro',
-          id: segurado.id,
-          name: segurado.name
-        })
+        body: JSON.stringify(payload)
       });
 
-      alert('Seguro cancelado com sucesso!');
-      fetchSegurados(); // Recarregar a lista
+      alert('Solicitação de cancelamento enviada com sucesso!');
+      // Recarregar a lista para refletir o cancelamento (o GAS/planilha deve efetivar a mudança)
+      fetchSegurados();
     } catch (err) {
       console.error('Erro ao cancelar seguro:', err);
       alert('Erro ao cancelar seguro. Tente novamente.');
@@ -403,7 +415,7 @@ const Segurados = () => {
                               </button>
                               {vehicle.Status !== "Cancelado" && (
                                 <button
-                                  onClick={() => handleCancelar(segurado)}
+                                  onClick={() => handleCancelar(segurado, vehicle)}
                                   className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
                                 >
                                   <X size={12} />
