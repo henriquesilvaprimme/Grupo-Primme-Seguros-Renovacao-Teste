@@ -103,6 +103,7 @@ const Segurados = () => {
             name: nome,
             phone: telefone,
             city: cliente.city || cliente.Cidade || '',
+            insuranceType: cliente.insuranceType || cliente.insurancetype || cliente.TipoSeguro || '',
             Responsavel: cliente.Responsavel || cliente.responsavel || '',
             vehicles: []
           };
@@ -120,6 +121,7 @@ const Segurados = () => {
           Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
           Endossado: cliente.Endossado || false,
           Status: cliente.Status || cliente.status || "",
+          DataCancelamento: cliente.DataCancelamento || cliente.dataCancelamento || "",
         });
         
         return acc;
@@ -366,6 +368,13 @@ const Segurados = () => {
                   <span>{segurado.Responsavel || 'N/A'}</span>
                 </div>
 
+                {segurado.insuranceType && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500">Seguradora</p>
+                    <p className="font-medium text-gray-700">{segurado.insuranceType}</p>
+                  </div>
+                )}
+
                 {/* Lista de veículos */}
                 {segurado.vehicles && segurado.vehicles.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
@@ -422,6 +431,14 @@ const Segurados = () => {
                             <Calendar size={12} className="text-gray-400" />
                             <span>
                               {formatarData(vehicle.VigenciaInicial)} até {formatarData(vehicle.VigenciaFinal)}
+                              {vehicle.Status === "Cancelado" && vehicle.DataCancelamento && (
+                                <>
+                                  <span className="mx-2 text-gray-400">|</span>
+                                  <span className="text-red-600 font-semibold">
+                                    Cancelado em: {formatarData(vehicle.DataCancelamento)}
+                                  </span>
+                                </>
+                              )}
                             </span>
                           </div>
                         </div>
