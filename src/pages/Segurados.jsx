@@ -38,14 +38,29 @@ const Segurados = () => {
       );
     }
 
-    // Filtrar por ano
+    // Filtrar por ano - considera VigenciaInicial OU VigenciaFinal
     filtered = filtered.filter((segurado) => {
       return segurado.vehicles.some((vehicle) => {
         const vigenciaInicial = vehicle.VigenciaInicial;
-        if (!vigenciaInicial) return false;
+        const vigenciaFinal = vehicle.VigenciaFinal;
         
-        const dataVigencia = new Date(vigenciaInicial);
-        return dataVigencia.getFullYear() === parseInt(anoFiltro);
+        // Se tiver VigenciaInicial, verifica o ano
+        if (vigenciaInicial) {
+          const dataInicial = new Date(vigenciaInicial);
+          if (dataInicial.getFullYear() === parseInt(anoFiltro)) {
+            return true;
+          }
+        }
+        
+        // Se tiver VigenciaFinal, verifica o ano
+        if (vigenciaFinal) {
+          const dataFinal = new Date(vigenciaFinal);
+          if (dataFinal.getFullYear() === parseInt(anoFiltro)) {
+            return true;
+          }
+        }
+        
+        return false;
       });
     });
 
