@@ -103,6 +103,7 @@ const Segurados = () => {
             name: nome,
             phone: telefone,
             city: cliente.city || cliente.Cidade || '',
+            insuranceType: cliente.insuranceType || cliente.insurancetype || cliente.TipoSeguro || '',
             Responsavel: cliente.Responsavel || cliente.responsavel || '',
             vehicles: []
           };
@@ -366,6 +367,13 @@ const Segurados = () => {
                   <span>{segurado.Responsavel || 'N/A'}</span>
                 </div>
 
+                {segurado.insuranceType && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500">Seguradora</p>
+                    <p className="font-medium text-gray-700">{segurado.insuranceType}</p>
+                  </div>
+                )}
+
                 {/* Lista de veículos */}
                 {segurado.vehicles && segurado.vehicles.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
@@ -400,7 +408,6 @@ const Segurados = () => {
                                 <Edit size={12} />
                                 Endossar
                               </button>
-                              {vehicle.Status !== "Cancelado" && (
                               <button
                                 onClick={() => handleCancelar(segurado)}
                                 className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
@@ -408,7 +415,6 @@ const Segurados = () => {
                                 <X size={12} />
                                 Cancelar
                               </button>
-                              )}
                             </div>
                           </div>
                           
