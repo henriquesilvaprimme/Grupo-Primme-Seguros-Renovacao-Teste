@@ -9,7 +9,7 @@ const Segurados = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSegurados, setFilteredSegurados] = useState([]);
   const [error, setError] = useState(null);
-  const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
+  const [anoFiltro, setAnoFiltro] = useState(''); // campo em branco por padrão
   const [showEndossoModal, setShowEndossoModal] = useState(false);
   const [endossoData, setEndossoData] = useState({
     clienteId: '',
@@ -33,21 +33,23 @@ const Segurados = () => {
     if (searchTerm.trim() !== '') {
       filtered = filtered.filter(
         (segurado) =>
-          segurado.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          segurado.phone.includes(searchTerm)
+          (segurado.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (segurado.phone || '').includes(searchTerm)
       );
     }
 
-    // Filtrar por ano
-    filtered = filtered.filter((segurado) => {
-      return segurado.vehicles.some((vehicle) => {
-        const vigenciaInicial = vehicle.VigenciaInicial;
-        if (!vigenciaInicial) return false;
-        
-        const dataVigencia = new Date(vigenciaInicial);
-        return dataVigencia.getFullYear() === parseInt(anoFiltro);
-      });
-    });
+    // Filtrar por ano (aplica somente se anoFiltro não estiver em branco)
+    if (anoFiltro !== '' && anoFiltro !== null && typeof anoFiltro !== 'undefined') {
+      filtered = filtered.filter((segurado) =>
+        (segurado.vehicles || []).some((vehicle) => {
+          const vigenciaInicial = vehicle.VigenciaInicial || vehicle.vigenciaInicial || '';
+          if (!vigenciaInicial) return false;
+          const dataVigencia = new Date(vigenciaInicial);
+          if (isNaN(dataVigencia.getTime())) return false;
+          return dataVigencia.getFullYear() === parseInt(anoFiltro, 10);
+        })
+      );
+    }
 
     setFilteredSegurados(filtered);
   }, [searchTerm, segurados, anoFiltro]);
@@ -55,48 +57,36 @@ const Segurados = () => {
   const fetchSegurados = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       console.log('Iniciando busca de segurados...');
-      
-      // Buscar da aba "Leads Fechados"
-      console.log('Buscando Leads Fechados...');
-      const responseFechados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`);
-      const dataFechados = await responseFechados.json();
-      console.log('Leads Fechados recebidos:', dataFechados);
 
-      // Buscar da aba "Renovados"
-      console.log('Buscando Renovados...');
-      const responseRenovados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovados`);
-      const dataRenovados = await responseRenovados.json();
-      console.log('Renovados recebidos:', dataRenovados);
+      // Buscar da aba "Renovações"
+      console.log('Buscando Renovações...');
+      const responseRenovacoes = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovacoes`);
+      const dataRenovacoes = await responseRenovacoes.json();
+      console.log('Renovações recebidos:', dataRenovacoes);
 
-      // Verificar se há erros nas respostas
-      if (dataFechados.status === 'error') {
-        throw new Error(`Erro em Leads Fechados: ${dataFechados.message}`);
-      }
-      if (dataRenovados.status === 'error') {
-        throw new Error(`Erro em Renovados: ${dataRenovados.message}`);
+      // Se a API retornar um objeto de status de erro
+      if (dataRenovacoes && dataRenovacoes.status === 'error') {
+        throw new Error(`Erro em Renovações: ${dataRenovacoes.message}`);
       }
 
-      // Combinar todos os clientes
-      const todosClientes = [
-        ...(Array.isArray(dataFechados) ? dataFechados : []), 
-        ...(Array.isArray(dataRenovados) ? dataRenovados : [])
-      ];
-      
-      console.log('Total de clientes combinados:', todosClientes.length);
-      
+      // Combinar todos os clientes (garantir que é array)
+      const todosClientes = Array.isArray(dataRenovacoes) ? dataRenovacoes : [];
+
+      console.log('Total de clientes recebidos:', todosClientes.length);
+
       // Agrupar por nome e telefone, mantendo múltiplos veículos
       const clientesAgrupados = todosClientes.reduce((acc, cliente) => {
         // Normalizar os nomes dos campos
         const telefone = cliente.phone || cliente.Telefone || cliente.telefone || '';
         const nome = cliente.name || cliente.Name || cliente.nome || '';
-        
+
         if (!telefone && !nome) return acc;
-        
+
         const chave = `${nome}_${telefone}`;
-        
+
         if (!acc[chave]) {
           acc[chave] = {
             id: cliente.id || cliente.ID || cliente.Id || '',
@@ -105,10 +95,12 @@ const Segurados = () => {
             city: cliente.city || cliente.Cidade || '',
             insuranceType: cliente.insuranceType || cliente.insurancetype || cliente.TipoSeguro || '',
             Responsavel: cliente.Responsavel || cliente.responsavel || '',
+            // garantir propriedade de status em lowercase para uso consistente
+            status: cliente.Status || cliente.status || '',
             vehicles: []
           };
         }
-        
+
         // Adicionar veículo com suas vigências
         acc[chave].vehicles.push({
           vehicleModel: cliente.vehicleModel || cliente.vehiclemodel || cliente.Modelo || '',
@@ -120,16 +112,15 @@ const Segurados = () => {
           Comissao: cliente.Comissao || cliente.comissao || '',
           Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
           Endossado: cliente.Endossado || false,
-          Status: cliente.Status || cliente.status || "",
-          DataCancelamento: cliente.DataCancelamento || cliente.dataCancelamento || "",
+          Status: cliente.Status || cliente.status || '',
+          DataCancelamento: cliente.DataCancelamento || cliente.dataCancelamento || '',
         });
-        
+
         return acc;
       }, {});
 
-      // Converter objeto em array
+      // Converter objeto em array e ordenar veículos por vigência final mais recente
       const clientesUnicos = Object.values(clientesAgrupados).map(cliente => {
-        // Ordenar veículos por vigência final mais recente
         cliente.vehicles.sort((a, b) => {
           const dateA = new Date(a.VigenciaFinal || '1900-01-01');
           const dateB = new Date(b.VigenciaFinal || '1900-01-01');
@@ -148,14 +139,14 @@ const Segurados = () => {
       });
 
       setSegurados(clientesUnicos);
-      
+
       if (clientesUnicos.length === 0) {
-        setError('Nenhum segurado encontrado nas abas "Leads Fechados" e "Renovados".');
+        setError('Nenhum segurado encontrado nas abas "Renovações".');
       }
-      
-    } catch (error) {
-      console.error('Erro ao buscar segurados:', error);
-      setError(error.message || 'Erro ao buscar segurados. Verifique o console para mais detalhes.');
+
+    } catch (err) {
+      console.error('Erro ao buscar segurados:', err);
+      setError(err.message || 'Erro ao buscar segurados. Verifique o console para mais detalhes.');
       setSegurados([]);
       setFilteredSegurados([]);
     } finally {
@@ -186,7 +177,7 @@ const Segurados = () => {
     }
 
     try {
-      const response = await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
+      await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: {
@@ -201,17 +192,15 @@ const Segurados = () => {
 
       alert('Seguro cancelado com sucesso!');
       fetchSegurados(); // Recarregar a lista
-    } catch (error) {
-      console.error('Erro ao cancelar seguro:', error);
+    } catch (err) {
+      console.error('Erro ao cancelar seguro:', err);
       alert('Erro ao cancelar seguro. Tente novamente.');
     }
   };
 
-  // Envio com no-cors: não é possível ler a resposta.
-  // Consideramos sucesso se o fetch não lançar erro de rede.
   const handleSaveEndosso = async () => {
     setSavingEndosso(true);
-    
+
     try {
       const payload = {
         action: 'endossar_veiculo',
@@ -232,16 +221,14 @@ const Segurados = () => {
         body: JSON.stringify(payload)
       });
 
-      // Se chegou aqui, a requisição foi enviada.
-      // Não temos como ler resposta; assume-se sucesso.
       alert('Solicitação de endosso enviada. Verifique os dados atualizados na listagem.');
       setShowEndossoModal(false);
-      // Opcional: recarregar lista após um pequeno atraso para dar tempo do GAS gravar
+
       setTimeout(() => {
         fetchSegurados();
       }, 1200);
-    } catch (error) {
-      console.error('Erro ao enviar endosso:', error);
+    } catch (err) {
+      console.error('Erro ao enviar endosso:', err);
       alert('Falha ao enviar endosso (rede/CORS). Tente novamente.');
     } finally {
       setSavingEndosso(false);
@@ -253,7 +240,7 @@ const Segurados = () => {
     try {
       const date = new Date(dataString);
       if (isNaN(date.getTime())) return dataString;
-      
+
       const dia = String(date.getDate()).padStart(2, '0');
       const mes = String(date.getMonth() + 1).padStart(2, '0');
       const ano = date.getFullYear();
@@ -290,17 +277,21 @@ const Segurados = () => {
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
+
           <select
             value={anoFiltro}
             onChange={(e) => setAnoFiltro(e.target.value)}
             className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
           >
+            {/* opção em branco = sem filtro */}
+            <option value="">Todos (sem filtro)</option>
             {gerarAnosDisponiveis().map((ano) => (
               <option key={ano} value={ano}>
                 {ano}
               </option>
             ))}
           </select>
+
           <button
             onClick={fetchSegurados}
             disabled={loading}
@@ -330,7 +321,8 @@ const Segurados = () => {
 
         {/* Contador */}
         <div className="mb-4 text-gray-600">
-          {filteredSegurados.length} segurado(s) encontrado(s) para o ano {anoFiltro}
+          {filteredSegurados.length} segurado(s) encontrado(s)
+          {anoFiltro && ` para o ano ${anoFiltro}`}
         </div>
 
         {/* Grid de cards */}
@@ -339,8 +331,8 @@ const Segurados = () => {
             <div
               key={index}
               className={`rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow border ${
-                segurado.status === 'Cancelado' 
-                  ? 'bg-red-50 border-red-300' 
+                segurado.status === 'Cancelado'
+                  ? 'bg-red-50 border-red-300'
                   : 'bg-white border-gray-200'
               }`}
             >
@@ -384,7 +376,7 @@ const Segurados = () => {
                         Veículos ({segurado.vehicles.length})
                       </p>
                     </div>
-                    
+
                     <div className="space-y-2">
                       {segurado.vehicles.map((vehicle, vIndex) => (
                         <div key={vIndex} className={`rounded-lg p-3 border ${vehicle.Status === "Cancelado" ? "bg-red-50 border-red-300" : "bg-gray-50 border-gray-200"}`}>
@@ -410,23 +402,23 @@ const Segurados = () => {
                                 Endossar
                               </button>
                               {vehicle.Status !== "Cancelado" && (
-                              <button
-                                onClick={() => handleCancelar(segurado)}
-                                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
-                              >
-                                <X size={12} />
-                                Cancelar
-                              </button>
+                                <button
+                                  onClick={() => handleCancelar(segurado)}
+                                  className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
+                                >
+                                  <X size={12} />
+                                  Cancelar
+                                </button>
                               )}
                             </div>
                           </div>
-                          
+
                           {vehicle.Seguradora && (
                             <p className="text-xs text-gray-600 mb-1">
                               Seguradora: {vehicle.Seguradora}
                             </p>
                           )}
-                          
+
                           <div className="flex items-center gap-1 text-xs text-gray-600 mt-2 pt-2 border-t border-gray-300">
                             <Calendar size={12} className="text-gray-400" />
                             <span>
