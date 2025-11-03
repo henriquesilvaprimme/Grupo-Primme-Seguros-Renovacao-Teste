@@ -365,13 +365,6 @@ const Segurados = () => {
                   <span>{segurado.Responsavel || 'N/A'}</span>
                 </div>
 
-                {segurado.insuranceType && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500">Seguradora</p>
-                    <p className="font-medium text-gray-700">{segurado.insuranceType}</p>
-                  </div>
-                )}
-
                 {/* Lista de veículos */}
                 {segurado.vehicles && segurado.vehicles.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
