@@ -9,7 +9,7 @@ const Segurados = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSegurados, setFilteredSegurados] = useState([]);
   const [error, setError] = useState(null);
-  const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
+  const [anoFiltro, setAnoFiltro] = useState('');
   const [showEndossoModal, setShowEndossoModal] = useState(false);
   const [endossoData, setEndossoData] = useState({
     clienteId: '',
@@ -25,6 +25,15 @@ const Segurados = () => {
     vigenciaFinal: ''
   });
   const [savingEndosso, setSavingEndosso] = useState(false);
+  const [showCancelarModal, setShowCancelarModal] = useState(false);
+  const [cancelarData, setCancelarData] = useState({
+    clienteId: '',
+    clienteNome: '',
+    clienteTelefone: '',
+    vehicleModel: '',
+    vehicleYearModel: ''
+  });
+  const [savingCancelar, setSavingCancelar] = useState(false);
 
   useEffect(() => {
     let filtered = segurados;
@@ -38,16 +47,18 @@ const Segurados = () => {
       );
     }
 
-    // Filtrar por ano
-    filtered = filtered.filter((segurado) => {
-      return segurado.vehicles.some((vehicle) => {
-        const vigenciaInicial = vehicle.VigenciaInicial;
-        if (!vigenciaInicial) return false;
-        
-        const dataVigencia = new Date(vigenciaInicial);
-        return dataVigencia.getFullYear() === parseInt(anoFiltro);
+    // Filtrar por ano (se especificado)
+    if (anoFiltro && anoFiltro !== '') {
+      filtered = filtered.filter((segurado) => {
+        return segurado.vehicles.some((vehicle) => {
+          const vigenciaInicial = vehicle.VigenciaInicial;
+          if (!vigenciaInicial) return false;
+
+          const dataVigencia = new Date(vigenciaInicial);
+          return dataVigencia.getFullYear() === parseInt(anoFiltro);
+        });
       });
-    });
+    }
 
     setFilteredSegurados(filtered);
   }, [searchTerm, segurados, anoFiltro]);
@@ -180,7 +191,57 @@ const Segurados = () => {
 
   // Envio com no-cors: não é possível ler a resposta.
   // Consideramos sucesso se o fetch não lançar erro de rede.
-  const handleSaveEndosso = async () => {
+  
+
+  const handleCancelar = (segurado, vehicle) => {
+    setCancelarData({
+      clienteId: segurado.id,
+      clienteNome: segurado.name,
+      clienteTelefone: segurado.phone,
+      vehicleModel: vehicle.vehicleModel || '',
+      vehicleYearModel: vehicle.vehicleYearModel || ''
+    });
+    setShowCancelarModal(true);
+  };
+
+  const confirmarCancelamento = async () => {
+    setSavingCancelar(true);
+
+    try {
+      const payload = {
+        v: 'cancelar_renovacao',
+        phone: cancelarData.clienteTelefone,
+        name: cancelarData.clienteNome
+      };
+
+      console.log('Enviando cancelamento:', payload);
+
+      const response = await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+      console.log('Resposta do cancelamento:', result);
+
+      if (result.success) {
+        alert('Renovação cancelada com sucesso!');
+        setShowCancelarModal(false);
+        fetchSegurados(); // Recarregar a lista
+      } else {
+        alert('Erro ao cancelar renovação: ' + (result.message || 'Erro desconhecido'));
+      }
+    } catch (error) {
+      console.error('Erro ao cancelar:', error);
+      alert('Erro ao cancelar renovação. Verifique o console.');
+    } finally {
+      setSavingCancelar(false);
+    }
+  };
+const handleSaveEndosso = async () => {
     setSavingEndosso(true);
     
     try {
@@ -366,6 +427,13 @@ const Segurados = () => {
                               <Edit size={12} />
                               Endossar
                             </button>
+                              <button
+                                onClick={() => handleCancelar(segurado, vehicle)}
+                                className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center gap-1.5"
+                              >
+                                <X className="w-4 h-4" />
+                                Cancelar
+                              </button>
                           </div>
                           
                           {vehicle.Seguradora && (
@@ -511,6 +579,68 @@ const Segurados = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Cancelamento */}
+      {showCancelarModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Confirmar Cancelamento</h3>
+              <button
+                onClick={() => setShowCancelarModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                <p className="text-red-800 font-medium mb-2">
+                  ⚠️ Atenção: Esta ação não pode ser desfeita!
+                </p>
+                <p className="text-red-700 text-sm">
+                  Você está prestes a cancelar a renovação deste cliente.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-gray-600">Cliente:</p>
+                  <p className="font-semibold text-gray-900">{cancelarData.clienteNome}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Telefone:</p>
+                  <p className="font-semibold text-gray-900">{cancelarData.clienteTelefone}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Veículo:</p>
+                  <p className="font-semibold text-gray-900">
+                    {cancelarData.vehicleModel} - {cancelarData.vehicleYearModel}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelarModal(false)}
+                disabled={savingCancelar}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={confirmarCancelamento}
+                disabled={savingCancelar}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingCancelar ? 'Cancelando...' : 'Confirmar Cancelamento'}
+              </button>
             </div>
           </div>
         </div>
