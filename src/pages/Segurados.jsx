@@ -89,24 +89,24 @@ const Segurados = () => {
       const dataFechados = await responseFechados.json();
       console.log('Leads Fechados recebidos:', dataFechados);
 
-      // Buscar da aba "Renovados"
-      console.log('Buscando Renovados...');
-      const responseRenovados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovados`);
-      const dataRenovados = await responseRenovados.json();
-      console.log('Renovados recebidos:', dataRenovados);
+      // Buscar da aba "Renovações"
+      console.log('Buscando Renovacoes...');
+      const responseRenovacoes = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovacoes`);
+      const dataRenovacoes = await responseRenovacoes.json();
+      console.log('Renovacoes recebidos:', dataRenovacoes);
 
       // Verificar se há erros nas respostas
       if (dataFechados.status === 'error') {
         throw new Error(`Erro em Leads Fechados: ${dataFechados.message}`);
       }
-      if (dataRenovados.status === 'error') {
-        throw new Error(`Erro em Renovados: ${dataRenovados.message}`);
+      if (dataRenovacoes.status === 'error') {
+        throw new Error(`Erro em Renovações: ${dataRenovacoes.message}`);
       }
 
       // Combinar todos os clientes
       const todosClientes = [
         ...(Array.isArray(dataFechados) ? dataFechados : []),
-        ...(Array.isArray(dataRenovados) ? dataRenovados : [])
+        ...(Array.isArray(dataRenovacoes) ? dataRenovacoes : [])
       ];
       console.log('Total de clientes combinados:', todosClientes.length);
 
@@ -182,7 +182,7 @@ const Segurados = () => {
       setSegurados(clientesUnicos);
 
       if (clientesUnicos.length === 0) {
-        setError('Nenhum segurado encontrado nas abas "Leads Fechados" e "Renovados".');
+        setError('Nenhum segurado encontrado nas abas "Leads Fechados" e "Renovações".');
       }
 
     } catch (error) {
