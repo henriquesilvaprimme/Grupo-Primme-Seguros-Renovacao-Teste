@@ -189,7 +189,11 @@ const Segurados = () => {
         id: endossoData.clienteId,
         name: endossoData.clienteNome,
         vehicleModel: endossoData.vehicleModel,
-        vehicleYearModel: endossoData.vehicleYearModel
+        vehicleYearModel: endossoData.vehicleYearModel,
+        premioLiquido: endossoData.premioLiquido,
+        comissao: endossoData.comissao,
+        meioPagamento: endossoData.meioPagamento,
+        numeroParcelas: endossoData.numeroParcelas
       };
 
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
