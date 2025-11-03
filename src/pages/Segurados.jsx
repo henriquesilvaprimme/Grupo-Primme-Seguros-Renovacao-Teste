@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+Segue o meu codigo: import React, { useState, useEffect } from 'react';
 import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle } from 'lucide-react';
 
 const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
@@ -16,6 +16,7 @@ const Segurados = () => {
     clienteId: '',
     clienteNome: '',
     clienteTelefone: '',
+    vehicleId: '',
     vehicleModel: '',
     vehicleYearModel: '',
     premioLiquido: '',
@@ -186,10 +187,11 @@ const Segurados = () => {
     }
   };
 
-  const handleEndossar = (segurado, vehicle) => {
+  const handleEndossar = (segurado, vehicle, vehicleId) => {
     setEndossoData({
       clienteId: segurado.id,
       clienteNome: segurado.name,
+      vehicleId: vehicleId,
       clienteTelefone: segurado.phone,
       vehicleModel: vehicle.vehicleModel || '',
       vehicleYearModel: vehicle.vehicleYearModel || '',
@@ -210,6 +212,7 @@ const Segurados = () => {
 
     try {
       const payload = {
+        vehicleId: endossoData.vehicleId,
         action: 'endossar_veiculo',
         id: endossoData.clienteId,
         name: endossoData.clienteNome,
@@ -426,7 +429,7 @@ const Segurados = () => {
                               </div>
                               <div className="ml-2 flex flex-col gap-1">
                                 <button
-                                  onClick={() => handleEndossar(segurado, vehicle)}
+                                  onClick={() => handleEndossar(segurado, vehicle, idVeiculo)}
                                   className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
                                 >
                                   <Edit size={12} />
