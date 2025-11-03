@@ -254,13 +254,6 @@ const Segurados = () => {
         })
       );
 
-      alert('Requisição de cancelamento enviada (no-cors). Verifique a planilha para confirmação.');
-      setTimeout(fetchSegurados, 1200);
-    } catch (err) {
-      console.error('Erro ao enviar cancelamento:', err);
-      alert('Erro ao enviar cancelamento. Verifique o console.');
-    }
-  };
 
   const handleSaveEndosso = async () => {
     setSavingEndosso(true);
