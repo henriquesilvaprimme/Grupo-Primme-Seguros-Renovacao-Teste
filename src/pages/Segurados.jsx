@@ -5,6 +5,7 @@ const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyG
 
 const Segurados = () => {
   const [segurados, setSegurados] = useState([]);
+  const [todosClientesOriginais, setTodosClientesOriginais] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSegurados, setFilteredSegurados] = useState([]);
@@ -52,6 +53,27 @@ const Segurados = () => {
     setFilteredSegurados(filtered);
   }, [searchTerm, segurados, anoFiltro]);
 
+  const obterIDPorVeiculo = (segurado, vehicle) => {
+    // Encontrar o item correspondente baseado em todas as características
+    const itemCorrespondente = todosClientesOriginais.find(item => {
+      const nomeItem = item.name || item.Name || item.nome || '';
+      const modeloItem = item.vehicleModel || item.vehiclemodel || item.Modelo || '';
+      const anoModeloItem = item.vehicleYearModel || item.vehicleyearmodel || item.AnoModelo || '';
+      const seguradoraItem = item.Seguradora || item.seguradora || '';
+      const vigenciaInicialItem = item.VigenciaInicial || item.vigenciaInicial || '';
+      const vigenciaFinalItem = item.VigenciaFinal || item.vigenciaFinal || '';
+
+      return nomeItem === segurado.name &&
+             modeloItem === vehicle.vehicleModel &&
+             anoModeloItem === vehicle.vehicleYearModel &&
+             seguradoraItem === vehicle.Seguradora &&
+             vigenciaInicialItem === vehicle.VigenciaInicial &&
+             vigenciaFinalItem === vehicle.VigenciaFinal;
+    });
+    
+    return itemCorrespondente ? (itemCorrespondente.id || itemCorrespondente.ID || itemCorrespondente.Id || '') : '';
+  };
+
   const fetchSegurados = async () => {
     setLoading(true);
     setError(null);
@@ -86,6 +108,9 @@ const Segurados = () => {
       ];
 
       console.log('Total de clientes combinados:', todosClientes.length);
+
+      // Armazenar todos os clientes originais para busca de ID
+      setTodosClientesOriginais(todosClientes);
 
       // Agrupar por nome e telefone, mantendo múltiplos veículos
       const clientesAgrupados = todosClientes.reduce((acc, cliente) => {
@@ -380,55 +405,58 @@ const Segurados = () => {
                     </div>
 
                     <div className="space-y-2">
-                      {segurado.vehicles.map((vehicle, vIndex) => (
-                        <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-800 text-sm">
-                                {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                ID: {formatarID(segurado.id)}
-                              </p>
-                              {vehicle.Endossado && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <CheckCircle size={14} className="text-green-600" />
-                                  <span className="text-xs text-green-600 font-semibold">Endossado</span>
-                                </div>
-                              )}
+                      {segurado.vehicles.map((vehicle, vIndex) => {
+                        const idVeiculo = obterIDPorVeiculo(segurado, vehicle);
+                        return (
+                          <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-800 text-sm">
+                                  {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  ID: {formatarID(idVeiculo)}
+                                </p>
+                                {vehicle.Endossado && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <CheckCircle size={14} className="text-green-600" />
+                                    <span className="text-xs text-green-600 font-semibold">Endossado</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="ml-2 flex flex-col gap-1">
+                                <button
+                                  onClick={() => handleEndossar(segurado, vehicle)}
+                                  className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
+                                >
+                                  <Edit size={12} />
+                                  Endossar
+                                </button>
+                                <button
+                                  onClick={() => handleCancelar(segurado)}
+                                  className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
+                                >
+                                  <X size={12} />
+                                  Cancelar
+                                </button>
+                              </div>
                             </div>
-                            <div className="ml-2 flex flex-col gap-1">
-                              <button
-                                onClick={() => handleEndossar(segurado, vehicle)}
-                                className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
-                              >
-                                <Edit size={12} />
-                                Endossar
-                              </button>
-                              <button
-                                onClick={() => handleCancelar(segurado)}
-                                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
-                              >
-                                <X size={12} />
-                                Cancelar
-                              </button>
+
+                            {vehicle.Seguradora && (
+                              <p className="text-xs text-gray-600 mb-1">
+                                Seguradora: {vehicle.Seguradora}
+                              </p>
+                            )}
+
+                            <div className="flex items-center gap-1 text-xs text-gray-600 mt-2 pt-2 border-t border-gray-300">
+                              <Calendar size={12} className="text-gray-400" />
+                              <span>
+                                {formatarData(vehicle.VigenciaInicial)} até {formatarData(vehicle.VigenciaFinal)}
+                              </span>
                             </div>
                           </div>
-
-                          {vehicle.Seguradora && (
-                            <p className="text-xs text-gray-600 mb-1">
-                              Seguradora: {vehicle.Seguradora}
-                            </p>
-                          )}
-
-                          <div className="flex items-center gap-1 text-xs text-gray-600 mt-2 pt-2 border-t border-gray-300">
-                            <Calendar size={12} className="text-gray-400" />
-                            <span>
-                              {formatarData(vehicle.VigenciaInicial)} até {formatarData(vehicle.VigenciaFinal)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
