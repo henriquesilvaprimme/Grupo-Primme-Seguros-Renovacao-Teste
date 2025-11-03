@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle } from 'lucide-react';
+import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle, Trash2 } from 'lucide-react'; // Adicionado Trash2
 
-const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
+const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99D9NaA/exec';
 
 const Segurados = () => {
   const [segurados, setSegurados] = useState([]);
@@ -9,8 +9,9 @@ const Segurados = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSegurados, setFilteredSegurados] = useState([]);
   const [error, setError] = useState(null);
-  // AJUSTE: Inicializado como string vazia para buscar todas as datas/anos por padrão
-  const [anoFiltro, setAnoFiltro] = useState(''); 
+  const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
+  
+  // Estados para Endosso
   const [showEndossoModal, setShowEndossoModal] = useState(false);
   const [endossoData, setEndossoData] = useState({
     clienteId: '',
@@ -27,6 +28,18 @@ const Segurados = () => {
   });
   const [savingEndosso, setSavingEndosso] = useState(false);
 
+  // NOVOS ESTADOS PARA CANCELAMENTO
+  const [showCancelamentoModal, setShowCancelamentoModal] = useState(false);
+  const [cancelamentoData, setCancelamentoData] = useState({
+    clienteId: '',
+    clienteNome: '',
+    vehicleModel: '',
+    vehicleYearModel: '',
+    // Você pode adicionar outros campos necessários para o cancelamento aqui
+  });
+  const [savingCancelamento, setSavingCancelamento] = useState(false);
+
+
   useEffect(() => {
     let filtered = segurados;
 
@@ -39,42 +52,49 @@ const Segurados = () => {
       );
     }
 
-    // Filtrar por ano (AGORA OPCIONAL)
-    if (anoFiltro !== '') { // Apenas filtra se o filtro não estiver vazio
-      filtered = filtered.filter((segurado) => {
+    // Filtrar por ano
+    filtered = filtered.filter((segurado) => {
+      
+      return segurado.vehicles.some((vehicle) => {
+        const vigenciaInicial = vehicle.VigenciaInicial;
+        if (!vigenciaInicial) return false;
         
-        return segurado.vehicles.some((vehicle) => {
-          const vigenciaInicial = vehicle.VigenciaInicial;
-          if (!vigenciaInicial) return false;
-          
-          const dataVigencia = new Date(vigenciaInicial);
-          return dataVigencia.getFullYear() === parseInt(anoFiltro);
-        });
+        const dataVigencia = new Date(vigenciaInicial);
+        return dataVigencia.getFullYear() === parseInt(anoFiltro);
       });
-    }
+    });
 
     setFilteredSegurados(filtered);
   }, [searchTerm, segurados, anoFiltro]);
-
+  
   const fetchSegurados = async () => {
     setLoading(true);
     setError(null);
     try {
       console.log('Iniciando busca de segurados...');
-      
-      // AJUSTE: Buscando APENAS da aba "Renovados"
+      // Buscar da aba "Leads Fechados"
+      console.log('Buscando Leads Fechados...');
+      const responseFechados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`);
+      const dataFechados = await responseFechados.json();
+      console.log('Leads Fechados recebidos:', dataFechados);
+
+      // Buscar da aba "Renovados"
       console.log('Buscando Renovados...');
       const responseRenovados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovados`);
       const dataRenovados = await responseRenovados.json();
       console.log('Renovados recebidos:', dataRenovados);
       
       // Verificar se há erros nas respostas
+      if (dataFechados.status === 'error') {
+        throw new Error(`Erro em Leads Fechados: ${dataFechados.message}`);
+      }
       if (dataRenovados.status === 'error') {
         throw new Error(`Erro em Renovados: ${dataRenovados.message}`);
       }
 
-      // Combinar todos os clientes (AGORA SÓ COM RENOVADOS)
+      // Combinar todos os clientes
       const todosClientes = [
+        ...(Array.isArray(dataFechados) ? dataFechados : []), 
         ...(Array.isArray(dataRenovados) ? dataRenovados : [])
       ];
       console.log('Total de clientes combinados:', todosClientes.length);
@@ -127,7 +147,7 @@ const Segurados = () => {
         
         return acc;
       }, {});
-
+      
       // Converter objeto em array
       const clientesUnicos = Object.values(clientesAgrupados).map(cliente => {
         // Ordenar veículos por vigência final mais recente
@@ -150,8 +170,7 @@ const Segurados = () => {
       setSegurados(clientesUnicos);
       
       if (clientesUnicos.length === 0) {
-        // Mensagem de erro atualizada
-        setError('Nenhum segurado encontrado na aba "Renovados".');
+        setError('Nenhum segurado encontrado nas abas "Leads Fechados" e "Renovados".');
       }
       
     } catch (error) {
@@ -163,7 +182,8 @@ const Segurados = () => {
       setLoading(false);
     }
   };
-
+  
+  // Função para Endossar (EXISTENTE)
   const handleEndossar = (segurado, vehicle) => {
     setEndossoData({
       clienteId: segurado.id,
@@ -180,9 +200,23 @@ const Segurados = () => {
     });
     setShowEndossoModal(true);
   };
+  
+  // NOVA FUNÇÃO: Abrir Modal de Cancelamento
+  const handleCancelar = (segurado, vehicle) => {
+    setCancelamentoData({
+      clienteId: segurado.id,
+      clienteNome: segurado.name,
+      vehicleModel: vehicle.vehicleModel || 'N/A',
+      vehicleYearModel: vehicle.vehicleYearModel || 'N/A',
+      // Adicione aqui qualquer outro dado necessário no modal
+    });
+    setShowCancelamentoModal(true);
+  };
 
   // Envio com no-cors: não é possível ler a resposta.
   // Consideramos sucesso se o fetch não lançar erro de rede.
+  
+  // Função para Salvar Endosso (EXISTENTE)
   const handleSaveEndosso = async () => {
     setSavingEndosso(true);
     try {
@@ -219,43 +253,41 @@ const Segurados = () => {
     }
   };
   
-  // NOVA FUNÇÃO PARA CANCELAR ENDOSSO
-  const handleCancelarEndosso = async (segurado, vehicle) => {
-    if (!window.confirm(`Tem certeza que deseja CANCELAR o Endosso para o veículo ${vehicle.vehicleModel} (${vehicle.vehicleYearModel}) do cliente ${segurado.name}?`)) {
-      return;
-    }
-
+  // NOVA FUNÇÃO: Salvar Cancelamento
+  const handleSaveCancelamento = async () => {
+    setSavingCancelamento(true);
     try {
       const payload = {
-        action: 'cancelar_veiculo', // Nova ação para o GAS
-        id: segurado.id,
-        name: segurado.name,
-        vehicleModel: vehicle.vehicleModel,
-        vehicleYearModel: vehicle.vehicleYearModel,
-        // O GAS será responsável por definir a data de cancelamento atual e o Status="Cancelado"
+        action: 'cancelar_veiculo', // Ação que seu Apps Script deve tratar
+        id: cancelamentoData.clienteId,
+        name: cancelamentoData.clienteNome,
+        vehicleModel: cancelamentoData.vehicleModel,
+        vehicleYearModel: cancelamentoData.vehicleYearModel,
+        // Você pode adicionar um campo de Motivo de Cancelamento aqui se necessário
+        status: 'Cancelado' // Enviando o status fixo
       };
-
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      
-      alert('Solicitação de cancelamento de endosso enviada. Verifique os dados atualizados na listagem.');
-      
-      // Opcional: recarregar lista após um pequeno atraso para dar tempo do GAS gravar
+      // Se chegou aqui, a requisição foi enviada.
+      alert(`Solicitação de cancelamento para ${cancelamentoData.clienteNome} (${cancelamentoData.vehicleModel}) enviada.`);
+      setShowCancelamentoModal(false);
+      // Recarregar lista
       setTimeout(() => {
         fetchSegurados();
       }, 1200);
-
     } catch (error) {
       console.error('Erro ao enviar cancelamento:', error);
       alert('Falha ao enviar cancelamento (rede/CORS). Tente novamente.');
+    } finally {
+      setSavingCancelamento(false);
     }
   };
-
-
+  
+  // Função para Formatar Data (EXISTENTE)
   const formatarData = (dataString) => {
     if (!dataString) return 'N/A';
     try {
@@ -269,8 +301,8 @@ const Segurados = () => {
       return dataString;
     }
   };
-
-  // Gerar lista de anos (ano atual - 5 até ano atual + 2)
+  
+  // Função para Gerar Anos (EXISTENTE)
   const gerarAnosDisponiveis = () => {
     const anoAtual = new Date().getFullYear();
     const anos = [];
@@ -289,14 +321,12 @@ const Segurados = () => {
         <div className="mb-6 flex gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-     
             <input
               type="text"
               placeholder="Buscar por nome ou telefone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        
             />
           </div>
           <select
@@ -304,10 +334,8 @@ const Segurados = () => {
             onChange={(e) => setAnoFiltro(e.target.value)}
             className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
           >
-            <option value="">Todos os Anos</option> {/* NOVO: OPÇÃO PARA BUSCAR TODOS POR PADRÃO */}
             {gerarAnosDisponiveis().map((ano) => (
-      
-            <option key={ano} value={ano}>
+              <option key={ano} value={ano}>
                 {ano}
               </option>
             ))}
@@ -315,7 +343,6 @@ const Segurados = () => {
           <button
             onClick={fetchSegurados}
             disabled={loading}
-    
             className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {loading ?
@@ -326,7 +353,6 @@ const Segurados = () => {
               </>
             ) : (
               <>
-      
                 <Search size={20} />
                 Buscar
               </>
@@ -336,7 +362,6 @@ const Segurados = () => {
 
         {/* Mensagem de erro */}
         {error && (
-      
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
             <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
             <div className="text-red-700">{error}</div>
@@ -345,8 +370,7 @@ const Segurados = () => {
 
         {/* Contador */}
         <div className="mb-4 text-gray-600">
-          {filteredSegurados.length} segurado(s) encontrado(s) {anoFiltro ? `para o ano ${anoFiltro}` : `para todas as datas`}
-   
+          {filteredSegurados.length} segurado(s) encontrado(s) para o ano {anoFiltro}
         </div>
 
         {/* Grid de cards */}
@@ -355,7 +379,6 @@ const Segurados = () => {
             <div
               key={index}
               className="bg-white rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow border border-gray-200"
-          
             >
               <div className="flex items-start justify-between mb-3">
                 <h3 className="text-lg font-semibold text-gray-800">{segurado.name}</h3>
@@ -363,7 +386,6 @@ const Segurados = () => {
               </div>
 
               <div className="space-y-2 text-sm text-gray-600">
-           
                 <div className="flex items-center gap-2">
                   <Phone size={16} className="text-gray-400" />
                   <span>{segurado.phone ||
@@ -380,29 +402,24 @@ const Segurados = () => {
                   <div className="mt-2">
                     <p className="text-xs text-gray-500">Tipo de Seguro</p>
                     <p className="font-medium text-gray-700">{segurado.insuranceType}</p>
- 
                   </div>
                 )}
 
                 {/* Lista de veículos */}
                 {segurado.vehicles && segurado.vehicles.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
-   
                     <div className="flex items-center gap-2 mb-2">
                       <Car size={16} className="text-gray-400" />
                       <p className="text-xs font-semibold text-gray-700">
                         Veículos ({segurado.vehicles.length})
-    
                       </p>
                     </div>
                     
                     <div className="space-y-2">
-                     
                       {segurado.vehicles.map((vehicle, vIndex) => (
                         <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
-       
                               <p className="font-medium text-gray-800 text-sm">
                                 {vehicle.vehicleModel ||
                                 'Modelo não informado'} {vehicle.vehicleYearModel}
@@ -412,55 +429,49 @@ const Segurados = () => {
                                 gap-1 mt-1">
                                   <CheckCircle size={14} className="text-green-600" />
                                   <span className="text-xs text-green-600 font-semibold">Endossado</span>
-                         
                                 </div>
                               )}
                             </div>
                             
-                            {/* BOTÃO ENDOSSAR */}
-                            <button
-       
+                            {/* ENCAPSULANDO BOTÕES PARA TEREM A MESMA LARGURA */}
+                            <div className="flex flex-col gap-2 ml-4">
+                              <button
                                 onClick={() => handleEndossar(segurado, vehicle)}
-                                className="ml-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
-                            >
-     
-                              <Edit size={12} />
-                              Endossar
-                            </button>
-                            
-                            {/* NOVO BOTÃO CANCELAR ENDOSSO */}
-                            <button
-                                onClick={() => handleCancelarEndosso(segurado, vehicle)}
-                                className="ml-2 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
-                            >
-                                <X size={12} />
+                                className="w-full px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
+                              >
+                                <Edit size={12} />
+                                Endossar
+                              </button>
+                              
+                              {/* NOVO BOTÃO DE CANCELAR */}
+                              <button
+                                onClick={() => handleCancelar(segurado, vehicle)}
+                                className="w-full px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
+                              >
+                                <Trash2 size={12} />
                                 Cancelar
-                            </button>
-               
+                              </button>
+                            </div>
+                            
                           </div>
                           
                           {vehicle.Seguradora && (
                             <p className="text-xs text-gray-600 mb-1">
-    
                               Seguradora: {vehicle.Seguradora}
                             </p>
                           )}
                    
-        
                           <div className="flex items-center gap-1 text-xs text-gray-600 mt-2 pt-2 border-t border-gray-300">
                             <Calendar size={12} className="text-gray-400" />
-                           
                             <span>
                               {formatarData(vehicle.VigenciaInicial)} até {formatarData(vehicle.VigenciaFinal)}
                             </span>
                           </div>
-             
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
-             
               </div>
             </div>
           ))}
@@ -474,19 +485,17 @@ const Segurados = () => {
         )}
       </div>
 
-      {/* Modal de Endosso */}
+      {/* Modal de Endosso (Existente) */}
       {showEndossoModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-800">Endossar Veículo</h2>
                 <button
                   onClick={() => setShowEndossoModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-     
                   <X size={24} />
                 </button>
               </div>
@@ -494,120 +503,149 @@ const Segurados = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
- 
                     Modelo do Veículo
                   </label>
                   <input
                     type="text"
                     value={endossoData.vehicleModel}
-   
                     onChange={(e) => setEndossoData({ ...endossoData, vehicleModel: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
 
-               
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Ano/Modelo
                   </label>
                   <input
-                    
                     type="text"
                     value={endossoData.vehicleYearModel}
                     onChange={(e) => setEndossoData({ ...endossoData, vehicleYearModel: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-        
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Prêmio Líquido
                   </label>
-              
                   <input
                     type="text"
                     value={endossoData.premioLiquido}
                     onChange={(e) => setEndossoData({ ...endossoData, premioLiquido: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-  
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Comissão
-         
                   </label>
                   <input
                     type="text"
                     value={endossoData.comissao}
                     onChange={(e) => setEndossoData({ ...endossoData, comissao: e.target.value })}
-       
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-      
                     Meio de Pagamento
                   </label>
                   <select
                     value={endossoData.meioPagamento}
                     onChange={(e) => setEndossoData({ ...endossoData, meioPagamento: e.target.value })}
-  
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                   >
                     <option value="">Selecione</option>
                     <option value="CP">CP</option>
-             
                     <option value="CC">CC</option>
                     <option value="Debito">Débito</option>
                     <option value="Boleto">Boleto</option>
                   </select>
                 </div>
 
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Número de Parcelas
                   </label>
                   <select
-                   
                     value={endossoData.numeroParcelas}
                     onChange={(e) => setEndossoData({ ...endossoData, numeroParcelas: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                   >
                     {[...Array(12)].map((_, i) => (
-   
                       <option key={i + 1} value={i + 1}>
                         {i + 1}
                       </option>
                     ))}
-       
                   </select>
                 </div>
 
                 <div className="flex gap-3 mt-6">
                   <button
                     onClick={() => setShowEndossoModal(false)}
-              
                     className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
-            
                     onClick={handleSaveEndosso}
                     disabled={savingEndosso}
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed"
                   >
-                    {savingEndosso ?
-                    'Salvando...' : 'Salvar'}
+                    {savingEndosso ? 'Salvando...' : 'Salvar'}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NOVO MODAL DE CANCELAMENTO */}
+      {showCancelamentoModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Trash2 size={24} className="text-red-500" /> Confirmar Cancelamento
+                </h2>
+                <button
+                  onClick={() => setShowCancelamentoModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <p className="mb-4 text-gray-700">
+                Você tem certeza que deseja enviar o status **"Cancelado"** para o seguro de:
+              </p>
+
+              <div className="bg-red-50 p-3 rounded-lg border border-red-200 mb-6">
+                <p className="font-semibold text-gray-800">{cancelamentoData.clienteNome}</p>
+                <p className="text-sm text-gray-600">
+                  {cancelamentoData.vehicleModel} ({cancelamentoData.vehicleYearModel})
+                </p>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowCancelamentoModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Não, Voltar
+                </button>
+                <button
+                  onClick={handleSaveCancelamento}
+                  disabled={savingCancelamento}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-red-400 disabled:cursor-not-allowed"
+                >
+                  {savingCancelamento ? 'Enviando...' : 'Sim, Cancelar'}
+                </button>
               </div>
             </div>
           </div>
