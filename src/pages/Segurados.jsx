@@ -620,12 +620,11 @@ const Segurados = () => {
                   {savingCancelar ? 'Cancelando...' : 'Confirmar Cancelamento'}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default Segurados;
