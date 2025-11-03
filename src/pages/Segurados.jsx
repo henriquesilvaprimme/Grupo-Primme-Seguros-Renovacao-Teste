@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle } from 'lucide-react';
+import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle , Building2 } from 'lucide-react';
 
 const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 
@@ -12,14 +12,15 @@ const Segurados = () => {
   const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
   const [showEndossoModal, setShowEndossoModal] = useState(false);
   const [endossoData, setEndossoData] = useState({
+    clienteId: '',
+    clienteNome: '',
+    clienteTelefone: '',
     vehicleModel: '',
     vehicleYearModel: '',
     premioLiquido: '',
     comissao: '',
     meioPagamento: '',
     numeroParcelas: '1',
-    clienteNome: '',
-    clienteTelefone: '',
     vigenciaInicial: '',
     vigenciaFinal: ''
   });
@@ -98,6 +99,7 @@ const Segurados = () => {
         
         if (!acc[chave]) {
           acc[chave] = {
+            id: cliente.id || cliente.ID || cliente.Id || '',
             name: nome,
             phone: telefone,
             city: cliente.city || cliente.Cidade || '',
@@ -161,18 +163,46 @@ const Segurados = () => {
 
   const handleEndossar = (segurado, vehicle) => {
     setEndossoData({
+      clienteId: segurado.id,
+      clienteNome: segurado.name,
+      clienteTelefone: segurado.phone,
       vehicleModel: vehicle.vehicleModel || '',
       vehicleYearModel: vehicle.vehicleYearModel || '',
       premioLiquido: vehicle.PremioLiquido || '',
       comissao: vehicle.Comissao || '',
       meioPagamento: '',
       numeroParcelas: '1',
-      clienteNome: segurado.name,
-      clienteTelefone: segurado.phone,
       vigenciaInicial: vehicle.VigenciaInicial,
       vigenciaFinal: vehicle.VigenciaFinal
     });
     setShowEndossoModal(true);
+  };
+
+  const handleCancelar = async (segurado) => {
+    if (!window.confirm(`Tem certeza que deseja CANCELAR o seguro de ${segurado.name}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'cancelar_seguro',
+          id: segurado.id,
+          name: segurado.name
+        })
+      });
+
+      alert('Seguro cancelado com sucesso!');
+      fetchSegurados(); // Recarregar a lista
+    } catch (error) {
+      console.error('Erro ao cancelar seguro:', error);
+      alert('Erro ao cancelar seguro. Tente novamente.');
+    }
   };
 
   // Envio com no-cors: não é possível ler a resposta.
@@ -182,17 +212,15 @@ const Segurados = () => {
     
     try {
       const payload = {
-        v: 'endossar_veiculo',
-        nome: endossoData.clienteNome,
-        telefone: endossoData.clienteTelefone,
-        vigenciaInicial: endossoData.vigenciaInicial, // 'YYYY-MM-DD'
-        vigenciaFinal: endossoData.vigenciaFinal,     // 'YYYY-MM-DD'
+        action: 'endossar_veiculo',
+        id: endossoData.clienteId,
+        name: endossoData.clienteNome,
         vehicleModel: endossoData.vehicleModel,
         vehicleYearModel: endossoData.vehicleYearModel,
-        premioLiquido: endossoData.premioLiquido,     // ex: "1234,56"
-        comissao: endossoData.comissao,               // ex: "10%" ou "10,00"
-        meioPagamento: endossoData.meioPagamento,     // "CP", "CC", "Débito", "Boleto"
-        numeroParcelas: endossoData.numeroParcelas    // "1".."12"
+        premioLiquido: endossoData.premioLiquido,
+        comissao: endossoData.comissao,
+        meioPagamento: endossoData.meioPagamento,
+        numeroParcelas: endossoData.numeroParcelas
       };
 
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
@@ -308,11 +336,23 @@ const Segurados = () => {
           {filteredSegurados.map((segurado, index) => (
             <div
               key={index}
-              className="bg-white rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow border border-gray-200"
+              className={`rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow border ${
+                segurado.status === 'Cancelado' 
+                  ? 'bg-red-50 border-red-300' 
+                  : 'bg-white border-gray-200'
+              }`}
             >
               <div className="flex items-start justify-between mb-3">
-                <h3 className="text-lg font-semibold text-gray-800">{segurado.name}</h3>
-                <Shield className="text-blue-500" size={24} />
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-800">{segurado.name}</h3>
+                  {segurado.status === 'Cancelado' && (
+                    <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-red-600 text-white text-xs font-semibold rounded">
+                      <X size={12} />
+                      CANCELADO
+                    </div>
+                  )}
+                </div>
+                <Shield className={segurado.status === 'Cancelado' ? 'text-red-500' : 'text-blue-500'} size={24} />
               </div>
 
               <div className="space-y-2 text-sm text-gray-600">
@@ -326,52 +366,12 @@ const Segurados = () => {
                   <span>{segurado.Responsavel || 'N/A'}</span>
                 </div>
 
-                {segurado.insuranceType && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500">Tipo de Seguro</p>
-                    <p className="font-medium text-gray-700">{segurado.insuranceType}</p>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <Building2 size={16} className="text-gray-400" />
+                  <span>{segurado.vehicles && segurado.vehicles.length > 0 ? segurado.vehicles[0].Seguradora : 'N/A'}</span>
+                </div>
 
-                {/* Lista de veículos */}
-                {segurado.vehicles && segurado.vehicles.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-gray-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Car size={16} className="text-gray-400" />
-                      <p className="text-xs font-semibold text-gray-700">
-                        Veículos ({segurado.vehicles.length})
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      {segurado.vehicles.map((vehicle, vIndex) => (
-                        <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-800 text-sm">
-                                {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
-                              </p>
-                              {vehicle.Endossado && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <CheckCircle size={14} className="text-green-600" />
-                                  <span className="text-xs text-green-600 font-semibold">Endossado</span>
-                                </div>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => handleEndossar(segurado, vehicle)}
-                              className="ml-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
-                            >
-                              <Edit size={12} />
-                              Endossar
-                            </button>
-                          </div>
-                          
-                          {vehicle.Seguradora && (
-                            <p className="text-xs text-gray-600 mb-1">
-                              Seguradora: {vehicle.Seguradora}
-                            </p>
-                          )}
+                
                           
                           <div className="flex items-center gap-1 text-xs text-gray-600 mt-2 pt-2 border-t border-gray-300">
                             <Calendar size={12} className="text-gray-400" />
