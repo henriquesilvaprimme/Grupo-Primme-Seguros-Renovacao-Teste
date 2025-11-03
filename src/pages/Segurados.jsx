@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle } from 'lucide-react';
 
 const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
@@ -9,7 +9,7 @@ const Segurados = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSegurados, setFilteredSegurados] = useState([]);
   const [error, setError] = useState(null);
-  const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear().toString());
+  const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
   const [showEndossoModal, setShowEndossoModal] = useState(false);
   const [endossoData, setEndossoData] = useState({
     clienteId: '',
@@ -22,75 +22,10 @@ const Segurados = () => {
     meioPagamento: '',
     numeroParcelas: '1',
     vigenciaInicial: '',
-    vigenciaFinal: '',
-    seguradora: '', // Adicionado para o payload do POST
-    parcelamento: '' // Adicionado para o payload do POST
+    vigenciaFinal: ''
   });
   const [savingEndosso, setSavingEndosso] = useState(false);
-  const [showCancelarModal, setShowCancelarModal] = useState(false);
-  const [cancelarData, setCancelarData] = useState({
-    clienteId: '',
-    clienteNome: '',
-    clienteTelefone: '',
-    vehicleModel: '',
-    vehicleYearModel: ''
-  });
-  const [savingCancelar, setSavingCancelar] = useState(false);
 
-  // Função de busca encapsulada em useCallback
-  const fetchSegurados = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      console.log('Iniciando busca de segurados...');
-
-      // 🚨 CORREÇÃO: Adicionado 'mode: no-cors' conforme solicitado.
-      // A chamada .json() subsequente foi REMOVIDA, pois o corpo da resposta é opaco.
-      // O aplicativo NÃO irá carregar os dados reais de segurados.
-      const responseRenovacoes = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovacoes`, {
-        mode: 'no-cors' 
-      });
-      
-      // Em modo 'no-cors', response.ok é sempre 'true' para requisições bem sucedidas.
-      // Não há como verificar erros ou ler o corpo.
-      if (!responseRenovacoes.ok) {
-        throw new Error(`Erro na rede ao buscar Renovações: ${responseRenovacoes.statusText} (${responseRenovacoes.status})`);
-      }
-
-      // 🚨 Não é possível chamar response.json() em modo 'no-cors'.
-      // const dataRenovacoes = await responseRenovacoes.json();
-
-      console.log('Requisição de Renovações enviada com sucesso (mode: no-cors). A lista de segurados não pode ser lida.');
-
-      // O código a seguir será executado sem os dados reais.
-      // Manteremos a lista vazia para refletir a falta de acesso aos dados.
-      const todosClientes = []; 
-
-      setSegurados(todosClientes);
-      setFilteredSegurados(todosClientes);
-      
-      if (todosClientes.length === 0) {
-        // Exibir uma mensagem de erro mais clara sobre a limitação do no-cors para dados GET
-         setError("Modo 'no-cors' ativado. Não é possível ler os dados de segurados retornados pelo servidor.");
-      }
-      
-    } catch (error) {
-      console.error('Erro ao buscar segurados:', error);
-      setError(error.message || 'Erro ao buscar segurados. Verifique o console para mais detalhes.');
-      setSegurados([]);
-      setFilteredSegurados([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Chama a busca na montagem do componente
-  useEffect(() => {
-    fetchSegurados();
-  }, [fetchSegurados]);
-
-  // Lógica de filtro (permanece inalterada, mas funcionará com a lista vazia)
   useEffect(() => {
     let filtered = segurados;
 
@@ -104,62 +39,127 @@ const Segurados = () => {
     }
 
     // Filtrar por ano
-    const ano = parseInt(anoFiltro);
-    if (!isNaN(ano)) {
-      filtered = filtered.filter((segurado) => {
-        return segurado.vehicles.some((vehicle) => {
-          const vigenciaInicial = vehicle.VigenciaInicial;
-          if (!vigenciaInicial) return false;
-          
-          try {
-            const dataVigencia = new Date(vigenciaInicial);
-            return dataVigencia.getFullYear() === ano;
-          } catch (e) {
-            return false;
-          }
-        });
+    filtered = filtered.filter((segurado) => {
+      return segurado.vehicles.some((vehicle) => {
+        const vigenciaInicial = vehicle.VigenciaInicial;
+        if (!vigenciaInicial) return false;
+        
+        const dataVigencia = new Date(vigenciaInicial);
+        return dataVigencia.getFullYear() === parseInt(anoFiltro);
       });
-    }
+    });
 
     setFilteredSegurados(filtered);
   }, [searchTerm, segurados, anoFiltro]);
 
-  
-  // Função auxiliar para todas as requisições POST
-  const postData = async (action, data, successCallback) => {
-    if (action === 'endossar_veiculo') setSavingEndosso(true);
-    if (action === 'cancelar_renovacao') setSavingCancelar(true);
-
+  const fetchSegurados = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      const payload = { ...data, action };
+      console.log('Iniciando busca de segurados...');
+      
+      // Buscar da aba "Leads Fechados"
+      console.log('Buscando Leads Fechados...');
+      const responseFechados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`);
+      const dataFechados = await responseFechados.json();
+      console.log('Leads Fechados recebidos:', dataFechados);
 
-      // 🚨 CORREÇÃO: Adicionado 'mode: no-cors' conforme solicitado
-      const response = await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        mode: 'no-cors' // Mantido conforme solicitado
+      // Buscar da aba "Renovados"
+      console.log('Buscando Renovados...');
+      const responseRenovados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovados`);
+      const dataRenovados = await responseRenovados.json();
+      console.log('Renovados recebidos:', dataRenovados);
+
+      // Verificar se há erros nas respostas
+      if (dataFechados.status === 'error') {
+        throw new Error(`Erro em Leads Fechados: ${dataFechados.message}`);
+      }
+      if (dataRenovados.status === 'error') {
+        throw new Error(`Erro em Renovados: ${dataRenovados.message}`);
+      }
+
+      // Combinar todos os clientes
+      const todosClientes = [
+        ...(Array.isArray(dataFechados) ? dataFechados : []), 
+        ...(Array.isArray(dataRenovados) ? dataRenovados : [])
+      ];
+      
+      console.log('Total de clientes combinados:', todosClientes.length);
+      
+      // Agrupar por nome e telefone, mantendo múltiplos veículos
+      const clientesAgrupados = todosClientes.reduce((acc, cliente) => {
+        // Normalizar os nomes dos campos
+        const telefone = cliente.phone || cliente.Telefone || cliente.telefone || '';
+        const nome = cliente.name || cliente.Name || cliente.nome || '';
+        
+        if (!telefone && !nome) return acc;
+        
+        const chave = `${nome}_${telefone}`;
+        
+        if (!acc[chave]) {
+          acc[chave] = {
+            id: cliente.id || cliente.ID || cliente.Id || '',
+            name: nome,
+            phone: telefone,
+            city: cliente.city || cliente.Cidade || '',
+            insuranceType: cliente.insuranceType || cliente.insurancetype || cliente.TipoSeguro || '',
+            Responsavel: cliente.Responsavel || cliente.responsavel || '',
+            vehicles: []
+          };
+        }
+        
+        // Adicionar veículo com suas vigências
+        acc[chave].vehicles.push({
+          vehicleModel: cliente.vehicleModel || cliente.vehiclemodel || cliente.Modelo || '',
+          vehicleYearModel: cliente.vehicleYearModel || cliente.vehicleyearmodel || cliente.AnoModelo || '',
+          VigenciaInicial: cliente.VigenciaInicial || cliente.vigenciaInicial || '',
+          VigenciaFinal: cliente.VigenciaFinal || cliente.vigenciaFinal || '',
+          Seguradora: cliente.Seguradora || cliente.seguradora || '',
+          PremioLiquido: cliente.PremioLiquido || cliente.premioLiquido || '',
+          Comissao: cliente.Comissao || cliente.comissao || '',
+          Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
+          Endossado: cliente.Endossado || false,
+        });
+        
+        return acc;
+      }, {});
+
+      // Converter objeto em array
+      const clientesUnicos = Object.values(clientesAgrupados).map(cliente => {
+        // Ordenar veículos por vigência final mais recente
+        cliente.vehicles.sort((a, b) => {
+          const dateA = new Date(a.VigenciaFinal || '1900-01-01');
+          const dateB = new Date(b.VigenciaFinal || '1900-01-01');
+          return dateB - dateA;
+        });
+        return cliente;
       });
-      
-      // Em modo 'no-cors', response.ok é sempre 'true' para requisições bem sucedidas
-      // O status do servidor não pode ser verificado, pois o corpo da resposta é opaco.
-      
-      // 🚨 REMOVIDO: Não é possível chamar .json() em modo 'no-cors'.
-      // const result = await response.json(); 
-      
-      alert(`Solicitação de ${action === 'endossar_veiculo' ? 'endosso' : 'cancelamento'} enviada com sucesso! (Modo no-cors ativado. Status do servidor não verificado.)`);
-      successCallback();
 
+      console.log('Clientes únicos processados:', clientesUnicos.length);
+
+      // Ordenar por vigência final mais recente do primeiro veículo
+      clientesUnicos.sort((a, b) => {
+        const dateA = new Date(a.vehicles[0]?.VigenciaFinal || '1900-01-01');
+        const dateB = new Date(b.vehicles[0]?.VigenciaFinal || '1900-01-01');
+        return dateB - dateA;
+      });
+
+      setSegurados(clientesUnicos);
+      
+      if (clientesUnicos.length === 0) {
+        setError('Nenhum segurado encontrado nas abas "Leads Fechados" e "Renovados".');
+      }
+      
     } catch (error) {
-      console.error(`Erro ao enviar ${action}:`, error);
-      // O erro só ocorrerá se houver uma falha de rede/navegador, pois não podemos ler o corpo
-      alert(`Falha ao enviar ${action === 'endossar_veiculo' ? 'endosso' : 'cancelamento'}: ${error.message || 'Erro desconhecido'}. Tente novamente.`);
+      console.error('Erro ao buscar segurados:', error);
+      setError(error.message || 'Erro ao buscar segurados. Verifique o console para mais detalhes.');
+      setSegurados([]);
+      setFilteredSegurados([]);
     } finally {
-      setSavingEndosso(false);
-      setSavingCancelar(false);
+      setLoading(false);
     }
   };
-
 
   const handleEndossar = (segurado, vehicle) => {
     setEndossoData({
@@ -173,50 +173,56 @@ const Segurados = () => {
       meioPagamento: '',
       numeroParcelas: '1',
       vigenciaInicial: vehicle.VigenciaInicial,
-      vigenciaFinal: vehicle.VigenciaFinal,
-      seguradora: vehicle.Seguradora || '',
-      parcelamento: vehicle.Parcelamento || ''
+      vigenciaFinal: vehicle.VigenciaFinal
     });
     setShowEndossoModal(true);
   };
 
+  // Envio com no-cors: não é possível ler a resposta.
+  // Consideramos sucesso se o fetch não lançar erro de rede.
   const handleSaveEndosso = async () => {
-    await postData('endossar_veiculo', endossoData, () => {
-        setShowEndossoModal(false);
-        // Recarregar, mas não carregará dados por causa do no-cors
-        setTimeout(fetchSegurados, 1200); 
-    });
-  };
+    setSavingEndosso(true);
+    
+    try {
+      const payload = {
+        action: 'endossar_veiculo',
+        id: endossoData.clienteId,
+        name: endossoData.clienteNome,
+        vehicleModel: endossoData.vehicleModel,
+        vehicleYearModel: endossoData.vehicleYearModel,
+        premioLiquido: endossoData.premioLiquido,
+        comissao: endossoData.comissao,
+        meioPagamento: endossoData.meioPagamento,
+        numeroParcelas: endossoData.numeroParcelas
+      };
 
-  const handleCancelar = (segurado, vehicle) => {
-    setCancelarData({
-      clienteId: segurado.id,
-      clienteNome: segurado.name,
-      clienteTelefone: segurado.phone,
-      vehicleModel: vehicle.vehicleModel,
-      vehicleYearModel: vehicle.vehicleYearModel,
-    });
-    setShowCancelarModal(true);
-  };
+      await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-  const confirmarCancelamento = async () => {
-    await postData('cancelar_renovacao', cancelarData, () => {
-        setShowCancelarModal(false);
-        setTimeout(fetchSegurados, 1200);
-    });
+      // Se chegou aqui, a requisição foi enviada.
+      // Não temos como ler resposta; assume-se sucesso.
+      alert('Solicitação de endosso enviada. Verifique os dados atualizados na listagem.');
+      setShowEndossoModal(false);
+      // Opcional: recarregar lista após um pequeno atraso para dar tempo do GAS gravar
+      setTimeout(() => {
+        fetchSegurados();
+      }, 1200);
+    } catch (error) {
+      console.error('Erro ao enviar endosso:', error);
+      alert('Falha ao enviar endosso (rede/CORS). Tente novamente.');
+    } finally {
+      setSavingEndosso(false);
+    }
   };
 
   const formatarData = (dataString) => {
     if (!dataString) return 'N/A';
     try {
-      let date;
-      if (dataString.includes('/')) {
-        const parts = dataString.split('/');
-        date = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
-      } else {
-        date = new Date(dataString);
-      }
-      
+      const date = new Date(dataString);
       if (isNaN(date.getTime())) return dataString;
       
       const dia = String(date.getDate()).padStart(2, '0');
@@ -302,7 +308,7 @@ const Segurados = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredSegurados.map((segurado, index) => (
             <div
-              key={segurado.id || index}
+              key={index}
               className="bg-white rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow border border-gray-200"
             >
               <div className="flex items-start justify-between mb-3">
@@ -355,17 +361,10 @@ const Segurados = () => {
                             </div>
                             <button
                               onClick={() => handleEndossar(segurado, vehicle)}
-                              className="ml-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1 whitespace-nowrap"
+                              className="ml-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
                             >
                               <Edit size={12} />
                               Endossar
-                            </button>
-                            <button
-                              onClick={() => handleCancelar(segurado, vehicle)}
-                              className="ml-2 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1 whitespace-nowrap"
-                            >
-                              <X size={12} />
-                              Cancelar
                             </button>
                           </div>
                           
@@ -508,74 +507,9 @@ const Segurados = () => {
                     disabled={savingEndosso}
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed"
                   >
-                    {savingEndosso ? (
-                        <div className="flex items-center justify-center gap-2">
-                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                             Salvando...
-                        </div>
-                    ) : 'Salvar'}
+                    {savingEndosso ? 'Salvando...' : 'Salvar'}
                   </button>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Cancelamento */}
-      {showCancelarModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">Cancelar Renovação</h2>
-                <button
-                  onClick={() => setShowCancelarModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              <div className="space-y-4 mb-6">
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-sm text-yellow-800 font-medium mb-2">
-                    ⚠️ Atenção: Esta ação irá cancelar a renovação
-                  </p>
-                  <p className="text-sm text-gray-700">
-                    Cliente: <span className="font-semibold">{cancelarData.clienteNome}</span>
-                  </p>
-                  <p className="text-sm text-gray-700">
-                    Telefone: <span className="font-semibold">{cancelarData.clienteTelefone}</span>
-                  </p>
-                  <p className="text-sm text-gray-700 mt-2">
-                    Veículo: <span className="font-semibold">
-                    {cancelarData.vehicleModel} - {cancelarData.vehicleYearModel}
-                    </span>
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowCancelarModal(false)}
-                  disabled={savingCancelar}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
-                  Voltar
-                </button>
-                <button
-                  onClick={confirmarCancelamento}
-                  disabled={savingCancelar}
-                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {savingCancelar ? (
-                       <div className="flex items-center justify-center gap-2">
-                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                             Cancelando...
-                       </div>
-                  ) : 'Confirmar Cancelamento'}
-                </button>
               </div>
             </div>
           </div>
