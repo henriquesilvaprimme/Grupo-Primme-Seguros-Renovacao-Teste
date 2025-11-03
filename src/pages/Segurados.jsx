@@ -567,8 +567,8 @@ const Segurados = () => {
                     {savingEndosso ? 'Salvando...' : 'Salvar'}
                   </button>
                 </div>
-  );
-};
+        )}
+      </div>
 
       {/* Modal de Cancelamento */}
       {showCancelarModal && (
