@@ -59,7 +59,7 @@ const Segurados = () => {
     try {
       console.log('Iniciando busca de segurados...');
 
-      // Buscar da aba "Renovações" (GET - sem no-cors, precisamos ler o JSON)
+      // Buscar da aba "Renovações"
       const responseRenovacoes = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovacoes`);
       const dataRenovacoes = await responseRenovacoes.json();
       console.log('Renovações recebidos:', dataRenovacoes);
@@ -168,7 +168,7 @@ const Segurados = () => {
     return String(d).trim();
   };
 
-  // Função cancelamento: usa vehicle.recordId (se existir) e valida os 6 campos localmente antes de enviar
+  // Cancelar: valida os 7 campos (incluindo recordId) localmente antes de enviar
   const handleCancelar = async (segurado, vehicle) => {
     const nome = normalizeStr(segurado.name);
     const vehicleModel = normalizeStr(vehicle?.vehicleModel);
@@ -186,17 +186,19 @@ const Segurados = () => {
     const confirmMsg = `Tem certeza que deseja CANCELAR o seguro de ${nome} - ${vehicleModel} ${vehicleYearModel}?`;
     if (!window.confirm(confirmMsg)) return;
 
-    // Validar localmente que os campos batem (garantia adicional antes de enviar)
-    const localMatch =
-      nome === normalizeStr(segurado.name) &&
-      vehicleModel === normalizeStr(vehicle.vehicleModel) &&
-      vehicleYearModel === normalizeStr(vehicle.vehicleYearModel) &&
-      seguradora === normalizeStr(vehicle.Seguradora || vehicle.seguradora || segurado.insuranceType || '') &&
-      VigenciaInicial === normalizeDateForCompare(vehicle.VigenciaInicial) &&
-      VigenciaFinal === normalizeDateForCompare(vehicle.VigenciaFinal);
+    // Verificação dos 7 campos — usamos os dados já carregados do Sheets (vehicle)
+    const matchId = recordId === String(vehicle.recordId);
+    const matchName = nome === normalizeStr(segurado.name);
+    const matchModel = vehicleModel === normalizeStr(vehicle.vehicleModel);
+    const matchYear = vehicleYearModel === normalizeStr(vehicle.vehicleYearModel);
+    const matchSeguradora = seguradora === normalizeStr(vehicle.Seguradora || vehicle.seguradora || segurado.insuranceType || '');
+    const matchIni = VigenciaInicial === normalizeDateForCompare(vehicle.VigenciaInicial);
+    const matchFim = VigenciaFinal === normalizeDateForCompare(vehicle.VigenciaFinal);
 
-    if (!localMatch) {
-      alert('Dados do cartão não conferem exatamente. Cancelamento abortado.');
+    const todosBatem = matchId && matchName && matchModel && matchYear && matchSeguradora && matchIni && matchFim;
+
+    if (!todosBatem) {
+      alert('Não foi possível confirmar todos os 7 itens (ID + 6 campos). Cancelamento abortado.');
       return;
     }
 
@@ -221,7 +223,7 @@ const Segurados = () => {
         body: JSON.stringify(payload)
       });
 
-      // Atualização otimista local (marcar como cancelado)
+      // Atualização otimista local (marcar como cancelado) — só depois que validamos os 7 itens
       setSegurados((prev) =>
         prev.map((s) => {
           if (normalizeStr(s.name) !== nome) return s;
@@ -254,6 +256,13 @@ const Segurados = () => {
         })
       );
 
+      alert('Requisição de cancelamento enviada (no-cors). Verifique a planilha para confirmação.');
+      setTimeout(fetchSegurados, 1200);
+    } catch (err) {
+      console.error('Erro ao enviar cancelamento:', err);
+      alert('Erro ao enviar cancelamento. Verifique o console.');
+    }
+  };
 
   const handleSaveEndosso = async () => {
     setSavingEndosso(true);
