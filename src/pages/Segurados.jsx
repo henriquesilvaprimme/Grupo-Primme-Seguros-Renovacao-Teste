@@ -67,16 +67,12 @@ const Segurados = () => {
       console.log('Renovações recebidos:', dataRenovações);
 
       // Verificar se há erros nas respostas
-      if (dataFechados.status === 'error') {
-        throw new Error(`Erro em Leads Fechados: ${dataFechados.message}`);
-      }
       if (dataRenovações.status === 'error') {
         throw new Error(`Erro em Renovações: ${dataRenovações.message}`);
       }
 
       // Combinar todos os clientes
       const todosClientes = [
-        ...(Array.isArray(dataFechados) ? dataFechados : []), 
         ...(Array.isArray(dataRenovações) ? dataRenovações : [])
       ];
       
@@ -145,7 +141,7 @@ const Segurados = () => {
       setSegurados(clientesUnicos);
       
       if (clientesUnicos.length === 0) {
-        setError('Nenhum segurado encontrado nas abas "Leads Fechados" e "Renovações".');
+        setError('Nenhum segurado encontrado nas abas "Renovações".');
       }
       
     } catch (error) {
