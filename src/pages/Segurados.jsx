@@ -120,6 +120,7 @@ const Segurados = () => {
           Comissao: cliente.Comissao || cliente.comissao || '',
           Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
           Endossado: cliente.Endossado || false,
+          Status: cliente.Status || cliente.status || "",
         });
         
         return acc;
@@ -385,11 +386,12 @@ const Segurados = () => {
                     
                     <div className="space-y-2">
                       {segurado.vehicles.map((vehicle, vIndex) => (
-                        <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                        <div key={vIndex} className={`rounded-lg p-3 border ${vehicle.Status === "Cancelado" ? "bg-red-50 border-red-300" : "bg-gray-50 border-gray-200"}`}>
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <p className="font-medium text-gray-800 text-sm">
                                 {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
+                                {vehicle.Status === "Cancelado" && <span className="ml-2 text-red-600 font-bold">Cancelado</span>}
                               </p>
                               {vehicle.Endossado && (
                                 <div className="flex items-center gap-1 mt-1">
