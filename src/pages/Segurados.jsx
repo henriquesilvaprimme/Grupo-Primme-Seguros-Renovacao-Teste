@@ -408,6 +408,7 @@ const Segurados = () => {
                                 <Edit size={12} />
                                 Endossar
                               </button>
+                              {vehicle.Status !== "Cancelado" && (
                               <button
                                 onClick={() => handleCancelar(segurado)}
                                 className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
@@ -415,6 +416,7 @@ const Segurados = () => {
                                 <X size={12} />
                                 Cancelar
                               </button>
+                              )}
                             </div>
                           </div>
                           
