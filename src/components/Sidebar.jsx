@@ -73,20 +73,7 @@ const Sidebar = ({ nomeUsuario }) => {
           <Search size={20} />
           Buscar Lead
         </NavLink>
-
-        {/* NOVO ITEM: Segurados - usando ícone Users */}
-        <NavLink
-          to="/segurados"
-          className={({ isActive }) =>
-            `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
-              isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
-            }`
-          }
-        >
-          <Users size={20} />
-          Segurados
-        </NavLink>
-
+      
         <NavLink
           to="/ranking"
           className={({ isActive }) =>
@@ -112,7 +99,19 @@ const Sidebar = ({ nomeUsuario }) => {
               <FilePlus size={20} />
               Criar Lead
             </NavLink>
-
+            
+            <NavLink
+          to="/segurados"
+          className={({ isActive }) =>
+            `flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-blue-100 transition ${
+              isActive ? 'border-l-4 border-blue-500 bg-blue-50' : ''
+            }`
+          }
+        >
+          <Users size={20} />
+          Segurados
+          </NavLink>
+            
             <NavLink
               to="/criar-usuario"
               className={({ isActive }) =>
