@@ -144,9 +144,9 @@ const Segurados = () => {
           };
         }
 
-        // Extrair status e data de cancelamento com variações possíveis
+        // IMPORTANTE: ler apenas DataCancelamento (coluna U) — não usar variações que vêm de outras colunas
         const statusVeiculo = cliente.status || cliente.Status || cliente.StatusDoLead || cliente.situacao || '';
-        const dataCancelamento = cliente.DataCancelamento || cliente.dataCancelamento || cliente.Data_Cancelamento || cliente.Data_cancelamento || cliente.data_cancelamento || '';
+        const dataCancelamento = cliente.DataCancelamento || '';
 
         // Adicionar veículo com suas vigências (inclui status e DataCancelamento)
         acc[chave].vehicles.push({
@@ -160,7 +160,7 @@ const Segurados = () => {
           Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
           Endossado: cliente.Endossado || false,
           Status: statusVeiculo,
-          DataCancelamento: dataCancelamento
+          DataCancelamento: dataCancelamento // somente esta propriedade (coluna U)
         });
 
         return acc;
@@ -277,6 +277,7 @@ const Segurados = () => {
   };
 
   // ALTERAÇÃO: agora recebe (segurado, vehicle) e cancela especificamente o ID do veículo
+  // Envia APENAS { action, id, status, DataCancelamento } para garantir que a coluna U seja escrita
   const handleCancelar = async (segurado, vehicle) => {
     // Obter ID da linha do veículo
     const idVeiculo = obterIDPorVeiculo(segurado, vehicle);
@@ -301,9 +302,8 @@ const Segurados = () => {
       const payload = {
         action: 'cancelar_lead',
         id: idVeiculo, // usa o ID da linha do veículo (Coluna A)
-        name: segurado.name,
         status: 'Cancelado', // coluna J
-        DataCancelamento: dataFormatada // coluna U (DataCancelamento) em DD/MM/YYYY
+        DataCancelamento: dataFormatada // somente esta propriedade (coluna U)
       };
 
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
@@ -313,7 +313,7 @@ const Segurados = () => {
         body: JSON.stringify(payload)
       });
 
-      alert('Status alterado para Cancelado (veículo específico). Verifique os dados atualizados na planilha.');
+      alert('Status alterado para Cancelado (veículo específico). Verifique os dados atualizados na planilha (coluna U).');
       setTimeout(() => {
         fetchSegurados();
       }, 1200);
@@ -326,6 +326,8 @@ const Segurados = () => {
   const formatarData = (dataString) => {
     if (!dataString) return 'N/A';
     try {
+      // Se já vier em formato DD/MM/YYYY (contém '/'), retorna como está
+      if (typeof dataString === 'string' && dataString.includes('/')) return dataString;
       const date = new Date(dataString);
       if (isNaN(date.getTime())) return dataString;
 
@@ -449,8 +451,13 @@ const Segurados = () => {
                       {segurado.vehicles.map((vehicle, vIndex) => {
                         const idVeiculo = obterIDPorVeiculo(segurado, vehicle);
                         const statusVeiculo = (vehicle.Status || vehicle.status || '').toString();
-                        const dataCancelamentoVeiculo = vehicle.DataCancelamento || vehicle.dataCancelamento || '';
+                        const dataCancelamentoVeiculo = vehicle.DataCancelamento || '';
                         const isCancelado = statusVeiculo.toLowerCase() === 'cancelado' || (dataCancelamentoVeiculo && dataCancelamentoVeiculo.trim() !== '');
+
+                        // Exibir a data de cancelamento exclusivamente da coluna U (DataCancelamento)
+                        const dataCancelDisplay = dataCancelamentoVeiculo
+                          ? (dataCancelamentoVeiculo.includes('/') ? dataCancelamentoVeiculo : formatarData(dataCancelamentoVeiculo))
+                          : '';
 
                         return (
                           <div
@@ -473,11 +480,11 @@ const Segurados = () => {
                                   </div>
                                 )}
 
-                                {/* Se cancelado, mostrar a data em vermelho */}
+                                {/* Se cancelado, mostrar a data em vermelho (originada apenas da coluna U) */}
                                 {isCancelado && (
                                   <div className="mt-2">
                                     <p className="text-xs text-red-600 font-semibold">
-                                      Cancelado em: {dataCancelamentoVeiculo ? dataCancelamentoVeiculo : formatarData(dataCancelamentoVeiculo)}
+                                      Cancelado em: {dataCancelDisplay || 'Data não informada'}
                                     </p>
                                   </div>
                                 )}
