@@ -270,8 +270,17 @@ const Segurados = () => {
     }
   };
 
-  const handleCancelar = async (segurado) => {
-    if (!window.confirm(`Tem certeza que deseja cancelar o lead de ${segurado.name}?`)) {
+  // ALTERAÇÃO: agora recebe (segurado, vehicle) e cancela especificamente o ID do veículo
+  const handleCancelar = async (segurado, vehicle) => {
+    // Obter ID da linha do veículo
+    const idVeiculo = obterIDPorVeiculo(segurado, vehicle);
+
+    if (!idVeiculo) {
+      alert('Não foi possível identificar o ID do veículo (Coluna A). Cancelamento interrompido. Verifique os dados.');
+      return;
+    }
+
+    if (!window.confirm(`Tem certeza que deseja cancelar o veículo "${vehicle.vehicleModel || 'Modelo desconhecido'}" (ID: ${formatarID(idVeiculo)}) de ${segurado.name}?`)) {
       return;
     }
 
@@ -285,7 +294,7 @@ const Segurados = () => {
 
       const payload = {
         action: 'cancelar_lead',
-        id: segurado.id,
+        id: idVeiculo, // usa o ID da linha do veículo (Coluna A) — CORREÇÃO feita aqui
         name: segurado.name,
         status: 'Cancelado', // coluna J
         DataCancelamento: dataFormatada // coluna U (DataCancelamento) em DD/MM/YYYY
@@ -298,7 +307,7 @@ const Segurados = () => {
         body: JSON.stringify(payload)
       });
 
-      alert('Status alterado para Cancelado. Verifique os dados atualizados na planilha.');
+      alert('Status alterado para Cancelado (veículo específico). Verifique os dados atualizados na planilha.');
       setTimeout(() => {
         fetchSegurados();
       }, 1200);
@@ -458,8 +467,9 @@ const Segurados = () => {
                                   <Edit size={12} />
                                   Endossar
                                 </button>
+                                {/* ALTERAÇÃO: passa vehicle para cancelar o veículo específico */}
                                 <button
-                                  onClick={() => handleCancelar(segurado)}
+                                  onClick={() => handleCancelar(segurado, vehicle)}
                                   className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
                                 >
                                   <X size={12} />
