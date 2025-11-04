@@ -119,6 +119,7 @@ const Segurados = () => {
         acc[chave].vehicles.push({
           vehicleModel: cliente.vehicleModel || cliente.vehiclemodel || cliente.Modelo || '',
           vehicleYearModel: cliente.vehicleYearModel || cliente.vehicleyearmodel || cliente.AnoModelo || '',
+          vehicleId: cliente.vehicleId || cliente.VehicleId || cliente.ID_VEICULO || '',
           VigenciaInicial: cliente.VigenciaInicial || cliente.vigenciaInicial || '',
           VigenciaFinal: cliente.VigenciaFinal || cliente.vigenciaFinal || '',
           Seguradora: cliente.Seguradora || cliente.seguradora || '',
@@ -389,8 +390,6 @@ const Segurados = () => {
 
                     <div className="space-y-2">
                       {segurado.vehicles.map((vehicle, vIndex) => {
-                        // A função obterIDPorVeiculo não é mais necessária, pois o vehicleId já está disponível no objeto vehicle.
-    // const idVeiculo = obterIDPorVeiculo(segurado, vehicle);
                         return (
                           <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                             <div className="flex items-start justify-between mb-2">
