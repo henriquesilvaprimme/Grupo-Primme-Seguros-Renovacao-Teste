@@ -144,7 +144,11 @@ const Segurados = () => {
           };
         }
 
-        // Adicionar veículo com suas vigências
+        // Extrair status e data de cancelamento com variações possíveis
+        const statusVeiculo = cliente.status || cliente.Status || cliente.StatusDoLead || cliente.situacao || '';
+        const dataCancelamento = cliente.DataCancelamento || cliente.dataCancelamento || cliente.Data_Cancelamento || cliente.Data_cancelamento || cliente.data_cancelamento || '';
+
+        // Adicionar veículo com suas vigências (inclui status e DataCancelamento)
         acc[chave].vehicles.push({
           vehicleModel: cliente.vehicleModel || cliente.vehiclemodel || cliente.Modelo || '',
           vehicleYearModel: cliente.vehicleYearModel || cliente.vehicleyearmodel || cliente.AnoModelo || '',
@@ -155,6 +159,8 @@ const Segurados = () => {
           Comissao: cliente.Comissao || cliente.comissao || '',
           Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
           Endossado: cliente.Endossado || false,
+          Status: statusVeiculo,
+          DataCancelamento: dataCancelamento
         });
 
         return acc;
@@ -294,7 +300,7 @@ const Segurados = () => {
 
       const payload = {
         action: 'cancelar_lead',
-        id: idVeiculo, // usa o ID da linha do veículo (Coluna A) — CORREÇÃO feita aqui
+        id: idVeiculo, // usa o ID da linha do veículo (Coluna A)
         name: segurado.name,
         status: 'Cancelado', // coluna J
         DataCancelamento: dataFormatada // coluna U (DataCancelamento) em DD/MM/YYYY
@@ -442,8 +448,15 @@ const Segurados = () => {
                     <div className="space-y-2">
                       {segurado.vehicles.map((vehicle, vIndex) => {
                         const idVeiculo = obterIDPorVeiculo(segurado, vehicle);
+                        const statusVeiculo = (vehicle.Status || vehicle.status || '').toString();
+                        const dataCancelamentoVeiculo = vehicle.DataCancelamento || vehicle.dataCancelamento || '';
+                        const isCancelado = statusVeiculo.toLowerCase() === 'cancelado' || (dataCancelamentoVeiculo && dataCancelamentoVeiculo.trim() !== '');
+
                         return (
-                          <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                          <div
+                            key={vIndex}
+                            className={`rounded-lg p-3 border ${isCancelado ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}
+                          >
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
                                 <p className="font-medium text-gray-800 text-sm">
@@ -452,10 +465,20 @@ const Segurados = () => {
                                 <p className="text-xs text-gray-500 mt-1">
                                   ID: {formatarID(idVeiculo)}
                                 </p>
+
                                 {vehicle.Endossado && (
                                   <div className="flex items-center gap-1 mt-1">
                                     <CheckCircle size={14} className="text-green-600" />
                                     <span className="text-xs text-green-600 font-semibold">Endossado</span>
+                                  </div>
+                                )}
+
+                                {/* Se cancelado, mostrar a data em vermelho */}
+                                {isCancelado && (
+                                  <div className="mt-2">
+                                    <p className="text-xs text-red-600 font-semibold">
+                                      Cancelado em: {dataCancelamentoVeiculo ? dataCancelamentoVeiculo : formatarData(dataCancelamentoVeiculo)}
+                                    </p>
                                   </div>
                                 )}
                               </div>
@@ -467,7 +490,6 @@ const Segurados = () => {
                                   <Edit size={12} />
                                   Endossar
                                 </button>
-                                {/* ALTERAÇÃO: passa vehicle para cancelar o veículo específico */}
                                 <button
                                   onClick={() => handleCancelar(segurado, vehicle)}
                                   className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors flex items-center gap-1"
