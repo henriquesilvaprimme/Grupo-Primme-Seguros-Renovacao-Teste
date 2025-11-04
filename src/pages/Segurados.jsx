@@ -409,7 +409,8 @@ const Segurados = () => {
 
                     <div className="space-y-2">
                       {segurado.vehicles.map((vehicle, vIndex) => {
-                        const idVeiculo = obterIDPorVeiculo(segurado, vehicle);
+                        // A função obterIDPorVeiculo não é mais necessária, pois o vehicleId já está disponível no objeto vehicle.
+    // const idVeiculo = obterIDPorVeiculo(segurado, vehicle);
                         return (
                           <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                             <div className="flex items-start justify-between mb-2">
