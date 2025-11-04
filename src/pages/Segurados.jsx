@@ -276,10 +276,19 @@ const Segurados = () => {
     }
 
     try {
+      // Formatar data atual como DD/MM/YYYY
+      const hoje = new Date();
+      const dia = String(hoje.getDate()).padStart(2, '0');
+      const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+      const ano = hoje.getFullYear();
+      const dataFormatada = `${dia}/${mes}/${ano}`;
+
       const payload = {
         action: 'cancelar_lead',
         id: segurado.id,
-        name: segurado.name
+        name: segurado.name,
+        status: 'Cancelado', // coluna J
+        DataCancelamento: dataFormatada // coluna U (DataCancelamento) em DD/MM/YYYY
       };
 
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
@@ -289,7 +298,7 @@ const Segurados = () => {
         body: JSON.stringify(payload)
       });
 
-      alert('Status alterado para Cancelado. Verifique os dados atualizados na listagem.');
+      alert('Status alterado para Cancelado. Verifique os dados atualizados na planilha.');
       setTimeout(() => {
         fetchSegurados();
       }, 1200);
