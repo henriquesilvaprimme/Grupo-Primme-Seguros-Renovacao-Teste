@@ -597,7 +597,6 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                             <option value="Porto Seguro">Porto Seguro</option>
                                             <option value="Azul Seguros">Azul Seguros</option>
                                             <option value="Itau Seguros">Itau Seguros</option>
-                                            <option value="Demais Seguradoras">Demais Seguradoras</option>
                                             <option value="Tokio">Tokio</option>
                                             <option value="Yelum">Yelum</option>
                                             <option value="Bradesco">Bradesco</option>
@@ -608,6 +607,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                             <option value="Mitsui">Mitsui</option>
                                             <option value="Mapfre">Mapfre</option>
                                             <option value="Alfa">Alfa</option>
+                                            <option value="Demais Seguradoras">Demais Seguradoras</option>
                                         </select>
                                     </div>
                                     
