@@ -23,7 +23,8 @@ const Segurados = () => {
     meioPagamento: '',
     numeroParcelas: '1',
     vigenciaInicial: '',
-    vigenciaFinal: ''
+    vigenciaFinal: '',
+    vehicleRowId: '' // novo campo: ID da linha/Coluna A do veículo a ser endossado
   });
   const [savingEndosso, setSavingEndosso] = useState(false);
 
@@ -91,6 +92,7 @@ const Segurados = () => {
              vigenciaFinalItem === vehicle.VigenciaFinal;
     });
     
+    // Retorna ID da linha (coluna A) se disponível em diferentes formatos
     return itemCorrespondente ? (itemCorrespondente.id || itemCorrespondente.ID || itemCorrespondente.Id || '') : '';
   };
 
@@ -195,6 +197,9 @@ const Segurados = () => {
   };
 
   const handleEndossar = (segurado, vehicle) => {
+    // Obter o ID da linha (Coluna A) correspondente ao veículo
+    const idVeiculo = obterIDPorVeiculo(segurado, vehicle);
+
     setEndossoData({
       clienteId: segurado.id,
       clienteNome: segurado.name,
@@ -206,20 +211,33 @@ const Segurados = () => {
       meioPagamento: '',
       numeroParcelas: '1',
       vigenciaInicial: vehicle.VigenciaInicial,
-      vigenciaFinal: vehicle.VigenciaFinal
+      vigenciaFinal: vehicle.VigenciaFinal,
+      vehicleRowId: idVeiculo || '' // armazena o ID da linha do veículo
     });
+
+    if (!idVeiculo) {
+      // avisar que o ID não foi encontrado, mas ainda assim abrir o modal para possível edição manual
+      alert('AVISO: não foi possível identificar automaticamente o ID da linha do veículo. Verifique os dados ou edite manualmente antes de salvar.');
+    }
+
     setShowEndossoModal(true);
   };
 
   // Envio com no-cors: não é possível ler a resposta.
   // Consideramos sucesso se o fetch não lançar erro de rede.
   const handleSaveEndosso = async () => {
+    // Certificar que temos um ID da linha do veículo
+    if (!endossoData.vehicleRowId) {
+      alert('ID do veículo (Coluna A) não encontrado. Não é possível endossar sem o ID. Verifique os dados.');
+      return;
+    }
+
     setSavingEndosso(true);
 
     try {
       const payload = {
         action: 'endossar_veiculo',
-        id: endossoData.clienteId,
+        id: endossoData.vehicleRowId, // usa o ID da linha do veículo (Coluna A)
         name: endossoData.clienteNome,
         vehicleModel: endossoData.vehicleModel,
         vehicleYearModel: endossoData.vehicleYearModel,
@@ -238,7 +256,7 @@ const Segurados = () => {
 
       // Se chegou aqui, a requisição foi enviada.
       // Não temos como ler resposta; assume-se sucesso.
-      alert('Solicitação de endosso enviada. Verifique os dados atualizados na listagem.');
+      alert('Solicitação de endosso enviada para o veículo (ID da linha). Verifique os dados atualizados na listagem.');
       setShowEndossoModal(false);
       // Opcional: recarregar lista após um pequeno atraso para dar tempo do GAS gravar
       setTimeout(() => {
@@ -487,6 +505,18 @@ const Segurados = () => {
               </div>
 
               <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ID da linha (Coluna A) - veículo
+                  </label>
+                  <input
+                    type="text"
+                    value={endossoData.vehicleRowId}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-sm"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Modelo do Veículo
