@@ -16,7 +16,6 @@ const Segurados = () => {
     clienteId: '',
     clienteNome: '',
     clienteTelefone: '',
-    vehicleId: '',
     vehicleModel: '',
     vehicleYearModel: '',
     premioLiquido: '',
@@ -24,7 +23,8 @@ const Segurados = () => {
     meioPagamento: '',
     numeroParcelas: '1',
     vigenciaInicial: '',
-    vigenciaFinal: ''
+    vigenciaFinal: '',
+    vehicleId: ''
   });
   const [savingEndosso, setSavingEndosso] = useState(false);
 
@@ -55,6 +55,7 @@ const Segurados = () => {
   }, [searchTerm, segurados, anoFiltro]);
 
 
+
   const fetchSegurados = async () => {
     setLoading(true);
     setError(null);
@@ -62,11 +63,6 @@ const Segurados = () => {
     try {
       console.log('Iniciando busca de segurados...');
 
-      // Buscar da aba "Leads Fechados"
-      console.log('Buscando Leads Fechados...');
-      const responseFechados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`);
-      const dataFechados = await responseFechados.json();
-      console.log('Leads Fechados recebidos:', dataFechados);
 
       // Buscar da aba "Renovados"
       console.log('Buscando Renovados...');
@@ -75,16 +71,13 @@ const Segurados = () => {
       console.log('Renovados recebidos:', dataRenovados);
 
       // Verificar se há erros nas respostas
-      if (dataFechados.status === 'error') {
-        throw new Error(`Erro em Leads Fechados: ${dataFechados.message}`);
-      }
+
       if (dataRenovados.status === 'error') {
         throw new Error(`Erro em Renovados: ${dataRenovados.message}`);
       }
 
       // Combinar todos os clientes
       const todosClientes = [
-        ...(Array.isArray(dataFechados) ? dataFechados : []),
         ...(Array.isArray(dataRenovados) ? dataRenovados : [])
       ];
 
@@ -119,7 +112,6 @@ const Segurados = () => {
         acc[chave].vehicles.push({
           vehicleModel: cliente.vehicleModel || cliente.vehiclemodel || cliente.Modelo || '',
           vehicleYearModel: cliente.vehicleYearModel || cliente.vehicleyearmodel || cliente.AnoModelo || '',
-          vehicleId: cliente.vehicleId || cliente.VehicleId || cliente.ID_VEICULO || '',
           VigenciaInicial: cliente.VigenciaInicial || cliente.vigenciaInicial || '',
           VigenciaFinal: cliente.VigenciaFinal || cliente.vigenciaFinal || '',
           Seguradora: cliente.Seguradora || cliente.seguradora || '',
@@ -127,6 +119,7 @@ const Segurados = () => {
           Comissao: cliente.Comissao || cliente.comissao || '',
           Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
           Endossado: cliente.Endossado || false,
+          vehicleId: cliente.vehicleId || cliente.VehicleId || cliente.IDVeiculo || '',
         });
 
         return acc;
@@ -168,11 +161,10 @@ const Segurados = () => {
     }
   };
 
-  const handleEndossar = (segurado, vehicle, vehicleId) => {
+  const handleEndossar = (segurado, vehicle) => {
     setEndossoData({
       clienteId: segurado.id,
       clienteNome: segurado.name,
-      vehicleId: vehicleId,
       clienteTelefone: segurado.phone,
       vehicleModel: vehicle.vehicleModel || '',
       vehicleYearModel: vehicle.vehicleYearModel || '',
@@ -181,7 +173,8 @@ const Segurados = () => {
       meioPagamento: '',
       numeroParcelas: '1',
       vigenciaInicial: vehicle.VigenciaInicial,
-      vigenciaFinal: vehicle.VigenciaFinal
+      vigenciaFinal: vehicle.VigenciaFinal,
+      vehicleId: vehicle.vehicleId || ''
     });
     setShowEndossoModal(true);
   };
@@ -193,8 +186,7 @@ const Segurados = () => {
 
     try {
       const payload = {
-        vehicleId: endossoData.vehicleId,
-        action: 'endossar_veiculo',
+        action: 'endossar_veiculo_renovacoes',
         id: endossoData.clienteId,
         name: endossoData.clienteNome,
         vehicleModel: endossoData.vehicleModel,
@@ -202,7 +194,8 @@ const Segurados = () => {
         premioLiquido: endossoData.premioLiquido,
         comissao: endossoData.comissao,
         meioPagamento: endossoData.meioPagamento,
-        numeroParcelas: endossoData.numeroParcelas
+        numeroParcelas: endossoData.numeroParcelas,
+        vehicleId: endossoData.vehicleId
       };
 
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
@@ -390,6 +383,7 @@ const Segurados = () => {
 
                     <div className="space-y-2">
                       {segurado.vehicles.map((vehicle, vIndex) => {
+                        const idVeiculo = obterIDPorVeiculo(segurado, vehicle);
                         return (
                           <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                             <div className="flex items-start justify-between mb-2">
@@ -398,7 +392,7 @@ const Segurados = () => {
                                   {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
                                 </p>
                                 <p className="text-xs text-gray-500 mt-1">
-                                  ID: {formatarID(vehicle.vehicleId)}
+                                  ID: {formatarID(idVeiculo)}
                                 </p>
                                 {vehicle.Endossado && (
                                   <div className="flex items-center gap-1 mt-1">
@@ -409,7 +403,7 @@ const Segurados = () => {
                               </div>
                               <div className="ml-2 flex flex-col gap-1">
                                 <button
-                                  onClick={() => handleEndossar(segurado, vehicle, vehicle.vehicleId)}
+                                  onClick={() => handleEndossar(segurado, vehicle)}
                                   className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
                                 >
                                   <Edit size={12} />
