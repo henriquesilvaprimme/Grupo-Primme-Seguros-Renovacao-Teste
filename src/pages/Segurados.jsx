@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Phone, Calendar, Shield, User, AlertCircle, Car, Edit, X, CheckCircle } from 'lucide-react';
 
 const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
@@ -10,7 +10,7 @@ const Segurados = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredSegurados, setFilteredSegurados] = useState([]);
   const [error, setError] = useState(null);
-  const [anoFiltro, setAnoFiltro] = useState(new Date().getFullYear());
+  const [anoFiltro, setAnoFiltro] = useState('Todos'); // padrão = Todos
   const [showEndossoModal, setShowEndossoModal] = useState(false);
   const [endossoData, setEndossoData] = useState({
     clienteId: '',
@@ -27,6 +27,23 @@ const Segurados = () => {
   });
   const [savingEndosso, setSavingEndosso] = useState(false);
 
+  // Gera lista de anos dinamicamente a partir das vigências dos veículos
+  const anosDisponiveis = useMemo(() => {
+    const anosSet = new Set();
+    segurados.forEach(s => {
+      (s.vehicles || []).forEach(v => {
+        const vigenciaInicial = v.VigenciaInicial || v.vigenciaInicial || '';
+        if (!vigenciaInicial) return;
+        const d = new Date(vigenciaInicial);
+        if (!isNaN(d.getTime())) {
+          anosSet.add(d.getFullYear());
+        }
+      });
+    });
+    const anosArray = Array.from(anosSet).sort((a, b) => b - a); // decrescente
+    return anosArray;
+  }, [segurados]);
+
   useEffect(() => {
     let filtered = segurados;
 
@@ -39,16 +56,19 @@ const Segurados = () => {
       );
     }
 
-    // Filtrar por ano
-    filtered = filtered.filter((segurado) => {
-      return segurado.vehicles.some((vehicle) => {
-        const vigenciaInicial = vehicle.VigenciaInicial;
-        if (!vigenciaInicial) return false;
-
-        const dataVigencia = new Date(vigenciaInicial);
-        return dataVigencia.getFullYear() === parseInt(anoFiltro);
+    // Filtrar por ano — se "Todos" selecionado, não filtra por ano
+    if (anoFiltro !== 'Todos') {
+      const anoSelecionado = parseInt(anoFiltro, 10);
+      filtered = filtered.filter((segurado) => {
+        return segurado.vehicles.some((vehicle) => {
+          const vigenciaInicial = vehicle.VigenciaInicial;
+          if (!vigenciaInicial) return false;
+          const dataVigencia = new Date(vigenciaInicial);
+          if (isNaN(dataVigencia.getTime())) return false;
+          return dataVigencia.getFullYear() === anoSelecionado;
+        });
       });
-    });
+    }
 
     setFilteredSegurados(filtered);
   }, [searchTerm, segurados, anoFiltro]);
@@ -282,16 +302,6 @@ const Segurados = () => {
     return idString.length > 5 ? idString.slice(-5) : idString;
   };
 
-  // Gerar lista de anos (ano atual - 5 até ano atual + 2)
-  const gerarAnosDisponiveis = () => {
-    const anoAtual = new Date().getFullYear();
-    const anos = [];
-    for (let i = anoAtual - 5; i <= anoAtual + 2; i++) {
-      anos.push(i);
-    }
-    return anos;
-  };
-
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
@@ -314,7 +324,8 @@ const Segurados = () => {
             onChange={(e) => setAnoFiltro(e.target.value)}
             className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
           >
-            {gerarAnosDisponiveis().map((ano) => (
+            <option value="Todos">Todos</option>
+            {anosDisponiveis.map((ano) => (
               <option key={ano} value={ano}>
                 {ano}
               </option>
@@ -349,7 +360,7 @@ const Segurados = () => {
 
         {/* Contador */}
         <div className="mb-4 text-gray-600">
-          {filteredSegurados.length} segurado(s) encontrado(s) para o ano {anoFiltro}
+          {filteredSegurados.length} segurado(s) encontrado(s) {anoFiltro === 'Todos' ? 'para todos os anos' : `para o ano ${anoFiltro}`}
         </div>
 
         {/* Grid de cards */}
