@@ -54,26 +54,6 @@ const Segurados = () => {
     setFilteredSegurados(filtered);
   }, [searchTerm, segurados, anoFiltro]);
 
-  const obterIDPorVeiculo = (segurado, vehicle) => {
-    // Encontrar o item correspondente baseado em todas as características
-    const itemCorrespondente = todosClientesOriginais.find(item => {
-      const nomeItem = item.name || item.Name || item.nome || '';
-      const modeloItem = item.vehicleModel || item.vehiclemodel || item.Modelo || '';
-      const anoModeloItem = item.vehicleYearModel || item.vehicleyearmodel || item.AnoModelo || '';
-      const seguradoraItem = item.Seguradora || item.seguradora || '';
-      const vigenciaInicialItem = item.VigenciaInicial || item.vigenciaInicial || '';
-      const vigenciaFinalItem = item.VigenciaFinal || item.vigenciaFinal || '';
-
-      return nomeItem === segurado.name &&
-             modeloItem === vehicle.vehicleModel &&
-             anoModeloItem === vehicle.vehicleYearModel &&
-             seguradoraItem === vehicle.Seguradora &&
-             vigenciaInicialItem === vehicle.VigenciaInicial &&
-             vigenciaFinalItem === vehicle.VigenciaFinal;
-    });
-    
-    return itemCorrespondente ? (itemCorrespondente.id || itemCorrespondente.ID || itemCorrespondente.Id || '') : '';
-  };
 
   const fetchSegurados = async () => {
     setLoading(true);
@@ -419,7 +399,7 @@ const Segurados = () => {
                                   {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
                                 </p>
                                 <p className="text-xs text-gray-500 mt-1">
-                                  ID: {formatarID(idVeiculo)}
+                                  ID: {formatarID(vehicle.vehicleId)}
                                 </p>
                                 {vehicle.Endossado && (
                                   <div className="flex items-center gap-1 mt-1">
@@ -430,7 +410,7 @@ const Segurados = () => {
                               </div>
                               <div className="ml-2 flex flex-col gap-1">
                                 <button
-                                  onClick={() => handleEndossar(segurado, vehicle, idVeiculo)}
+                                  onClick={() => handleEndossar(segurado, vehicle, vehicle.vehicleId)}
                                   className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors flex items-center gap-1"
                                 >
                                   <Edit size={12} />
@@ -511,7 +491,7 @@ const Segurados = () => {
                   <input
                     type="text"
                     value={endossoData.vehicleYearModel}
-                    onChange={(e) => setEndossoData({ ...endossoData, vehicleYearModel: e.target.value })}
+                    onChange={(e) => setEndossoData({ ...endossoData, vehicleYearModel: e.target.value })}\
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
