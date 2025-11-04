@@ -16,6 +16,7 @@ const Segurados = () => {
     clienteId: '',
     clienteNome: '',
     clienteTelefone: '',
+    vehicleId: '', // Adicionado vehicleId
     vehicleModel: '',
     vehicleYearModel: '',
     premioLiquido: '',
@@ -23,8 +24,7 @@ const Segurados = () => {
     meioPagamento: '',
     numeroParcelas: '1',
     vigenciaInicial: '',
-    vigenciaFinal: '',
-    vehicleId: ''
+    vigenciaFinal: ''
   });
   const [savingEndosso, setSavingEndosso] = useState(false);
 
@@ -54,8 +54,6 @@ const Segurados = () => {
     setFilteredSegurados(filtered);
   }, [searchTerm, segurados, anoFiltro]);
 
-
-
   const fetchSegurados = async () => {
     setLoading(true);
     setError(null);
@@ -63,32 +61,21 @@ const Segurados = () => {
     try {
       console.log('Iniciando busca de segurados...');
 
+      console.log('Buscando da aba "Renovações"...');
+      const responseRenovacoes = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`);
+      const dataRenovacoes = await responseRenovacoes.json();
+      console.log('Renovações recebidas:', dataRenovacoes);
 
-      // Buscar da aba "Renovados"
-      console.log('Buscando Renovados...');
-      const responseRenovados = await fetch(`${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_renovados`);
-      const dataRenovados = await responseRenovados.json();
-      console.log('Renovados recebidos:', dataRenovados);
-
-      // Verificar se há erros nas respostas
-
-      if (dataRenovados.status === 'error') {
-        throw new Error(`Erro em Renovados: ${dataRenovados.message}`);
+      if (dataRenovacoes.status === 'error') {
+        throw new Error(`Erro em Renovações: ${dataRenovacoes.message}`);
       }
 
-      // Combinar todos os clientes
-      const todosClientes = [
-        ...(Array.isArray(dataRenovados) ? dataRenovados : [])
-      ];
-
+      const todosClientes = Array.isArray(dataRenovacoes) ? dataRenovacoes : [];
       console.log('Total de clientes combinados:', todosClientes.length);
 
-      // Armazenar todos os clientes originais para busca de ID
       setTodosClientesOriginais(todosClientes);
 
-      // Agrupar por nome e telefone, mantendo múltiplos veículos
       const clientesAgrupados = todosClientes.reduce((acc, cliente) => {
-        // Normalizar os nomes dos campos
         const telefone = cliente.phone || cliente.Telefone || cliente.telefone || '';
         const nome = cliente.name || cliente.Name || cliente.nome || '';
 
@@ -98,20 +85,20 @@ const Segurados = () => {
 
         if (!acc[chave]) {
           acc[chave] = {
-            id: cliente.id || cliente.ID || cliente.Id || '',
+            id: cliente.ID_UUID || cliente.id || cliente.ID || cliente.Id || '',
             name: nome,
             phone: telefone,
             city: cliente.city || cliente.Cidade || '',
-            insuranceType: cliente.insuranceType || cliente.insurancetype || cliente.TipoSeguro || '',
-            Responsavel: cliente.Responsavel || cliente.responsavel || '',
+            insuranceType: cliente.insurancetype || cliente.TipoSeguro || '',
+            Responsavel: cliente.responsavel || cliente.Responsavel || '',
             vehicles: []
           };
         }
 
-        // Adicionar veículo com suas vigências
         acc[chave].vehicles.push({
-          vehicleModel: cliente.vehicleModel || cliente.vehiclemodel || cliente.Modelo || '',
-          vehicleYearModel: cliente.vehicleYearModel || cliente.vehicleyearmodel || cliente.AnoModelo || '',
+          vehicleId: cliente.vehicleId || cliente.ID_UUID || '', // Adicionando vehicleId aqui
+          vehicleModel: cliente.vehiclemodel || cliente.Modelo || '',
+          vehicleYearModel: cliente.vehicleyearmodel || cliente.AnoModelo || '',
           VigenciaInicial: cliente.VigenciaInicial || cliente.vigenciaInicial || '',
           VigenciaFinal: cliente.VigenciaFinal || cliente.vigenciaFinal || '',
           Seguradora: cliente.Seguradora || cliente.seguradora || '',
@@ -119,15 +106,12 @@ const Segurados = () => {
           Comissao: cliente.Comissao || cliente.comissao || '',
           Parcelamento: cliente.Parcelamento || cliente.parcelamento || '',
           Endossado: cliente.Endossado || false,
-          vehicleId: cliente.vehicleId || cliente.VehicleId || cliente.IDVeiculo || '',
         });
 
         return acc;
       }, {});
 
-      // Converter objeto em array
       const clientesUnicos = Object.values(clientesAgrupados).map(cliente => {
-        // Ordenar veículos por vigência final mais recente
         cliente.vehicles.sort((a, b) => {
           const dateA = new Date(a.VigenciaFinal || '1900-01-01');
           const dateB = new Date(b.VigenciaFinal || '1900-01-01');
@@ -138,7 +122,6 @@ const Segurados = () => {
 
       console.log('Clientes únicos processados:', clientesUnicos.length);
 
-      // Ordenar por vigência final mais recente do primeiro veículo
       clientesUnicos.sort((a, b) => {
         const dateA = new Date(a.vehicles[0]?.VigenciaFinal || '1900-01-01');
         const dateB = new Date(b.vehicles[0]?.VigenciaFinal || '1900-01-01');
@@ -148,7 +131,7 @@ const Segurados = () => {
       setSegurados(clientesUnicos);
 
       if (clientesUnicos.length === 0) {
-        setError('Nenhum segurado encontrado nas abas "Leads Fechados" e "Renovados".');
+        setError('Nenhum segurado encontrado na aba "Renovações".');
       }
 
     } catch (error) {
@@ -166,6 +149,7 @@ const Segurados = () => {
       clienteId: segurado.id,
       clienteNome: segurado.name,
       clienteTelefone: segurado.phone,
+      vehicleId: vehicle.vehicleId || '', // Adicionando vehicleId aqui
       vehicleModel: vehicle.vehicleModel || '',
       vehicleYearModel: vehicle.vehicleYearModel || '',
       premioLiquido: vehicle.PremioLiquido || '',
@@ -173,8 +157,7 @@ const Segurados = () => {
       meioPagamento: '',
       numeroParcelas: '1',
       vigenciaInicial: vehicle.VigenciaInicial,
-      vigenciaFinal: vehicle.VigenciaFinal,
-      vehicleId: vehicle.vehicleId || ''
+      vigenciaFinal: vehicle.VigenciaFinal
     });
     setShowEndossoModal(true);
   };
@@ -186,16 +169,16 @@ const Segurados = () => {
 
     try {
       const payload = {
-        action: 'endossar_veiculo_renovacoes',
+        action: 'endossar_veiculo_renovacoes', // Nova ação para o GAS
         id: endossoData.clienteId,
         name: endossoData.clienteNome,
+        vehicleId: endossoData.vehicleId, // Adicionando vehicleId ao payload
         vehicleModel: endossoData.vehicleModel,
         vehicleYearModel: endossoData.vehicleYearModel,
         premioLiquido: endossoData.premioLiquido,
         comissao: endossoData.comissao,
         meioPagamento: endossoData.meioPagamento,
-        numeroParcelas: endossoData.numeroParcelas,
-        vehicleId: endossoData.vehicleId
+        numeroParcelas: endossoData.numeroParcelas
       };
 
       await fetch(GOOGLE_APPS_SCRIPT_BASE_URL, {
@@ -383,7 +366,6 @@ const Segurados = () => {
 
                     <div className="space-y-2">
                       {segurado.vehicles.map((vehicle, vIndex) => {
-                        const idVeiculo = obterIDPorVeiculo(segurado, vehicle);
                         return (
                           <div key={vIndex} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                             <div className="flex items-start justify-between mb-2">
@@ -392,7 +374,7 @@ const Segurados = () => {
                                   {vehicle.vehicleModel || 'Modelo não informado'} {vehicle.vehicleYearModel}
                                 </p>
                                 <p className="text-xs text-gray-500 mt-1">
-                                  ID: {formatarID(idVeiculo)}
+                                  ID: {formatarID(vehicle.vehicleId)}
                                 </p>
                                 {vehicle.Endossado && (
                                   <div className="flex items-center gap-1 mt-1">
