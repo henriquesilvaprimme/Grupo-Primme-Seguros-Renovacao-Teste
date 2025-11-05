@@ -119,7 +119,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     const handleRefresh = async () => {
         setIsLoading(true);
         try {
-            await fetchLeadsFechadosFromSheet();
+            // CHAMADA ALTERADA: solicita explicitamente apenas a aba "Renovados"
+            await fetchLeadsFechadosFromSheet && fetchLeadsFechadosFromSheet('Renovados');
         } catch (error) {
             console.error('Erro ao atualizar leads fechados:', error);
         } finally {
@@ -776,7 +777,8 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
                                                     cartaoPortoNovo[`${leadID}`] 
                                                 );
                                                 // Note: Esta chamada é crucial para o seu fluxo de atualização pós-confirmação
-                                                await fetchLeadsFechadosFromSheet(); 
+                                                // CHAMADA ALTERADA: solicita explicitamente apenas a aba "Renovados"
+                                                await fetchLeadsFechadosFromSheet && fetchLeadsFechadosFromSheet('Renovados'); 
                                             }}
                                             disabled={isButtonDisabled || isLoading}
                                             className={`flex items-center justify-center w-full px-4 py-3 text-lg font-semibold rounded-lg shadow-md transition duration-200 ${
