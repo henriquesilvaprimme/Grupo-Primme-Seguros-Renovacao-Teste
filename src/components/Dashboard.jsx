@@ -122,7 +122,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return dateObj.toISOString().slice(0, 10);
   };
 
-  // Busca leads fechados
+  // Busca leads fechados (API)
   const buscarLeadsClosedFromAPI = async () => {
     setIsLoading(true);
     setLoading(true);
@@ -149,6 +149,32 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     setFiltroAplicado({ inicio: dataInicio, fim: dataFim });
   };
 
+  // Função para normalizar strings (trim, lowercase, sem acento)
+  const normalizeStr = (str = '') =>
+    str
+      .toString()
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+  // Função que tenta extrair o campo "aba" do lead (vários nomes possíveis)
+  const getAbaNormalized = (lead = {}) => {
+    const candidates = [lead.Aba, lead.aba, lead.Tab, lead.tab, lead.Origem, lead.origem, lead.TipoAba, lead.tipoAba];
+    const found = candidates.find((c) => c !== undefined && c !== null && c !== '');
+    return normalizeStr(found || '');
+  };
+
+  const isAbaRenovacoes = (lead) => {
+    const aba = getAbaNormalized(lead);
+    return aba === 'renovacoes' || aba === 'renovacao' || aba === 'renovações' || aba === 'renovação';
+  };
+
+  const isAbaRenovados = (lead) => {
+    const aba = getAbaNormalized(lead);
+    return aba === 'renovados' || aba === 'renovado';
+  };
+
   // Filtro por data dos leads gerais (vindos via prop `leads`)
   const leadsFiltradosPorDataGeral = leads.filter((lead) => {
     // LÓGICA DE EXCLUSÃO: Ignora leads com status 'Cancelado'
@@ -161,10 +187,18 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
-  const totalLeads = leadsFiltradosPorDataGeral.length;
+  // 1) Total de Renovações: somente leads na aba "Renovações" (aplicando filtro de datas)
+  const leadsRenovacoes = leadsFiltradosPorDataGeral.filter((l) => isAbaRenovacoes(l));
+  const totalRenovacoes = leadsRenovacoes.length;
+
+  // 2) Renovados: todos os leads na aba "Renovados" (aplicando filtro de datas)
+  const leadsRenovados = leadsFiltradosPorDataGeral.filter((l) => isAbaRenovados(l));
+  const renovadosCount = leadsRenovados.length;
+
+  // Mantive leadsPerdidos no mesmo escopo (pode ser ajustado se quiser que seja apenas dentro de Renovações)
   const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
 
-  // Filtra leads fechados por responsável e data
+  // Filtra leads fechados por responsável e data (dados vindos da API 'leadsClosed')
   let leadsFiltradosClosed =
     usuarioLogado.tipo === 'Admin'
       ? leadsClosed
@@ -198,36 +232,35 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     'demais seguradoras', // inclui explicitamente o rótulo "Demais Seguradoras"
   ];
 
-  // Contadores por seguradora (comparação normalizada)
+  // Contadores por seguradora (comparação normalizada) — mantidos sobre leadsFiltradosClosed (API)
   const portoSeguro = leadsFiltradosClosed.filter((lead) => getSegNormalized(lead.Seguradora) === 'porto seguro').length;
   const azulSeguros = leadsFiltradosClosed.filter((lead) => getSegNormalized(lead.Seguradora) === 'azul seguros').length;
   const itauSeguros = leadsFiltradosClosed.filter((lead) => getSegNormalized(lead.Seguradora) === 'itau seguros').length;
 
-  // Agora 'demais' conta qualquer lead cuja seguradora esteja na lista acima (case-insensitive)
+  // 'demais' conta qualquer lead cuja seguradora esteja na lista acima (case-insensitive)
   const demais = leadsFiltradosClosed.filter((lead) =>
     demaisSeguradorasLista.includes(getSegNormalized(lead.Seguradora))
   ).length;
 
-  // O campo Vendas soma os contadores das seguradoras
-  const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais;
+  // 3) Total Prêmio Líquido = soma dos PremioLiquido da aba "Renovados"
+  const totalPremioLiquido = leadsRenovados.reduce((acc, lead) => acc + (Number(lead.PremioLiquido) || 0), 0);
 
-  // Soma de prêmio líquido e média ponderada de comissão
-  const totalPremioLiquido = leadsFiltradosClosed.reduce(
-    (acc, lead) => acc + (Number(lead.PremioLiquido) || 0),
-    0
-  );
-
-  const somaPonderadaComissao = leadsFiltradosClosed.reduce((acc, lead) => {
-    const premio = Number(lead.PremioLiquido) || 0;
-    const comissao = Number(lead.Comissao) || 0;
-    return acc + premio * (comissao / 100);
-  }, 0);
+  // 4) Média Comissão = média simples dos percentuais Comissao da aba "Renovados"
+  const comissoesArray = leadsRenovados
+    .map((l) => {
+      const c = Number(l.Comissao);
+      return isNaN(c) ? null : c;
+    })
+    .filter((c) => c !== null);
 
   const comissaoMediaGlobal =
-    totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
+    comissoesArray.length > 0 ? comissoesArray.reduce((a, b) => a + b, 0) / comissoesArray.length : 0;
 
-  // Cálculo: Porcentagem de Vendidos
-  const porcentagemVendidos = totalLeads > 0 ? (leadsFechadosCount / totalLeads) * 100 : 0;
+  // O campo Vendas (no card "Renovados") agora usa renovadosCount (aba Renovados)
+  const leadsFechadosCount = renovadosCount;
+
+  // Cálculo: Porcentagem de Vendidos = renovados / total renovacoes
+  const porcentagemVendidos = totalRenovacoes > 0 ? (leadsFechadosCount / totalRenovacoes) * 100 : 0;
 
   return (
     <div style={{ padding: '20px', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
@@ -298,13 +331,13 @@ const Dashboard = ({ leads, usuarioLogado }) => {
               marginBottom: '30px',
             }}
           >
-            {/* Contador: Total de Leads */}
+            {/* Contador: Total de Renovações (APENAS aba "Renovações") */}
             <div style={{ ...compactCardStyle, minWidth: '150px' }}>
               <p style={titleTextStyle}>Total de Renovações</p>
-              <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
+              <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalRenovacoes}</p>
             </div>
 
-            {/* Contador: Vendas */}
+            {/* Contador: Renovados (APENAS aba "Renovados") */}
             <div style={{ ...compactCardStyle, backgroundColor: '#d1fae5', border: '1px solid #a7f3d0' }}>
               <p style={{ ...titleTextStyle, color: '#059669' }}>Renovados</p>
               <p style={{ ...valueTextStyle, color: '#059669' }}>{leadsFechadosCount}</p>
@@ -370,7 +403,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                 }}
               >
                 <div style={{ ...compactCardStyle, backgroundColor: '#eef2ff', border: '1px solid #c7d2fe' }}>
-                  <p style={{ ...titleTextStyle, color: '#4f46e5' }}>Total Prêmio Líquido</p>
+                  <p style={{ ...titleTextStyle, color: '#4f46e5' }}>Total Prêmio Líquido (Renovados)</p>
                   <p style={{ ...valueTextStyle, color: '#4f46e5' }}>
                     {totalPremioLiquido.toLocaleString('pt-BR', {
                       style: 'currency',
@@ -379,7 +412,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                   </p>
                 </div>
                 <div style={{ ...compactCardStyle, backgroundColor: '#ecfeff', border: '1px solid #99f6e4' }}>
-                  <p style={{ ...titleTextStyle, color: '#0f766e' }}>Média Comissão</p>
+                  <p style={{ ...titleTextStyle, color: '#0f766e' }}>Média Comissão (Renovados)</p>
                   <p style={{ ...valueTextStyle, color: '#0f766e' }}>
                     {comissaoMediaGlobal.toFixed(2).replace('.', ',')}%
                   </p>
