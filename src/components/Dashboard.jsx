@@ -76,7 +76,7 @@ const CircularProgressChart = ({ percentage }) => {
             strokeDashoffset: dashoffset,
           }}
         />
-      </svg>
+      </svg> {/* <-- TAG </svg> FALTANTE ADICIONADA AQUI */}
       {/* Texto da Porcentagem no Centro */}
       <div style={{
         position: 'absolute',
@@ -94,31 +94,10 @@ const CircularProgressChart = ({ percentage }) => {
 };
 // ------------------------------------------------------------------------
 
-/*
-  Props adicionadas (passadas pelo App.jsx):
-    - totalRenovacoes (number)
-    - editandoTotalRenovacoes (boolean)
-    - novoTotalRenovacoes (number)
-    - setNovoTotalRenovacoes (func)
-    - handleSaveTotalRenovacoes (func)
-    - handleEditTotalRenovacoes (func)
-    - handleCancelTotalRenovacoes (func)
-    - handleRefreshTotalRenovacoes (func) -> para forçar reload do valor no GAS
-*/
-const Dashboard = ({
-  leads,
-  usuarioLogado,
-  totalRenovacoes,
-  editandoTotalRenovacoes,
-  novoTotalRenovacoes,
-  setNovoTotalRenovacoes,
-  handleSaveTotalRenovacoes,
-  handleEditTotalRenovacoes,
-  handleCancelTotalRenovacoes,
-  handleRefreshTotalRenovacoes
-}) => {
+const Dashboard = ({ leads, usuarioLogado }) => {
   const [leadsClosed, setLeadsClosed] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [totalRenovacoes, setTotalRenovacoes] = useState(0); // Novo estado para total de renovações
   const [isLoading, setIsLoading] = useState(false);
 
   // 🚀 FUNÇÕES PARA O FILTRO DE DATA ATUALIZADO (Primeiro e Último dia do Mês)
@@ -170,19 +149,36 @@ const Dashboard = ({
     }
   };
 
-  // NOTA: agora o valor de totalRenovacoes vem via props do App (sincronizado lá).
-  // Ao clicar em refresh, chamamos também a função passada pelo App para re-sincronizar o valor do GAS.
-  const onClickRefresh = () => {
-    buscarLeadsClosedFromAPI();
-    if (typeof handleRefreshTotalRenovacoes === 'function') {
-      handleRefreshTotalRenovacoes();
+  // Busca o total de renovações da célula I2 da planilha 'Apolices'
+  const fetchTotalRenovacoes = async () => {
+    setIsLoading(true);
+    try {
+      // Usando mode: 'no-cors' conforme solicitado (resposta pode ser opaca -> fallback)
+      const response = await fetch('https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=getTotalRenovacoes', { mode: 'no-cors' });
+      try {
+        const data = await response.json();
+        if (data && typeof data.totalRenovacoes === 'number') {
+          setTotalRenovacoes(data.totalRenovacoes);
+        } else {
+          // Se não conseguimos ler a resposta (opaca), não alteramos o valor atual
+          console.warn('Resposta opaca ou inválida ao buscar total de renovações. Mantendo valor atual.');
+        }
+      } catch (err) {
+        // Em no-cors a leitura poderá falhar; ignora e mantém valor atual
+        console.warn('Não foi possível ler o body da resposta ao buscar total de renovações (no-cors).', err);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar total de renovações:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
+
 
   // refresh automático ao entrar na aba
   useEffect(() => {
     buscarLeadsClosedFromAPI();
-    setLoading(false);
+    fetchTotalRenovacoes(); // Chama a nova função ao montar o componente
   }, []);
 
   const aplicarFiltroData = () => {
@@ -282,7 +278,7 @@ const Dashboard = ({
 
         <button
           title='Clique para atualizar os dados'
-          onClick={onClickRefresh}
+          onClick={() => { buscarLeadsClosedFromAPI(); fetchTotalRenovacoes(); }}
           disabled={isLoading}
           style={{ backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '40px', height: '40px' }}
         >
@@ -312,52 +308,11 @@ const Dashboard = ({
             gap: '20px',
             marginBottom: '30px',
           }}>
-            {/* Contador: Total de Renovações (AGORA COM EDIÇÃO) */}
+            {/* Contador: Total de Leads */}
             <div style={{ ...compactCardStyle, minWidth: '150px' }}>
                 <p style={titleTextStyle}>Total de Renovações</p>
-
-                {!editandoTotalRenovacoes ? (
-                  <>
-                    <p style={{ ...valueTextStyle, color: '#1f2937' }}>{Number(totalRenovacoes || 0).toLocaleString('pt-BR')}</p>
-                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={handleEditTotalRenovacoes}
-                        style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => { if (typeof handleRefreshTotalRenovacoes === 'function') handleRefreshTotalRenovacoes(); }}
-                        style={{ backgroundColor: '#6b7280', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
-                      >
-                        Atualizar
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <input
-                      type="number"
-                      value={novoTotalRenovacoes}
-                      onChange={(e) => setNovoTotalRenovacoes(Number(e.target.value))}
-                      style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid #d1d5db', marginTop: '8px', width: '100%', textAlign: 'center' }}
-                    />
-                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                      <button
-                        onClick={handleSaveTotalRenovacoes}
-                        style={{ backgroundColor: '#059669', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
-                      >
-                        Salvar
-                      </button>
-                      <button
-                        onClick={handleCancelTotalRenovacoes}
-                        style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </>
-                )}
+                <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
+                
             </div>
 
             {/* Contador: Vendas */}
@@ -387,10 +342,10 @@ const Dashboard = ({
           {/* Segunda Seção: Contadores por Seguradora (Grid com 4 colunas) */}
           <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Vendas por Seguradora</h2>
           <div style={{
-               display: 'grid',
-               gridTemplateColumns: 'repeat(4, 1fr)', // 4 colunas iguais
-               gap: '20px',
-               marginBottom: '30px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)', // 4 colunas iguais
+              gap: '20px',
+              marginBottom: '30px',
           }}>
             <div style={{ ...compactCardStyle, backgroundColor: '#f0f9ff', border: '1px solid #bfdbfe' }}>
               <p style={{ ...titleTextStyle, color: '#1e40af' }}>Porto Seguro</p>
