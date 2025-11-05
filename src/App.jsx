@@ -233,78 +233,48 @@ function App() {
     }
   }, [isEditing]);
 
-  // ✅ FUNÇÃO NO APP PARA BUSCAR O TOTAL (GET) E SINCRONIZAR ESTADOS
-  const fetchTotalRenovacoesFromGAS = async () => {
-    try {
-      const response = await fetch(`${TOTAL_RENOVACOES_SCRIPT_URL}?v=getTotalRenovacoes`);
-      const data = await response.json();
-      if (data && data.totalRenovacoes !== undefined && data.totalRenovacoes !== null) {
-        const numeric = Number(data.totalRenovacoes);
-        setTotalRenovacoes(!isNaN(numeric) ? numeric : 0);
-        setNovoTotalRenovacoes(!isNaN(numeric) ? numeric : 0);
-      } else {
-        setTotalRenovacoes(0);
-        setNovoTotalRenovacoes(0);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar total de renovações da célula I2:', error);
-      setTotalRenovacoes(0);
-      setNovoTotalRenovacoes(0);
-    }
-  };
-
+  // ✅ NOVO useEffect para buscar o total de renovações
   useEffect(() => {
-    // Carrega o total ao montar
-    fetchTotalRenovacoesFromGAS();
-    const interval = setInterval(fetchTotalRenovacoesFromGAS, 300000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // ✅ FUNÇÃO PARA SALVAR (POST)
-  const handleSaveTotalRenovacoes = async () => {
-    try {
-      const response = await fetch(TOTAL_RENOVACOES_SCRIPT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'updateTotalRenovacoes',
-          totalRenovacoes: novoTotalRenovacoes,
-        }),
-      });
-
-      // Tentar ler JSON se possível
-      let json = null;
+    const fetchTotalRenovacoes = async () => {
       try {
-        json = await response.json();
-      } catch (err) {
-        // Se response não retornar JSON (por CORS/no-cors), ainda atualizamos localmente
-        json = null;
+        // Ajustado para buscar especificamente da célula I2 da planilha "Apolices"
+        // Usando mode: 'no-cors' conforme solicitado — tratar resposta opaca com fallback.
+        const response = await fetch(`${TOTAL_RENOVACOES_SCRIPT_URL}?action=getTotalRenovacoesFromCell`, { mode: 'no-cors' });
+        let data = null;
+        try {
+          // Em mode no-cors a resposta pode ser opaca e não permitir leitura do body; envolvemos em try/catch.
+          data = await response.json();
+        } catch (innerErr) {
+          // Fallback: não foi possível ler resposta (opaca). Mantemos valor atual ou 0.
+          console.warn('Resposta opaca (no-cors) ao buscar total de renovações. Mantendo valor local. Erro interno:', innerErr);
+          data = null;
+        }
+
+        if (data && data.totalRenovacoes !== undefined) {
+          // Garante que o valor é um número
+          setTotalRenovacoes(Number(data.totalRenovacoes));
+          setNovoTotalRenovacoes(Number(data.totalRenovacoes)); // Inicializa o campo de edição
+        } else {
+          // Quando não conseguimos ler a resposta, não sobrescrevemos com undefined — apenas deixar como 0 se for primeira vez
+          if (totalRenovacoes === 0) {
+            setTotalRenovacoes(0);
+            setNovoTotalRenovacoes(0);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao buscar total de renovações da célula I2:', error);
+        if (totalRenovacoes === 0) {
+          setTotalRenovacoes(0);
+          setNovoTotalRenovacoes(0);
+        }
       }
+    };
 
-      // Atualiza estados localmente e encerra edição
-      setTotalRenovacoes(Number(novoTotalRenovacoes));
-      setEditandoTotalRenovacoes(false);
-
-      // Recarrega do GAS para garantir sincronia
-      setTimeout(fetchTotalRenovacoesFromGAS, 800);
-
-    } catch (error) {
-      console.error('Erro de rede ao salvar total de renovações:', error);
-    }
-  };
-
-  // ✅ FUNÇÃO PARA COMEÇAR EDIÇÃO
-  const handleEditTotalRenovacoes = () => {
-    setEditandoTotalRenovacoes(true);
-  };
-
-  // ✅ FUNÇÃO PARA CANCELAR EDIÇÃO (reseta valor)
-  const handleCancelTotalRenovacoes = () => {
-    setNovoTotalRenovacoes(Number(totalRenovacoes));
-    setEditandoTotalRenovacoes(false);
-  };
+    fetchTotalRenovacoes();
+    const interval = setInterval(fetchTotalRenovacoes, 300000); // Atualiza a cada 5 minutos
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const adicionarUsuario = (usuario) => {
     setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
@@ -556,6 +526,55 @@ function App() {
     }
   };
 
+  // ✅ NOVA FUNÇÃO PARA SALVAR O TOTAL DE RENOVAÇÕES
+  const handleSaveTotalRenovacoes = async () => {
+    try {
+      // Em mode no-cors a resposta será opaca; assumimos sucesso e atualizamos localmente.
+      await fetch(TOTAL_RENOVACOES_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'updateTotalRenovacoes',
+          totalRenovacoes: novoTotalRenovacoes,
+        }),
+      });
+
+      // Atualiza localmente mesmo sem ler a resposta (no-cors)
+      console.log('Requisição para salvar total de renovações enviada (no-cors). Atualizando estado local.');
+      setTotalRenovacoes(novoTotalRenovacoes);
+      setEditandoTotalRenovacoes(false);
+
+      // Opcionalmente tentar buscar novamente (mas pode não retornar devido a no-cors)
+      setTimeout(() => {
+        // chama a endpoint GET com no-cors; pode ser opaco, mas tentamos atualizar localmente se possível
+        fetch(`${TOTAL_RENOVACOES_SCRIPT_URL}?action=getTotalRenovacoesFromCell`, { mode: 'no-cors' })
+          .then(async (resp) => {
+            try {
+              const d = await resp.json();
+              if (d && d.totalRenovacoes !== undefined) {
+                setTotalRenovacoes(Number(d.totalRenovacoes));
+                setNovoTotalRenovacoes(Number(d.totalRenovacoes));
+              }
+            } catch (err) {
+              // resposta opaca, ignora
+            }
+          })
+          .catch(() => {});
+      }, 1000);
+
+    } catch (error) {
+      console.error('Erro de rede ao salvar total de renovações:', error);
+    }
+  };
+
+  // ✅ NOVA FUNÇÃO PARA HABILITAR EDIÇÃO DO TOTAL DE RENOVAÇÕES
+  const handleEditTotalRenovacoes = () => {
+    setEditandoTotalRenovacoes(true);
+  };
+
   if (!isAuthenticated) {
     return (
       <div
@@ -638,8 +657,6 @@ function App() {
                 setNovoTotalRenovacoes={setNovoTotalRenovacoes}
                 handleSaveTotalRenovacoes={handleSaveTotalRenovacoes}
                 handleEditTotalRenovacoes={handleEditTotalRenovacoes}
-                handleCancelTotalRenovacoes={handleCancelTotalRenovacoes}
-                handleRefreshTotalRenovacoes={fetchTotalRenovacoesFromGAS}
               />
             }
           />
