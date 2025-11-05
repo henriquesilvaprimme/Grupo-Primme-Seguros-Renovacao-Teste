@@ -166,68 +166,124 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
-  // === AQUI: novo cálculo de "Total de Renovações" usando a aba "Apolices" do Sheets,
-  // contando a partir da linha 2 (ou seja, ignorando a primeira linha/header da aba).
-  const getApolicesLeadsFromSheets = () => {
-    if (!leads) return [];
+  // === AQUI: novo cálculo de "Total de Renovações" usando a coluna I (índice 8) da aba "Apolices" do Sheets.
+  const extractTotalFromApolicesColumnI = () => {
+    if (!leads) return 0;
 
-    // tenta localizar a aba pelo nome (várias variações)
+    // localizar aba Apolices (várias variações)
     const sheet = leads.Apolices ?? leads.apolices ?? leads.APOLICES ?? null;
+    let values = [];
 
-    // se existe a aba explícita
+    // Helper: limpar e converter string numérica (ex: "1.234,56" -> 1234.56)
+    const toNumber = (v) => {
+      if (v === null || v === undefined || v === '') return NaN;
+      if (typeof v === 'number') return v;
+      const s = String(v).trim();
+      // remover caracteres não numéricos exceto . e ,
+      // tratar formatos comuns BR (1.234,56) e EN (1,234.56)
+      // estratégia: se contém ',' e '.' e ',' aparece after last '.', assume BR -> remove '.' and replace ',' with '.'
+      // se contains ',' and not '.', replace ',' with '.'
+      if (s.indexOf(',') > -1 && s.indexOf('.') > -1) {
+        // se último '.' vem antes de última ',': BR
+        if (s.lastIndexOf('.') < s.lastIndexOf(',')) {
+          return Number(s.replace(/\./g, '').replace(',', '.'));
+        }
+        // senão, assume EN (commas are thousands)
+        return Number(s.replace(/,/g, ''));
+      } else if (s.indexOf(',') > -1) {
+        return Number(s.replace(/\./g, '').replace(',', '.'));
+      } else {
+        return Number(s.replace(/[^0-9.-]/g, ''));
+      }
+    };
+
     if (Array.isArray(sheet)) {
-      // caso: sheet é array de arrays (rows) => primeira linha é cabeçalho
-      if (sheet.length > 0 && Array.isArray(sheet[0])) {
-        const header = sheet[0];
-        const rows = sheet.slice(1); // pular linha 1 (cabeçalho)
-        // Mapear cada row para objeto usando header (opcional, mas útil se quiser usar campos)
-        return rows.map((row) => {
-          const obj = {};
-          for (let i = 0; i < header.length; i++) {
-            const key = header[i] ?? `col_${i}`;
-            obj[key] = row[i];
+      // Caso: sheet é array de arrays (rows)
+      if (sheet.length > 1 && Array.isArray(sheet[0])) {
+        for (let i = 1; i < sheet.length; i++) {
+          const row = sheet[i];
+          const cell = row ? row[8] : undefined; // coluna I = index 8
+          if (cell !== undefined && cell !== null && cell !== '') {
+            values.push(cell);
           }
-          return obj;
-        });
+        }
+      } else if (sheet.length > 0 && typeof sheet[0] === 'object' && !Array.isArray(sheet[0])) {
+        // sheet é array de objetos -> procurar key que represente "TotalRenovacoes"
+        const candidateKey = Object.keys(sheet[0]).find(k => /total.*renov/i.test(k));
+        if (candidateKey) {
+          for (const row of sheet) {
+            const v = row[candidateKey];
+            if (v !== undefined && v !== null && v !== '') values.push(v);
+          }
+        } else {
+          // fallback: tentar pegar propriedade na posição 8 caso os objetos estejam ordenados
+          for (const row of sheet) {
+            const keys = Object.keys(row);
+            const k = keys[8];
+            if (k) {
+              const v = row[k];
+              if (v !== undefined && v !== null && v !== '') values.push(v);
+            }
+          }
+        }
+      } else {
+        // fallback simples: pular primeiro elemento e pegar índice 8 se existir
+        for (let i = 1; i < sheet.length; i++) {
+          const cell = sheet[i];
+          if (cell !== undefined && cell !== null && cell !== '') values.push(cell);
+        }
       }
-      // caso: sheet já é array de objetos (provavelmente a primeira linha já foi transformada)
-      if (sheet.length > 0 && typeof sheet[0] === 'object' && !Array.isArray(sheet[0])) {
-        // Porque é uma array de objetos, considerar que já não há header separado.
-        // Porém o pedido foi contar a partir da linha 2 do Sheets original — se a origem
-        // já converteu o header em keys, então não há linha de cabeçalho na array.
-        // Neste caso, retornamos a array inteira (não slice).
-        return sheet;
+    } else if (Array.isArray(leads)) {
+      // leads é a própria matriz da aba
+      if (leads.length > 1 && Array.isArray(leads[0])) {
+        for (let i = 1; i < leads.length; i++) {
+          const row = leads[i];
+          const cell = row ? row[8] : undefined;
+          if (cell !== undefined && cell !== null && cell !== '') values.push(cell);
+        }
+      } else if (leads.length > 0 && typeof leads[0] === 'object' && !Array.isArray(leads[0])) {
+        const candidateKey = Object.keys(leads[0]).find(k => /total.*renov/i.test(k));
+        if (candidateKey) {
+          for (const row of leads) {
+            const v = row[candidateKey];
+            if (v !== undefined && v !== null && v !== '') values.push(v);
+          }
+        } else {
+          for (const row of leads) {
+            const keys = Object.keys(row);
+            const k = keys[8];
+            if (k) {
+              const v = row[k];
+              if (v !== undefined && v !== null && v !== '') values.push(v);
+            }
+          }
+        }
       }
-      // fallback: se for array simples de strings/números, pular o primeiro elemento
-      return sheet.slice(1);
     }
 
-    // se não existe a aba sob a chave, talvez `leads` seja a própria matriz de linhas da aba
-    if (Array.isArray(leads)) {
-      if (leads.length > 0 && Array.isArray(leads[0])) {
-        const header = leads[0];
-        const rows = leads.slice(1);
-        return rows.map((row) => {
-          const obj = {};
-          for (let i = 0; i < header.length; i++) {
-            const key = header[i] ?? `col_${i}`;
-            obj[key] = row[i];
-          }
-          return obj;
-        });
-      }
-      // se é array de objetos, assumimos que não há linha de header separada
-      if (leads.length > 0 && typeof leads[0] === 'object' && !Array.isArray(leads[0])) {
-        return leads;
-      }
-      return leads.slice(1);
+    // Somar os valores numéricos encontrados
+    let sum = 0;
+    for (const v of values) {
+      const n = toNumber(v);
+      if (!isNaN(n)) sum += n;
     }
 
-    return [];
+    // Se não houver valores numéricos, como fallback, retornar o número de linhas (ex.: contar linhas a partir da 2)
+    if (sum === 0 && values.length === 0) {
+      // tentar contar linhas da aba ignorando header
+      if (Array.isArray(sheet) && sheet.length > 1) {
+        return sheet.length - 1;
+      }
+      if (Array.isArray(leads) && leads.length > 1) {
+        return leads.length - 1;
+      }
+      return 0;
+    }
+
+    return sum;
   };
 
-  const apolicesLeads = getApolicesLeadsFromSheets();
-  const totalLeads = apolicesLeads.length;
+  const totalLeads = extractTotalFromApolicesColumnI();
   // === fim do ajuste solicitado ===
 
   const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
