@@ -126,6 +126,7 @@ const LeadsFechados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onU
     // --- EFEITO DE FILTRAGEM E SINCRONIZAÇÃO DE ESTADOS ---
     useEffect(() => {
         const fechadosAtuais = leads.filter(lead => lead.Status === 'Fechado');
+        const fechadosAtuais = leads;
 
         // --------------------------------------------------------------------------------
         // Sincronização de estados (Gerais)
