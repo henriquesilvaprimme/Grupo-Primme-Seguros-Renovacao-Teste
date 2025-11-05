@@ -69,13 +69,13 @@ function App() {
 
       if (Array.isArray(data)) {
         setUsuarios(data.map(item => ({
-          id: item.id || '',
-          usuario: item.usuario || '',
-          nome: item.nome || '',
-          email: item.email || '',
-          senha: item.senha || '',
-          status: item.status || 'Ativo',
-          tipo: item.tipo || 'Usuario',
+          id: item.id || item.ID || '',
+          usuario: item.usuario || item.Usuario || '',
+          nome: item.nome || item.Nome || '',
+          email: item.email || item.Email || '',
+          senha: item.senha || item.Senha || '',
+          status: item.status || item.Status || 'Ativo',
+          tipo: item.tipo || item.Tipo || 'Usuario',
         })));
       } else {
         setUsuarios([]);
@@ -143,30 +143,29 @@ function App() {
           name: item.name || item.Name || '',
           vehicleModel: item.vehiclemodel || item.vehicleModel || '',
           vehicleYearModel: item.vehicleyearmodel || item.vehicleYearModel || '',
-          city: item.city || '',
+          city: item.city || item.City || '',
           phone: item.phone || item.Telefone || '',
           insuranceType: item.insurancetype || item.insuranceType || '',
-          status: item.status || 'Selecione o status',
+          status: item.status || item.Status || 'Selecione o status',
           confirmado: item.confirmado === 'true' || item.confirmado === true,
-          Seguradora: item.Seguradora || '',
+          Seguradora: item.Seguradora || item.seguradora || '',
           insurerConfirmed: item.insurerConfirmed === 'true' || item.insurerConfirmed === true,
           usuarioId: item.usuarioId ? Number(item.usuarioId) : null,
-          PremioLiquido: item.PremioLiquido || '',
-          Comissao: item.Comissao || '',
-          Parcelamento: item.Parcelamento || '',
-          VigenciaFinal: item.VigenciaFinal || '',
-          VigenciaInicial: item.VigenciaInicial || '',
-          createdAt: item.data || new Date().toISOString(),
-          responsavel: item.responsavel || '',
-          editado: item.editado || '',
-          observacao: item.observacao || '',
-          agendamento: item.agendamento || '',
-          agendados: item.agendados || '',
-          MeioPagamento: item.MeioPagamento || '',
-          CartaoPortoNovo: item.CartaoPortoNovo || '',
-          // ✅ NOVOS CAMPOS PARA ENDOSSO
+          PremioLiquido: item.PremioLiquido || item.premioliquido || '',
+          Comissao: item.Comissao || item.comissao || '',
+          Parcelamento: item.Parcelamento || item.parcelamento || '',
+          VigenciaFinal: item.VigenciaFinal || item.vigenciaFinal || '',
+          VigenciaInicial: item.VigenciaInicial || item.vigenciaInicial || '',
+          createdAt: item.data || item.createdAt || new Date().toISOString(),
+          responsavel: item.responsavel || item.Responsavel || '',
+          editado: item.editado || item.Editado || '',
+          observacao: item.observacao || item.Observacao || '',
+          agendamento: item.agendamento || item.Agendamento || '',
+          agendados: item.agendados || item.Agendados || '',
+          MeioPagamento: item.MeioPagamento || item.meioPagamento || '',
+          CartaoPortoNovo: item.CartaoPortoNovo || item.cartaoPortoNovo || '',
           Endossado: item.Endossado === 'TRUE' || item.Endossado === true || item.Endossado === 'true',
-          NumeroParcelas: item.NumeroParcelas || '',
+          NumeroParcelas: item.NumeroParcelas || item.numeroParcelas || '',
         }));
 
         if (!leadSelecionado) {
@@ -195,22 +194,52 @@ function App() {
     }
   }, [leadSelecionado, isEditing]);
 
+  // Ajustei o mapeamento para retornar o formato usado por Renovados.jsx
   const fetchRenovadosFromSheet = async () => {
     try {
       const response = await fetch(GOOGLE_SHEETS_RENOVADOS);
       const data = await response.json();
 
-      const formattedData = (Array.isArray(data) ? data : []).map(item => ({
-        ...item,
-        insuranceType: item.insuranceType || '',
-        MeioPagamento: item.MeioPagamento || '',
-        CartaoPortoNovo: item.CartaoPortoNovo || '',
-        // ✅ NOVOS CAMPOS PARA ENDOSSO
-        Endossado: item.Endossado === 'TRUE' || item.Endossado === true || item.Endossado === 'true',
-        NumeroParcelas: item.NumeroParcelas || '',
-      }));
-      setRenovados(formattedData);
+      const formattedData = (Array.isArray(data) ? data : []).map((item, index) => {
+        // Priorize possíveis variações de chaves que o GAS possa retornar
+        const ID = item.ID ?? item.Id ?? item.id ?? (item.id_lead ?? (index + 1));
+        const Status = item.Status ?? item.status ?? item.Statuso ?? 'Renovado';
+        const name = item.name ?? item.Name ?? item.nome ?? item.Nome ?? '';
+        const Data = item.Data ?? item.data ?? item.createdAt ?? item.created_at ?? '';
+        const Responsavel = item.Responsavel ?? item.responsavel ?? item.Responsible ?? '';
+        const Seguradora = item.Seguradora ?? item.seguradora ?? item.insurer ?? '';
+        const PremioLiquido = item.PremioLiquido ?? item.Premioliquido ?? item.Premio ?? item.premio || '';
+        const Comissao = item.Comissao ?? item.comissao ?? item.Commission ?? '';
+        const Parcelamento = item.Parcelamento ?? item.parcelamento ?? item.Parcelas ?? '';
+        const VigenciaFinal = item.VigenciaFinal ?? item.vigenciaFinal ?? item.Vigencia_Final ?? '';
+        const VigenciaInicial = item.VigenciaInicial ?? item.vigenciaInicial ?? item.Vigencia_Inicial ?? '';
+        const MeioPagamento = item.MeioPagamento ?? item.meioPagamento ?? item.meio_pagamento ?? '';
+        const CartaoPortoNovo = item.CartaoPortoNovo ?? item.cartaoPortoNovo ?? item.cartao_porto_novo ?? '';
+        const Endossado = item.Endossado === 'TRUE' || item.Endossado === true || item.Endossado === 'true' || item.Endossado === 'True';
+        const NumeroParcelas = item.NumeroParcelas ?? item.numeroParcelas ?? item.NumeroParcelas ?? '';
 
+        return {
+          ID,
+          Status,
+          name,
+          Data,
+          Responsavel,
+          Seguradora,
+          PremioLiquido,
+          Comissao,
+          Parcelamento,
+          VigenciaFinal,
+          VigenciaInicial,
+          MeioPagamento,
+          CartaoPortoNovo,
+          Endossado,
+          NumeroParcelas,
+          // preserve original fields (opcional)
+          ...item,
+        };
+      });
+
+      setRenovados(formattedData);
     } catch (error) {
       console.error('Erro ao buscar renovados:', error);
       setRenovados([]);
@@ -233,7 +262,7 @@ function App() {
 
   const adicionarNovoRenovacao = (novoLead) => {
     setRenovacoes((prevRenovacoes) => {
-      if (!prevRenovacoes.some(lead => lead.ID === novoLead.ID)) {
+      if (!prevRenovacoes.some(lead => lead.ID === novoLead.ID || lead.id === novoLead.id)) {
         return [novoLead, ...prevRenovacoes];
       }
       return prevRenovacoes;
@@ -266,7 +295,7 @@ function App() {
 
           if (leadParaAdicionar) {
             const novoRenovado = {
-              ID: leadParaAdicionar.id || crypto.randomUUID(),
+              ID: leadParaAdicionar.id ?? leadParaAdicionar.ID ?? crypto?.randomUUID?.() ?? (`gen-${Date.now()}`),
               name: leadParaAdicionar.name,
               vehicleModel: leadParaAdicionar.vehicleModel,
               vehicleYearModel: leadParaAdicionar.vehicleYearModel,
@@ -276,16 +305,15 @@ function App() {
               Data: leadParaAdicionar.createdAt || new Date().toISOString(),
               Responsavel: leadParaAdicionar.responsavel || "",
               Status: "Fechado",
-              Seguradora: leadParaAdicionar.Seguradora || "",
-              PremioLiquido: leadParaAdicionar.premioLiquido || "",
-              Comissao: leadParaAdicionar.Comissao || "",
-              Parcelamento: leadParaAdicionar.Parcelamento || "",
-              VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
-              VigenciaInicial: leadParaAdicionar.VigenciaInicial || "",
+              Seguradora: leadParaAdicionar.Seguradora || leadParaAdicionar.insurer || "",
+              PremioLiquido: leadParaAdicionar.PremioLiquido || leadParaAdicionar.premioLiquido || "",
+              Comissao: leadParaAdicionar.Comissao || leadParaAdicionar.comissao || "",
+              Parcelamento: leadParaAdicionar.Parcelamento || leadParaAdicionar.parcelamento || "",
+              VigenciaFinal: leadParaAdicionar.VigenciaFinal || leadParaAdicionar.vigenciaFinal || "",
+              VigenciaInicial: leadParaAdicionar.VigenciaInicial || leadParaAdicionar.vigenciaInicial || "",
               observacao: leadParaAdicionar.observacao || '',
               MeioPagamento: leadParaAdicionar.MeioPagamento || '',
               CartaoPortoNovo: leadParaAdicionar.CartaoPortoNovo || '',
-              // ✅ NOVOS CAMPOS PARA ENDOSSO
               Endossado: leadParaAdicionar.Endossado || false,
               NumeroParcelas: leadParaAdicionar.NumeroParcelas || '',
             };
@@ -338,13 +366,14 @@ function App() {
   });
 
   const confirmarSeguradoraRenovado = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal, vigenciaInicial, meioPagamento, cartaoPortoNovo) => {
-    const renovado = renovados.find((lead) => lead.ID == id);
+    const renovado = renovados.find((lead) => String(lead.ID) === String(id));
 
     if (!renovado) {
       console.error(`Renovado com ID ${id} não encontrado na lista de renovados.`);
       return;
     }
 
+    // Atualiza localmente o objeto renovado
     renovado.Seguradora = seguradora;
     renovado.PremioLiquido = premio;
     renovado.Comissao = comissao;
@@ -356,7 +385,7 @@ function App() {
 
     setRenovados((prev) => {
       const atualizados = prev.map((l) =>
-        l.ID === id ? {
+        String(l.ID) === String(id) ? {
           ...l,
           insurerConfirmed: true,
           Seguradora: seguradora,
@@ -378,14 +407,17 @@ function App() {
         mode: 'no-cors',
         body: JSON.stringify({
           v: 'alterar_seguradora',
-          lead: renovado
+          lead: {
+            ...renovado,
+            ID: renovado.ID
+          }
         }),
         headers: {
           'Content-Type': 'application/json',
         },
       })
-      .then(response => {
-        console.log('Requisição de dados da seguradora enviada (com no-cors).');
+      .then(() => {
+        // aguarda e reconstrói a lista
         setTimeout(() => {
           fetchRenovadosFromSheet();
         }, 1000);
@@ -401,7 +433,7 @@ function App() {
   const atualizarDetalhesRenovado = (id, campo, valor) => {
     setRenovados((prev) =>
       prev.map((lead) =>
-        lead.ID === id ? { ...lead, [campo]: valor } : lead
+        String(lead.ID) === String(id) ? { ...lead, [campo]: valor } : lead
       )
     );
   };
@@ -416,7 +448,7 @@ function App() {
       return;
     }
 
-    let usuario = usuarios.find((u) => u.id == responsavelId);
+    let usuario = usuarios.find((u) => String(u.id) === String(responsavelId));
 
     if (!usuario) {
       return;
@@ -433,8 +465,8 @@ function App() {
     setLeadSelecionado(lead);
 
     let path = '/renovacoes'; 
-    if (lead.status === 'Fechado') path = '/renovados'; 
-    else if (lead.status === 'Perdido') path = '/renovacoes-perdidas'; 
+    if (lead.status === 'Fechado' || lead.Status === 'Fechado') path = '/renovados'; 
+    else if (lead.status === 'Perdido' || lead.Status === 'Perdido') path = '/renovacoes-perdidas'; 
 
     navigate(path);
   };
@@ -543,12 +575,12 @@ function App() {
                 leadsClosed={
                   isAdmin
                     ? renovados
-                    : renovados.filter((lead) => lead.Responsavel === usuarioLogado.nome)
+                    : renovados.filter((lead) => String(lead.Responsavel) === String(usuarioLogado.nome))
                 }
                 leads={
                   isAdmin
                     ? renovacoes
-                    : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome)
+                    : renovacoes.filter((lead) => String(lead.responsavel) === String(usuarioLogado.nome))
                 }
                 usuarioLogado={usuarioLogado}
                 setIsEditing={setIsEditing}
@@ -577,7 +609,7 @@ function App() {
             path="/renovados"
             element={
               <Renovados
-                leads={isAdmin ? renovados : renovados.filter((lead) => lead.Responsavel === usuarioLogado.nome)}
+                leads={isAdmin ? renovados : renovados.filter((lead) => String(lead.Responsavel) === String(usuarioLogado.nome))}
                 usuarios={usuarios}
                 onUpdateInsurer={atualizarSeguradoraRenovacao}
                 onConfirmInsurer={confirmarSeguradoraRenovado}
