@@ -1,5 +1,3 @@
-Analise e veja se precisa ajustar algo no App.jsx, pois ainda nao estou conseguindo ver os leads:
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 
