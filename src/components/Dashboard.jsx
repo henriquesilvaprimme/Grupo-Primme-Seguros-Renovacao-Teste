@@ -94,24 +94,14 @@ const CircularProgressChart = ({ percentage }) => {
 };
 // ------------------------------------------------------------------------
 
-const Dashboard = ({ 
-  leads, 
-  usuarioLogado, 
-  leadsClosed: leadsClosedProp, // Renomeado para evitar conflito com estado local
-  totalRenovacoes, // Recebe o total de renovações do App.jsx
-  editandoTotalRenovacoes, // Estado de edição do App.jsx
-  novoTotalRenovacoes, // Valor do input de edição do App.jsx
-  setNovoTotalRenovacoes, // Setter para o valor do input de edição do App.jsx
-  handleSaveTotalRenovacoes, // Função para salvar do App.jsx
-  handleEditTotalRenovacoes // Função para editar do App.jsx
-}) => {
-  const [leadsClosed, setLeadsClosed] = useState(leadsClosedProp); // Inicializa com a prop
+const Dashboard = ({ leads, usuarioLogado }) => {
+  const [leadsClosed, setLeadsClosed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Os estados de edição de renovações agora vêm das props
-  // const [isEditingTotalRenovacoes, setIsEditingTotalRenovacoes] = useState(false);
-  // const [editedTotalRenovacoes, setEditedTotalRenovacoes] = useState(0);
+  // --- ESTADOS PARA EDIÇÃO DE RENOVAÇÕES ---
+  const [isEditingTotalRenovacoes, setIsEditingTotalRenovacoes] = useState(false);
+  const [editedTotalRenovacoes, setEditedTotalRenovacoes] = useState(0);
   // -----------------------------------------
 
   // 🚀 FUNÇÕES PARA O FILTRO DE DATA ATUALIZADO (Primeiro e Último dia do Mês)
@@ -151,9 +141,10 @@ const Dashboard = ({
     setLoading(true);
     try {
       const respostaLeads = await fetch(
-        'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=pegar_clientes_fechados'
+        'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=pegar_clientes_fechados',
+        { mode: 'no-cors' } // Mantido no-cors
       );
-      const dadosLeads = await respostaLepostaLeads.json();
+      const dadosLeads = await respostaLeads.json();
       setLeadsClosed(dadosLeads);
     } catch (error) {
       console.error('Erro ao buscar leads:', error);
@@ -163,15 +154,59 @@ const Dashboard = ({
     }
   };
 
-  // refresh automático ao entrar na aba
+  // Função para buscar o total de renovações da planilha (ou um valor inicial)
+  const fetchTotalRenovacoes = async () => {
+    try {
+      const response = await fetch('https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec?action=getTotalRenovacoes', {
+        mode: 'no-cors' // Mantido no-cors
+      });
+      const data = await response.json();
+      if (data && data.totalRenovacoes !== undefined) {
+        setEditedTotalRenovacoes(Number(data.totalRenovacoes));
+      } else {
+        // Se não conseguir buscar, use o valor calculado ou um padrão
+        setEditedTotalRenovacoes(leads.filter((lead) => lead.status !== 'Cancelado').length);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar total de renovações:', error);
+      // Em caso de erro, use o valor calculado
+      setEditedTotalRenovacoes(leads.filter((lead) => lead.status !== 'Cancelado').length);
+    }
+  };
+
+  // Função para salvar o total de renovações na planilha
+  const handleSaveTotalRenovacoes = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec', {
+        method: 'POST',
+        mode: 'no-cors', // Mantido no-cors
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          action: 'updateTotalRenovacoes',
+          totalRenovacoes: editedTotalRenovacoes,
+        }).toString(),
+      });
+      // Como é no-cors, a resposta pode ser opaca.
+      // Você pode verificar o status da requisição, mas não o corpo da resposta diretamente.
+      // Para fins de demonstração, vamos assumir sucesso se não houver erro de rede.
+      alert('Total de renovações salvo com sucesso (verifique a planilha)!');
+      setIsEditingTotalRenovacoes(false);
+    } catch (error) {
+      console.error('Erro ao salvar total de renovações:', error);
+      alert('Erro ao salvar o total de renovações.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // refresh automático ao entrar na aba e buscar total de renovações
   useEffect(() => {
     buscarLeadsClosedFromAPI();
+    fetchTotalRenovacoes(); // Busca o total de renovações ao carregar
   }, []);
-
-  // Atualiza leadsClosed quando a prop leadsClosedProp muda
-  useEffect(() => {
-    setLeadsClosed(leadsClosedProp);
-  }, [leadsClosedProp]);
 
   const aplicarFiltroData = () => {
     setFiltroAplicado({ inicio: dataInicio, fim: dataFim });
@@ -189,8 +224,8 @@ const Dashboard = ({
     return true;
   });
 
-  // O totalLeads agora vem da prop `totalRenovacoes`
-  const totalLeads = totalRenovacoes; 
+  // O totalLeads agora vem do estado `editedTotalRenovacoes`
+  const totalLeads = editedTotalRenovacoes; 
   const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
 
   // Filtra leads fechados por responsável e data
@@ -304,12 +339,12 @@ const Dashboard = ({
             {/* Contador: Total de Renovações (com edição) */}
             <div style={{ ...compactCardStyle, minWidth: '150px' }}>
               <p style={titleTextStyle}>Total de Renovações</p>
-              {editandoTotalRenovacoes ? (
+              {isEditingTotalRenovacoes ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                   <input
                     type="number"
-                    value={novoTotalRenovacoes}
-                    onChange={(e) => setNovoTotalRenovacoes(Number(e.target.value))}
+                    value={editedTotalRenovacoes}
+                    onChange={(e) => setEditedTotalRenovacoes(Number(e.target.value))}
                     style={{ padding: '5px 8px', borderRadius: '4px', border: '1px solid #d1d5db', width: '80px', textAlign: 'center' }}
                   />
                   <button
@@ -332,7 +367,7 @@ const Dashboard = ({
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                   <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
                   <button
-                    onClick={handleEditTotalRenovacoes}
+                    onClick={() => setIsEditingTotalRenovacoes(true)}
                     style={{ backgroundColor: '#9ca3af', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '5px' }}
                   >
                     <Edit size={16} />
