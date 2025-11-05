@@ -166,33 +166,43 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
-  // === AQUI: novo cálculo do "Total de Renovações" contando apenas linhas preenchidas da aba "Apolices" a partir da linha 2 ===
-  const countFilledRowsApolicesFromRow2 = () => {
+  // === AQUI: contar linhas da aba "Apolices" a partir da linha 2 (índice 1)
+  // somente se a coluna C (índice 2) estiver preenchida (campo name/nome)
+  const countApolicesWhereNameFilledFromRow2 = () => {
     if (!leads) return 0;
 
     // localizar aba Apolices (várias variações)
     const sheet = leads.Apolices ?? leads.apolices ?? leads.APOLICES ?? null;
 
-    const isRowFilledArray = (row) => {
-      if (!Array.isArray(row)) return false;
-      return row.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== '');
-    };
+    const isFilled = (v) => v !== null && v !== undefined && String(v).trim() !== '';
 
-    const isRowFilledObject = (row) => {
-      if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
-      return Object.values(row).some((v) => v !== null && v !== undefined && String(v).trim() !== '');
+    // tenta identificar chave de "name" em objetos (nome, Name, name)
+    const findNameKey = (obj) => {
+      if (!obj || typeof obj !== 'object') return null;
+      const keys = Object.keys(obj);
+      const candidate = keys.find(k => /^(name|nome)$/i.test(k));
+      if (candidate) return candidate;
+      // fallback heurístico: busca por chave que contenha 'name' ou 'nome'
+      const fuzzy = keys.find(k => /name|nome/i.test(k));
+      if (fuzzy) return fuzzy;
+      // fallback final: retorna a terceira chave (índice 2) se existir
+      return keys.length > 2 ? keys[2] : null;
     };
 
     // 1) Se achou aba explicitamente
     if (Array.isArray(sheet)) {
-      // contar a partir do índice 1 (linha 2 do Sheets)
       let count = 0;
+      // percorre a partir do índice 1 (linha 2)
       for (let i = 1; i < sheet.length; i++) {
         const row = sheet[i];
-        if (Array.isArray(row) && isRowFilledArray(row)) count++;
-        else if (typeof row === 'object' && !Array.isArray(row) && isRowFilledObject(row)) count++;
-        else if (!Array.isArray(row) && (typeof row === 'string' || typeof row === 'number')) {
-          if (String(row).trim() !== '') count++;
+        if (Array.isArray(row)) {
+          // coluna C = índice 2
+          if (isFilled(row[2])) count++;
+        } else if (row && typeof row === 'object') {
+          const key = findNameKey(row);
+          if (key && isFilled(row[key])) count++;
+        } else {
+          // se linha for primitiva (improvável), ignora
         }
       }
       return count;
@@ -203,10 +213,11 @@ const Dashboard = ({ leads, usuarioLogado }) => {
       let count = 0;
       for (let i = 1; i < leads.length; i++) {
         const row = leads[i];
-        if (Array.isArray(row) && isRowFilledArray(row)) count++;
-        else if (typeof row === 'object' && !Array.isArray(row) && isRowFilledObject(row)) count++;
-        else if (!Array.isArray(row) && (typeof row === 'string' || typeof row === 'number')) {
-          if (String(row).trim() !== '') count++;
+        if (Array.isArray(row)) {
+          if (isFilled(row[2])) count++;
+        } else if (row && typeof row === 'object') {
+          const key = findNameKey(row);
+          if (key && isFilled(row[key])) count++;
         }
       }
       return count;
@@ -216,7 +227,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return 0;
   };
 
-  const totalLeads = countFilledRowsApolicesFromRow2();
+  const totalLeads = countApolicesWhereNameFilledFromRow2();
   // === fim do ajuste solicitado ===
 
   const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
