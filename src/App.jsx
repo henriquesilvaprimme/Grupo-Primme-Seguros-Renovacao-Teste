@@ -3,15 +3,15 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
-import Leads from './Leads';
-import LeadsFechados from './LeadsFechados'
+import Renovacoes from './Renovacoes';
 import Renovados from './Renovados';
-import LeadsPerdidos from './LeadsPerdidos';
+import RenovacoesPerdidas from './RenovacoesPerdidas';
 import BuscarLead from './BuscarLead';
 import CriarUsuario from './pages/CriarUsuario';
 import GerenciarUsuarios from './pages/GerenciarUsuarios';
 import Ranking from './pages/Ranking';
 import CriarLead from './pages/CriarLead';
+import Segurados from './pages/Segurados';
 
 // Este componente agora vai rolar o elemento com a ref para o topo
 function ScrollToTop({ scrollContainerRef }) {
