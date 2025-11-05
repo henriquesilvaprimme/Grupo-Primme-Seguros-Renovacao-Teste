@@ -166,7 +166,30 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
-  const totalLeads = leadsFiltradosPorDataGeral.length;
+  // === AQUI: novo cálculo de "Total de Renovações"
+  // Deve puxar todos os leads que estão na aba "Apolices", contando a partir da linha 2 (ignorando cabeçalho).
+  const getApolicesLeads = () => {
+    // Caso 1: leads é um objeto que contém a chave 'Apolices' (ex.: retorno da API com sheets)
+    if (leads && Array.isArray(leads.Apolices)) {
+      return leads.Apolices.slice(1); // pular linha 1 (cabeçalho)
+    }
+    // Caso 2: key em lowercase
+    if (leads && Array.isArray(leads.apolices)) {
+      return leads.apolices.slice(1);
+    }
+    // Caso 3: se safeLeads for um array (provavelmente já representa a aba Apolices),
+    // assumimos que a primeira linha é cabeçalho e removemos.
+    if (Array.isArray(safeLeads) && safeLeads.length > 1) {
+      return safeLeads.slice(1);
+    }
+    // Caso padrão: vazio
+    return [];
+  };
+
+  const apolicesLeads = getApolicesLeads();
+  const totalLeads = apolicesLeads.length;
+  // === fim do ajuste solicitado ===
+
   const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
 
   // Filtra leads fechados por responsável e data
