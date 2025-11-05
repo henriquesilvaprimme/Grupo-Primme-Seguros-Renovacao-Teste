@@ -237,14 +237,22 @@ function App() {
   useEffect(() => {
     const fetchTotalRenovacoes = async () => {
       try {
-        const response = await fetch(`${TOTAL_RENOVACOES_SCRIPT_URL}?action=getTotalRenovacoes`);
+        // Ajustado para buscar especificamente da célula I2 da planilha "Apolices"
+        const response = await fetch(`${TOTAL_RENOVACOES_SCRIPT_URL}?action=getTotalRenovacoesFromCell`);
         const data = await response.json();
         if (data && data.totalRenovacoes !== undefined) {
+          // Garante que o valor é um número
           setTotalRenovacoes(Number(data.totalRenovacoes));
           setNovoTotalRenovacoes(Number(data.totalRenovacoes)); // Inicializa o campo de edição
+        } else {
+          console.warn('Resposta inesperada ao buscar total de renovações da célula I2:', data);
+          setTotalRenovacoes(0);
+          setNovoTotalRenovacoes(0);
         }
       } catch (error) {
-        console.error('Erro ao buscar total de renovações:', error);
+        console.error('Erro ao buscar total de renovações da célula I2:', error);
+        setTotalRenovacoes(0);
+        setNovoTotalRenovacoes(0);
       }
     };
 
