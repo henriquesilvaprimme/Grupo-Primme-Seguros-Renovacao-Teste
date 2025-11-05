@@ -1,638 +1,373 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { RefreshCcw, Edit, Save, X } from 'lucide-react'; // Importação dos ícones
+import React, { useState, useEffect } from 'react';
+import { RefreshCcw } from 'lucide-react'; // Importação do ícone de refresh
 
-// --- ESTILOS PARA CARDS MAIS COMPACTOS E MINIMALISTAS ---
+// --- NOVOS ESTILOS PARA CARDS MAIS COMPACTOS E MINIMALISTAS ---
 const compactCardStyle = {
-    backgroundColor: '#ffffff',
-    borderRadius: '8px',
-    padding: '15px',
-    border: '1px solid #e5e7eb',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-    transition: 'all 0.2s',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative', // Para posicionar o botão de edição
+  backgroundColor: '#ffffff',
+  borderRadius: '8px', // Borda mais suave
+  padding: '15px', // Redução do padding
+  border: '1px solid #e5e7eb', // Borda discreta
+  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)', // Sombra sutil
+  transition: 'all 0.2s',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  alignItems: 'center',
 };
 
 const valueTextStyle = {
-    fontSize: '26px',
-    fontWeight: '700',
-    marginTop: '5px',
-    lineHeight: '1.2',
+  fontSize: '26px', // Redução do tamanho da fonte para o valor
+  fontWeight: '700',
+  marginTop: '5px',
+  lineHeight: '1.2',
 };
 
 const titleTextStyle = {
-    fontSize: '12px',
-    color: '#6b7280',
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    marginBottom: '0',
+  fontSize: '12px', // Redução da fonte do título
+  color: '#6b7280',
+  fontWeight: '500',
+  textTransform: 'uppercase',
+  marginBottom: '0',
 };
 
-// --- COMPONENTE: Gráfico Circular de Progresso ---
+// --- COMPONENTE: Gráfico Circular de Progresso (Estilos adaptados) ---
 const CircularProgressChart = ({ percentage }) => {
-    const normalizedPercentage = Math.min(100, Math.max(0, percentage));
-    const circumference = 2 * Math.PI * 50; // cerca de 314.16
-    const dashoffset = circumference - (normalizedPercentage / 100) * circumference;
+  const normalizedPercentage = Math.min(100, Math.max(0, percentage));
+  const circumference = 314;
+  const dashoffset = circumference - (normalizedPercentage / 100) * circumference;
 
-    return (
-        <div style={{
-            width: '100px',
-            height: '100px',
-            position: 'relative',
-            margin: '10px auto 0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-        }}>
-            <svg
-                width="100"
-                height="100"
-                viewBox="0 0 120 120"
-                style={{ transform: 'rotate(-90deg)' }}
-            >
-                <circle
-                    cx="60"
-                    cy="60"
-                    r="50"
-                    fill="none"
-                    stroke="#f3f4f6"
-                    strokeWidth="8"
-                />
-                <circle
-                    cx="60"
-                    cy="60"
-                    r="50"
-                    fill="none"
-                    stroke="#059669"
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                    style={{
-                        transition: 'stroke-dashoffset 0.5s linear',
-                        strokeDasharray: circumference,
-                        strokeDashoffset: dashoffset,
-                    }}
-                />
-            </svg>
-            <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                fontSize: '18px',
-                fontWeight: '700',
-                color: '#059669',
-            }}>
-                {normalizedPercentage.toFixed(1)}%
-            </div>
-        </div>
-    );
+  return (
+    <div style={{
+      width: '100px', // Tamanho reduzido
+      height: '100px', // Tamanho reduzido
+      position: 'relative',
+      margin: '10px auto 0',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <svg
+        width="100"
+        height="100"
+        viewBox="0 0 120 120"
+        style={{ transform: 'rotate(-90deg)' }}
+      >
+        {/* Fundo do Círculo (Track) */}
+        <circle
+          cx="60"
+          cy="60"
+          r="50"
+          fill="none"
+          stroke="#f3f4f6"
+          strokeWidth="8" // Linha mais fina
+        />
+        {/* Círculo de Progresso */}
+        <circle
+          cx="60"
+          cy="60"
+          r="50"
+          fill="none"
+          stroke="#059669" // Verde mais escuro e sólido (Emerald 600)
+          strokeWidth="8"
+          strokeLinecap="round"
+          style={{
+            transition: 'stroke-dashoffset 0.5s linear',
+            strokeDasharray: circumference,
+            strokeDashoffset: dashoffset,
+          }}
+        />
+      </svg> {/* <-- TAG </svg> FALTANTE ADICIONADA AQUI */}
+      {/* Texto da Porcentagem no Centro */}
+      <div style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        fontSize: '18px',
+        fontWeight: '700',
+        color: '#059669',
+      }}>
+        {normalizedPercentage.toFixed(1)}%
+      </div>
+    </div>
+  );
 };
 // ------------------------------------------------------------------------
 
-// Helper para parsear data DD/MM/YYYY para Date object
-const parseDDMMYYYY = (dateStr) => {
-    if (!dateStr || typeof dateStr !== 'string') return null;
-    const parts = dateStr.split('/');
-    if (parts.length !== 3) return null;
-    
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1; // Mês 0-indexado
-    const year = parseInt(parts[2], 10);
-    
-    // Cria a data no fuso horário local
-    const date = new Date(year, month, day);
-    
-    // Validação básica
-    if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
-        return null;
-    }
-    return date;
-};
-
-// Helper para localizar o array da aba "Apólices" e remover o cabeçalho
-const getApolicesSheet = (leadsData) => {
-    if (!leadsData) return [];
-    
-    // Tenta localizar a aba por diferentes nomes
-    const sheet = 
-        leadsData.Apolices ||
-        leadsData.apolices ||
-        leadsData.APOLICES ||
-        leadsData['Apólices'] ||
-        leadsData['Apolices'] ||
-        null;
-        
-    if (Array.isArray(sheet) && sheet.length > 0) {
-        // Assume que a primeira linha é o cabeçalho e retorna o resto
-        return sheet.slice(1); 
-    }
-    
-    // Fallback: se leadsData é o próprio array de dados
-    if (Array.isArray(leadsData) && leadsData.length > 0 && leadsData[0]?.VigenciaFinal) {
-        return leadsData; // Se for um array de leads diretamente, retorna tudo
-    }
-
-    return [];
-};
-
-
 const Dashboard = ({ leads, usuarioLogado }) => {
-    const [leadsClosed, setLeadsClosed] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [isLoading, setIsLoading] = useState(false);
+  const [leadsClosed, setLeadsClosed] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 🚀 FUNÇÕES PARA O FILTRO DE DATA ATUALIZADO (Primeiro e Último dia do Mês)
+  const getPrimeiroDiaMes = () => {
+    const hoje = new Date();
+    return new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
+  };
+
+  const getUltimoDiaMes = () => {
+    // Cria uma data que é o primeiro dia do PRÓXIMO mês, e subtrai 1 dia
+    const hoje = new Date();
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    return ultimoDia.toISOString().slice(0, 10);
+  };
+
+  const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
+  const [dataFim, setDataFim] = useState(getUltimoDiaMes()); // 💡 ATUALIZADO para usar o último dia
+  const [filtroAplicado, setFiltroAplicado] = useState({ 
+    inicio: getPrimeiroDiaMes(), 
+    fim: getUltimoDiaMes() // 💡 ATUALIZADO para usar o último dia
+  });
+  // --------------------------------------------------------------------------
+
+  // Função auxiliar para validar e formatar a data
+  const getValidDateStr = (dateValue) => {
+    if (!dateValue) return null;
+    const dateObj = new Date(dateValue);
+    if (isNaN(dateObj.getTime())) {
+      return null;
+    }
+    return dateObj.toISOString().slice(0, 10);
+  };
+
+  // Busca leads fechados
+  const buscarLeadsClosedFromAPI = async () => {
+    setIsLoading(true);
+    setLoading(true);
+    try {
+      const respostaLeads = await fetch(
+        'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=pegar_clientes_fechados'
+      );
+      const dadosLeads = await respostaLeads.json();
+      setLeadsClosed(dadosLeads);
+    } catch (error) {
+      console.error('Erro ao buscar leads:', error);
+    } finally {
+      setIsLoading(false);
+      setLoading(false);
+    }
+  };
+
+  // refresh automático ao entrar na aba
+  useEffect(() => {
+    buscarLeadsClosedFromAPI();
+  }, []);
+
+  const aplicarFiltroData = () => {
+    setFiltroAplicado({ inicio: dataInicio, fim: dataFim });
+  };
+
+  // Filtro por data dos leads gerais (vindos via prop `leads`)
+  const leadsFiltradosPorDataGeral = leads.filter((lead) => {
+    // LÓGICA DE EXCLUSÃO: Ignora leads com status 'Cancelado'
+    if (lead.status === 'Cancelado') return false; 
     
-    // NOVOS ESTADOS PARA EDIÇÃO MANUAL
-    const [isEditingTotal, setIsEditingTotal] = useState(false);
-    const [editInputValue, setEditInputValue] = useState('');
-    const [totalLeadsOverride, setTotalLeadsOverride] = useState(null);
-    const [isSaving, setIsSaving] = useState(false);
-    const [saveMessage, setSaveMessage] = useState({ text: '', type: '' }); // 'success' or 'error'
+    const dataLeadStr = getValidDateStr(lead.createdAt);
+    if (!dataLeadStr) return false;
+    if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
+    if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
+    return true;
+  });
 
-    // --- Lógica de Datas ---
-    const getPrimeiroDiaMes = () => {
-        const hoje = new Date();
-        return new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
-    };
+  const totalLeads = leadsFiltradosPorDataGeral.length;
+  const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
 
-    const getUltimoDiaMes = () => {
-        const hoje = new Date();
-        const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
-        return ultimoDia.toISOString().slice(0, 10);
-    };
+  // Filtra leads fechados por responsável e data
+  let leadsFiltradosClosed =
+    usuarioLogado.tipo === 'Admin'
+      ? leadsClosed
+      : leadsClosed.filter((lead) => lead.Responsavel === usuarioLogado.nome);
 
-    const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
-    const [dataFim, setDataFim] = useState(getUltimoDiaMes());
-    const [filtroAplicado, setFiltroAplicado] = useState({
-        inicio: getPrimeiroDiaMes(),
-        fim: getUltimoDiaMes(),
-    });
+  leadsFiltradosClosed = leadsFiltradosClosed.filter((lead) => {
+    const dataLeadStr = getValidDateStr(lead.Data);
+    if (!dataLeadStr) return false;
+    if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
+    if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
+    return true;
+  });
 
-    const getValidDateStr = (dateValue) => {
-        if (!dateValue) return null;
-        const dateObj = new Date(dateValue);
-        if (isNaN(dateObj.getTime())) return null;
-        return dateObj.toISOString().slice(0, 10);
-    };
-    // ----------------------
+  // Contadores por seguradora
+  const portoSeguro = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
+  const azulSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
+  const itauSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
+  const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
 
-    // Função de Salvar Manual (POST para Google Apps Script)
-    const saveTotalToSheets = useCallback(async (value) => {
-        setIsSaving(true);
-        setSaveMessage({ text: 'Salvando...', type: 'info' });
-        
-        // Coluna I na aba Apolices, chamada 'TotalRenovacoes'
-        const apiURL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
-        
-        const payload = new URLSearchParams();
-        payload.append('action', 'saveTotalRenovacoes'); // Ação para o Apps Script
-        payload.append('sheetName', 'Apolices');
-        payload.append('columnName', 'TotalRenovacoes'); // Coluna I (nome fictício para referência)
-        payload.append('value', value);
-        
-        try {
-            // Usamos POST com payload
-            const response = await fetch(apiURL, {
-                method: 'POST',
-                body: payload,
-                mode: 'no-cors' // Típico para Apps Script simples
-            });
+  // O campo Vendas soma os contadores das seguradoras
+  const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais;
 
-            // Se o fetch for bem-sucedido (mesmo com no-cors), consideramos sucesso
-            // Na vida real, o Apps Script retornaria uma resposta JSON/texto. Aqui, assumimos sucesso.
-            console.log('Dados de Total de Renovações enviados com sucesso. Resposta:', response);
-            setSaveMessage({ text: 'Salvo com sucesso!', type: 'success' });
-            setTotalLeadsOverride(value); // Atualiza o valor local
-            setIsEditingTotal(false); // Sai do modo de edição
-            
-            setTimeout(() => setSaveMessage({ text: '', type: '' }), 3000); // Limpa a mensagem
-            return true; 
-        } catch (error) {
-            console.error('Erro ao enviar dados de Total de Renovações:', error);
-            setSaveMessage({ text: 'Erro ao salvar: ' + error.message, type: 'error' });
-            setTimeout(() => setSaveMessage({ text: '', type: '' }), 5000);
-            return false;
-        } finally {
-            setIsSaving(false);
-        }
-    }, []);
+  // Soma de prêmio líquido e média ponderada de comissão
+  const totalPremioLiquido = leadsFiltradosClosed.reduce(
+    (acc, lead) => acc + (Number(lead.PremioLiquido) || 0),
+    0
+  );
 
-    const buscarLeadsClosedFromAPI = async () => {
-        setIsLoading(true);
-        setLoading(true);
-        try {
-            const respostaLeads = await fetch(
-                'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=pegar_clientes_fechados'
-            );
-            const dadosLeads = await respostaLeosta.json();
-            setLeadsClosed(dadosLeads);
-        } catch (error) {
-            console.error('Erro ao buscar leads fechados:', error);
-        } finally {
-            setIsLoading(false);
-            setLoading(false);
-        }
-    };
+  const somaPonderadaComissao = leadsFiltradosClosed.reduce((acc, lead) => {
+    const premio = Number(lead.PremioLiquido) || 0;
+    const comissao = Number(lead.Comissao) || 0;
+    return acc + premio * (comissao / 100);
+  }, 0);
 
-    useEffect(() => {
-        buscarLeadsClosedFromAPI();
-    }, []);
+  const comissaoMediaGlobal =
+    totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
 
-    const aplicarFiltroData = () => {
-        setFiltroAplicado({ inicio: dataInicio, fim: dataFim });
-    };
+  // Cálculo: Porcentagem de Vendidos
+  const porcentagemVendidos = totalLeads > 0 ? (leadsFechadosCount / totalLeads) * 100 : 0;
 
-    // --- PROTEÇÕES ---
-    const safeLeads = leads ? (Array.isArray(leads) ? leads : Object.values(leads)) : [];
-    const safeLeadsClosed = leadsClosed ? (Array.isArray(leadsClosed) ? leadsClosed : Object.values(leadsClosed)) : [];
+  return (
+    <div style={{ padding: '20px', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
+      <h1 style={{ color: '#1f2937', marginBottom: '20px', fontWeight: '700' }}>Dashboard de Vendas</h1>
 
-    // proteger usuarioLogado
-    const isAdmin = usuarioLogado?.tipo === 'Admin';
-    const userName = usuarioLogado?.nome || '';
+      {/* Filtro de datas e Botão de Refresh */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          marginBottom: '30px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <input
+          type="date"
+          value={dataInicio}
+          onChange={(e) => setDataInicio(e.target.value)}
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d1d5db' }}
+          title="Data de Início"
+        />
+        <input
+          type="date"
+          value={dataFim}
+          onChange={(e) => setDataFim(e.target.value)}
+          style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d1d5db' }}
+          title="Data de Fim"
+        />
+        <button
+          onClick={aplicarFiltroData}
+          style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontWeight: '600' }}
+        >
+          Filtrar
+        </button>
 
-    // Lógica de contagem e filtro de renovações (valor COMPUTADO)
-    const totalLeadsComputed = useMemo(() => {
-        const apolices = getApolicesSheet(leads); // Leads (linhas) da aba Apolices (sem cabeçalho)
-        if (apolices.length === 0) return 0;
-        
-        // Data de referência do filtro (mês e ano)
-        const filtroDataObj = new Date(filtroAplicado.inicio);
-        const filtroMes = filtroDataObj.getMonth();
-        const filtroAno = filtroDataObj.getFullYear();
-        
-        let count = 0;
-        
-        apolices.forEach(apolice => {
-            let vigenciaFinalDateStr = null;
-            let idValue = null; 
+        <button
+          title='Clique para atualizar os dados'
+          onClick={buscarLeadsClosedFromAPI}
+          disabled={isLoading}
+          style={{ backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '40px', height: '40px' }}
+        >
+          {isLoading ? (
+            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : (
+            <RefreshCcw size={20} />
+          )}
+        </button>
+      </div>
 
-            // Tenta acessar dados no formato Objeto
-            if (apolice && typeof apolice === 'object' && !Array.isArray(apolice)) {
-                 // Coluna B (VigenciaFinal)
-                 vigenciaFinalDateStr = apolice.VigenciaFinal || apolice['VigênciaFinal'] || apolice.vigenciafinal;
-                 // Coluna A (ID)
-                 idValue = apolice.ID || apolice.id || apolice.Id; 
-            } 
-            
-            // Tenta acessar dados no formato Array (Coluna A=índice 0, Coluna B=índice 1)
-            if (Array.isArray(apolice) && apolice.length >= 2) {
-                 vigenciaFinalDateStr = apolice[1]; // Coluna B
-                 idValue = apolice[0]; // Coluna A
-            }
-            
-            // 1. **MANDATÓRIO**: Checa se a Coluna A (ID) está preenchida para contar o lead
-            if (!idValue || String(idValue).trim() === '') return;
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+          <p>Carregando dados do dashboard...</p>
+        </div>
+      )}
 
-            // 2. Checa se há data de vigência para aplicar o filtro
-            if (!vigenciaFinalDateStr) return;
+      {!loading && (
+        <>
+          {/* Primeira Seção: 3 Contadores Principais + Gráfico (Grid com 4 colunas) */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)', // 4 colunas iguais
+            gap: '20px',
+            marginBottom: '30px',
+          }}>
+            {/* Contador: Total de Leads */}
+            <div style={{ ...compactCardStyle, minWidth: '150px' }}>
+                <p style={titleTextStyle}>Total de Renovações</p>
+                <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
+                
+            </div>
 
-            const vigenciaDate = parseDDMMYYYY(String(vigenciaFinalDateStr).trim());
-            
-            if (vigenciaDate) {
-                // 3. Contagem: Filtra por Mês e Ano da VigenciaFinal
-                if (vigenciaDate.getMonth() === filtroMes && vigenciaDate.getFullYear() === filtroAno) {
-                    count++;
-                }
-            }
-        });
-        
-        return count;
-    }, [leads, filtroAplicado]);
-    
-    // Valor exibido: Se houver override manual, usa ele, senão usa o valor calculado
-    const totalLeads = totalLeadsOverride !== null ? Number(totalLeadsOverride) : totalLeadsComputed;
-    // --- FIM DA LÓGICA DE CONTAGEM SOLICITADA ---
+            {/* Contador: Vendas */}
+            <div style={{ ...compactCardStyle, backgroundColor: '#d1fae5', border: '1px solid #a7f3d0' }}>
+                <p style={{ ...titleTextStyle, color: '#059669' }}>Renovados</p>
+                <p style={{ ...valueTextStyle, color: '#059669' }}>{leadsFechadosCount}</p>
+            </div>
 
+            {/* Contador: Leads Perdidos */}
+            <div style={{ ...compactCardStyle, backgroundColor: '#fee2e2', border: '1px solid #fca5a5' }}>
+                <p style={{ ...titleTextStyle, color: '#ef4444' }}>Perdidos</p>
+                <p style={{ ...valueTextStyle, color: '#ef4444' }}>{leadsPerdidos}</p>
+            </div>
 
-    // Filtro por data dos leads gerais (vindos via prop `leads`)
-    const leadsFiltradosPorDataGeral = safeLeads.filter((lead) => {
-        if (!lead) return false;
-        if (lead.status === 'Cancelado') return false;
+            {/* Gráfico Circular de Progresso (Ultima Coluna, à Direita) */}
+            <div style={{
+                ...compactCardStyle,
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '150px'
+            }}>
+                <h3 style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '5px' }}>Taxa de Renovação</h3>
+                <CircularProgressChart percentage={porcentagemVendidos} />
+            </div>
+          </div>
 
-        const dataLeadStr = getValidDateStr(lead.createdAt); 
-        if (!dataLeadStr) return false;
-        if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
-        if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
-        return true;
-    });
+          {/* Segunda Seção: Contadores por Seguradora (Grid com 4 colunas) */}
+          <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Vendas por Seguradora</h2>
+          <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)', // 4 colunas iguais
+              gap: '20px',
+              marginBottom: '30px',
+          }}>
+            <div style={{ ...compactCardStyle, backgroundColor: '#f0f9ff', border: '1px solid #bfdbfe' }}>
+              <p style={{ ...titleTextStyle, color: '#1e40af' }}>Porto Seguro</p>
+              <p style={{ ...valueTextStyle, color: '#1e40af' }}>{portoSeguro}</p>
+            </div>
+            <div style={{ ...compactCardStyle, backgroundColor: '#f0fdf4', border: '1px solid #a7f3d0' }}>
+              <p style={{ ...titleTextStyle, color: '#065f46' }}>Azul Seguros</p>
+              <p style={{ ...valueTextStyle, color: '#065f46' }}>{azulSeguros}</p>
+            </div>
+            <div style={{ ...compactCardStyle, backgroundColor: '#fff7ed', border: '1px solid #fed7aa' }}>
+              <p style={{ ...titleTextStyle, color: '#92400e' }}>Itau Seguros</p>
+              <p style={{ ...valueTextStyle, color: '#92400e' }}>{itauSeguros}</p>
+            </div>
+            <div style={{ ...compactCardStyle, backgroundColor: '#f9fafb', border: '1px solid #d1d5db' }}>
+              <p style={{ ...titleTextStyle, color: '#374151' }}>Demais Seguradoras</p>
+              <p style={{ ...valueTextStyle, color: '#374151' }}>{demais}</p>
+            </div>
+          </div>
 
-    const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
-
-    // Filtra leads fechados por responsável e data
-    let leadsFiltradosClosed = isAdmin
-        ? safeLeadsClosed
-        : safeLeadsClosed.filter((lead) => lead?.Responsavel === userName);
-
-    leadsFiltradosClosed = leadsFiltradosClosed.filter((lead) => {
-        if (!lead) return false;
-        const dataLeadStr = getValidDateStr(lead.Data); // Assume que 'Data' é a data de fechamento
-        if (!dataLeadStr) return false;
-        if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
-        if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
-        return true;
-    });
-
-    // Contadores por seguradora
-    const portoSeguro = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
-    const azulSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
-    const itauSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
-    const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
-
-    const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais;
-
-    const totalPremioLiquido = leadsFiltradosClosed.reduce(
-        (acc, lead) => acc + (Number(lead?.PremioLiquido) || 0),
-        0
-    );
-
-    const somaPonderadaComissao = leadsFiltradosClosed.reduce((acc, lead) => {
-        const premio = Number(lead?.PremioLiquido) || 0;
-        const comissao = Number(lead?.Comissao) || 0;
-        return acc + premio * (comissao / 100);
-    }, 0);
-
-    const comissaoMediaGlobal =
-        totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
-
-    const porcentagemVendidos = totalLeads > 0 ? (leadsFechadosCount / totalLeads) * 100 : 0;
-    
-    // Handler para iniciar a edição
-    const handleEditStart = () => {
-        setEditInputValue(String(totalLeads));
-        setIsEditingTotal(true);
-        setSaveMessage({ text: '', type: '' });
-    };
-
-    // Handler para salvar
-    const handleSave = () => {
-        const value = parseInt(editInputValue, 10);
-        if (isNaN(value) || value < 0) {
-            setSaveMessage({ text: 'Por favor, insira um número inteiro positivo válido.', type: 'error' });
-            return;
-        }
-        saveTotalToSheets(value);
-    };
-
-    // Renderização do Card de Total de Renovações
-    const renderTotalLeadsCard = () => (
-        <div style={{ ...compactCardStyle, minWidth: '150px' }}>
-            <button
-                onClick={handleEditStart}
-                style={{
-                    position: 'absolute',
-                    top: '5px',
-                    right: '5px',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: '#6b7280',
-                    padding: '5px',
-                }}
-                title="Editar Total de Renovações"
-            >
-                <Edit size={16} />
-            </button>
-            <p style={titleTextStyle}>Total de Renovações</p>
-            <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
-            {saveMessage.text && (
-                 <div style={{ 
-                    marginTop: '10px',
-                    fontSize: '10px',
-                    fontWeight: '600',
-                    color: saveMessage.type === 'success' ? '#059669' : (saveMessage.type === 'error' ? '#ef4444' : '#1f2937')
-                }}>
-                    {saveMessage.text}
-                </div>
-            )}
-        </div>
-    );
-    
-    // Renderização do Card de Edição Manual
-    const renderEditCard = () => (
-        <div style={{ ...compactCardStyle, minWidth: '150px', justifyContent: 'flex-start' }}>
-            <p style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '10px' }}>Editar Total de Renovações</p>
-            <input
-                type="number"
-                value={editInputValue}
-                onChange={(e) => setEditInputValue(e.target.value)}
-                disabled={isSaving}
-                style={{
-                    padding: '8px',
-                    borderRadius: '4px',
-                    border: '1px solid #d1d5db',
-                    width: '100%',
-                    marginBottom: '10px',
-                    textAlign: 'center',
-                    fontSize: '16px'
-                }}
-            />
-            
-            <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>
-                <button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    style={{
-                        backgroundColor: '#059669',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '8px 12px',
-                        cursor: isSaving ? 'default' : 'pointer',
-                        fontWeight: '600',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                    }}
-                >
-                    {isSaving ? 'Salvando...' : <><Save size={16} /> Salvar</>}
-                </button>
-                <button
-                    onClick={() => { setIsEditingTotal(false); setSaveMessage({ text: '', type: '' }); }}
-                    disabled={isSaving}
-                    style={{
-                        backgroundColor: '#ef4444',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '8px 12px',
-                        cursor: isSaving ? 'default' : 'pointer',
-                        fontWeight: '600',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                    }}
-                >
-                    <X size={16} /> Cancelar
-                </button>
-            </div>
-
-            {saveMessage.text && saveMessage.type === 'error' && (
-                 <div style={{ 
-                    marginTop: '10px',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    color: '#ef4444'
-                }}>
-                    {saveMessage.text}
-                </div>
-            )}
-        </div>
-    );
-
-
-    return (
-        <div style={{ padding: '20px', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
-            <h1 style={{ color: '#1f2937', marginBottom: '20px', fontWeight: '700' }}>Dashboard de Vendas</h1>
-
-            {/* Filtro de datas e Botão de Refresh */}
-            <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    marginBottom: '30px',
-                    flexWrap: 'wrap',
-                }}
-            >
-                <input
-                    type="date"
-                    value={dataInicio}
-                    onChange={(e) => setDataInicio(e.target.value)}
-                    style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d1d5db' }}
-                    title="Data de Início"
-                />
-                <input
-                    type="date"
-                    value={dataFim}
-                    onChange={(e) => setDataFim(e.target.value)}
-                    style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d1d5db' }}
-                    title="Data de Fim"
-                />
-                <button
-                    onClick={aplicarFiltroData}
-                    style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontWeight: '600' }}
-                >
-                    Filtrar
-                </button>
-
-                <button
-                    title='Clique para atualizar os dados'
-                    onClick={buscarLeadsClosedFromAPI}
-                    disabled={isLoading}
-                    style={{ backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '40px', height: '40px' }}
-                >
-                    {isLoading ? (
-                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    ) : (
-                        <RefreshCcw size={20} />
-                    )}
-                </button>
-            </div>
-
-            {loading && (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
-                    <p>Carregando dados do dashboard...</p>
-                </div>
-            )}
-
-            {!loading && (
-                <>
-                    {/* Primeira Seção: 3 Contadores Principais + Gráfico (Grid com 4 colunas) */}
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(4, 1fr)',
-                        gap: '20px',
-                        marginBottom: '30px',
-                    }}>
-                        {/* Contador: Total de Renovações (EDITÁVEL AGORA) */}
-                        {isEditingTotal ? renderEditCard() : renderTotalLeadsCard()}
-
-                        {/* Contador: Renovados (Leads Fechados) */}
-                        <div style={{ ...compactCardStyle, backgroundColor: '#d1fae5', border: '1px solid #a7f3d0' }}>
-                            <p style={{ ...titleTextStyle, color: '#059669' }}>Renovados</p>
-                            <p style={{ ...valueTextStyle, color: '#059669' }}>{leadsFechadosCount}</p>
-                        </div>
-
-                        {/* Contador: Leads Perdidos */}
-                        <div style={{ ...compactCardStyle, backgroundColor: '#fee2e2', border: '1px solid #fca5a5' }}>
-                            <p style={{ ...titleTextStyle, color: '#ef4444' }}>Perdidos</p>
-                            <p style={{ ...valueTextStyle, color: '#ef4444' }}>{leadsPerdidos}</p>
-                        </div>
-
-                        {/* Gráfico Circular de Progresso (Ultima Coluna, à Direita) */}
-                        <div style={{
-                            ...compactCardStyle,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minWidth: '150px'
-                        }}>
-                            <h3 style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '5px' }}>Taxa de Renovação</h3>
-                            <CircularProgressChart percentage={porcentagemVendidos} />
-                        </div>
-                    </div>
-
-                    {/* Segunda Seção: Contadores por Seguradora (Grid com 4 colunas) */}
-                    <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Vendas por Seguradora</h2>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(4, 1fr)',
-                        gap: '20px',
-                        marginBottom: '30px',
-                    }}>
-                        <div style={{ ...compactCardStyle, backgroundColor: '#f0f9ff', border: '1px solid #bfdbfe' }}>
-                            <p style={{ ...titleTextStyle, color: '#1e40af' }}>Porto Seguro</p>
-                            <p style={{ ...valueTextStyle, color: '#1e40af' }}>{portoSeguro}</p>
-                        </div>
-                        <div style={{ ...compactCardStyle, backgroundColor: '#f0fdf4', border: '1px solid #a7f3d0' }}>
-                            <p style={{ ...titleTextStyle, color: '#065f46' }}>Azul Seguros</p>
-                            <p style={{ ...valueTextStyle, color: '#065f46' }}>{azulSeguros}</p>
-                        </div>
-                        <div style={{ ...compactCardStyle, backgroundColor: '#fff7ed', border: '1px solid #fed7aa' }}>
-                            <p style={{ ...titleTextStyle, color: '#92400e' }}>Itau Seguros</p>
-                            <p style={{ ...valueTextStyle, color: '#92400e' }}>{itauSeguros}</p>
-                        </div>
-                        <div style={{ ...compactCardStyle, backgroundColor: '#f9fafb', border: '1px solid #d1d5db' }}>
-                            <p style={{ ...titleTextStyle, color: '#374151' }}>Demais Seguradoras</p>
-                            <p style={{ ...valueTextStyle, color: '#374151' }}>{demais}</p>
-                        </div>
-                    </div>
-
-                    {/* Terceira Seção: Prêmios e Comissão (Grid com 2 colunas) */}
-                    {usuarioLogado?.tipo === 'Admin' && (
-                        <>
-                        <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Métricas Financeiras</h2>
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(2, 1fr)',
-                            gap: '20px',
-                        }}>
-                            <div style={{ ...compactCardStyle, backgroundColor: '#eef2ff', border: '1px solid #c7d2fe' }}>
-                                <p style={{ ...titleTextStyle, color: '#4f46e5' }}>Total Prêmio Líquido</p>
-                                <p style={{ ...valueTextStyle, color: '#4f46e5' }}>
-                                    {totalPremioLiquido.toLocaleString('pt-BR', {
-                                        style: 'currency',
-                                        currency: 'BRL',
-                                    })}
-                                </p>
-                            </div>
-                            <div style={{ ...compactCardStyle, backgroundColor: '#ecfeff', border: '1px solid #99f6e4' }}>
-                                <p style={{ ...titleTextStyle, color: '#0f766e' }}>Média Comissão</p>
-                                <p style={{ ...valueTextStyle, color: '#0f766e' }}>
-                                    {comissaoMediaGlobal.toFixed(2).replace('.', ',')}%
-                                </p>
-                            </div>
-                        </div>
-                        </>
-                    )}
-                </>
-            )}
-        </div>
-    );
+          {/* Terceira Seção: Prêmios e Comissão (Grid com 2 colunas) */}
+          {usuarioLogado.tipo === 'Admin' && (
+            <>
+            <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Métricas Financeiras</h2>
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)', // 2 colunas iguais
+                gap: '20px',
+            }}>
+              <div style={{ ...compactCardStyle, backgroundColor: '#eef2ff', border: '1px solid #c7d2fe' }}>
+                <p style={{ ...titleTextStyle, color: '#4f46e5' }}>Total Prêmio Líquido</p>
+                <p style={{ ...valueTextStyle, color: '#4f46e5' }}>
+                  {totalPremioLiquido.toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  })}
+                </p>
+              </div>
+              <div style={{ ...compactCardStyle, backgroundColor: '#ecfeff', border: '1px solid #99f6e4' }}>
+                <p style={{ ...titleTextStyle, color: '#0f766e' }}>Média Comissão</p>
+                <p style={{ ...valueTextStyle, color: '#0f766e' }}>
+                  {comissaoMediaGlobal.toFixed(2).replace('.', ',')}%
+                </p>
+              </div>
+            </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
 };
 
 export default Dashboard;
