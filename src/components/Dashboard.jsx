@@ -4,10 +4,10 @@ import { RefreshCcw, Pencil, Save } from 'lucide-react'; // Importação dos íc
 // --- NOVOS ESTILOS PARA CARDS MAIS COMPACTOS E MINIMALISTAS ---
 const compactCardStyle = {
   backgroundColor: '#ffffff',
-  borderRadius: '8px', // Borda mais suave
-  padding: '15px', // Redução do padding
-  border: '1px solid #e5e7eb', // Borda discreta
-  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)', // Sombra sutil
+  borderRadius: '8px',
+  padding: '15px',
+  border: '1px solid #e5e7eb',
+  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
   transition: 'all 0.2s',
   display: 'flex',
   flexDirection: 'column',
@@ -16,14 +16,14 @@ const compactCardStyle = {
 };
 
 const valueTextStyle = {
-  fontSize: '26px', // Redução do tamanho da fonte para o valor
+  fontSize: '26px',
   fontWeight: '700',
   marginTop: '5px',
   lineHeight: '1.2',
 };
 
 const titleTextStyle = {
-  fontSize: '12px', // Redução da fonte do título
+  fontSize: '12px',
   color: '#6b7280',
   fontWeight: '500',
   textTransform: 'uppercase',
@@ -38,8 +38,8 @@ const CircularProgressChart = ({ percentage }) => {
 
   return (
     <div style={{
-      width: '100px', // Tamanho reduzido
-      height: '100px', // Tamanho reduzido
+      width: '100px',
+      height: '100px',
       position: 'relative',
       margin: '10px auto 0',
       display: 'flex',
@@ -52,22 +52,20 @@ const CircularProgressChart = ({ percentage }) => {
         viewBox="0 0 120 120"
         style={{ transform: 'rotate(-90deg)' }}
       >
-        {/* Fundo do Círculo (Track) */}
         <circle
           cx="60"
           cy="60"
           r="50"
           fill="none"
           stroke="#f3f4f6"
-          strokeWidth="8" // Linha mais fina
+          strokeWidth="8"
         />
-        {/* Círculo de Progresso */}
         <circle
           cx="60"
           cy="60"
           r="50"
           fill="none"
-          stroke="#059669" // Verde mais escuro e sólido (Emerald 600)
+          stroke="#059669"
           strokeWidth="8"
           strokeLinecap="round"
           style={{
@@ -77,7 +75,6 @@ const CircularProgressChart = ({ percentage }) => {
           }}
         />
       </svg>
-      {/* Texto da Porcentagem no Centro */}
       <div style={{
         position: 'absolute',
         top: '50%',
@@ -118,7 +115,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   };
 
   const getUltimoDiaMes = () => {
-    // Cria uma data que é o primeiro dia do PRÓXIMO mês, e subtrai 1 dia
     const hoje = new Date();
     const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
     return ultimoDia.toISOString().slice(0, 10);
@@ -161,24 +157,86 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   };
 
   // Busca o total de renovações fixo (célula Apolices!I2)
+  // Observação: usamos GET com modo 'cors' para conseguir ler o JSON retornado.
   const fetchTotalRenovacoes = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch(`${GAS_URL}?v=getTotalRenovacoes`);
-      const data = await response.json();
-      
-      let fetchedValue = 0;
-      if (data && typeof data.totalRenovacoes === 'number') {
-        fetchedValue = data.totalRenovacoes;
-      } else {
-        console.error('Dados de renovações inválidos:', data);
+      // Tentativas em diferentes parâmetros que seu GAS pode aceitar
+      const endpointsToTry = [
+        `${GAS_URL}?action=getTotalRenovacoesFromCell`,
+        `${GAS_URL}?v=getTotalRenovacoes`,
+        `${GAS_URL}?v=getTotalRenovacoesFromCell`,
+        `${GAS_URL}?action=getTotalRenovacoes`
+      ];
+
+      let lastError = null;
+      let data = null;
+
+      for (const url of endpointsToTry) {
+        try {
+          console.log('Tentando buscar totalRenovacoes em:', url);
+          const resp = await fetch(url, {
+            method: 'GET',
+            mode: 'cors', // necessário para ler o corpo da resposta
+            headers: { 'Accept': 'application/json' },
+          });
+
+          console.log('Status resposta:', resp.status, 'type:', resp.type);
+
+          const text = await resp.text();
+          console.log('Resposta bruta do endpoint:', text);
+
+          if (!text) {
+            lastError = new Error('Resposta vazia do endpoint ' + url);
+            continue;
+          }
+
+          // Tenta parse JSON
+          try {
+            data = JSON.parse(text);
+          } catch (parseErr) {
+            // Se não for JSON, tenta converter o texto para número
+            const numeric = Number(text.trim());
+            if (!Number.isNaN(numeric)) {
+              data = { totalRenovacoes: numeric };
+            } else {
+              throw new Error('Não foi possível parsear JSON nem extrair número do texto');
+            }
+          }
+
+          // Se chegou até aqui temos 'data'
+          break;
+        } catch (err) {
+          console.warn('Falha ao consultar endpoint de totalRenovacoes:', err);
+          lastError = err;
+          data = null;
+          // continua para próximo endpoint
+        }
       }
-      
+
+      if (!data) {
+        console.error('Não foi possível obter totalRenovacoes de nenhum endpoint. Erro final:', lastError);
+        setTotalRenovacoes(0);
+        setNewTotalRenovacoesValue(0);
+        return;
+      }
+
+      // Aceita strings ou numbers; tenta converter para inteiro
+      let fetchedValue = 0;
+      if (data.totalRenovacoes !== undefined && data.totalRenovacoes !== null) {
+        const numeric = Number(data.totalRenovacoes);
+        fetchedValue = Number.isNaN(numeric) ? 0 : Math.floor(numeric);
+      } else {
+        const firstVal = Object.values(data)[0];
+        const numeric = Number(firstVal);
+        fetchedValue = Number.isNaN(numeric) ? 0 : Math.floor(numeric);
+      }
+
       setTotalRenovacoes(fetchedValue);
-      setNewTotalRenovacoesValue(fetchedValue); // Inicializa o valor de edição
-      
+      setNewTotalRenovacoesValue(fetchedValue);
+
     } catch (error) {
-      console.error('Erro ao buscar total de renovações:', error);
+      console.error('Erro inesperado ao buscar total de renovações:', error);
       setTotalRenovacoes(0);
       setNewTotalRenovacoesValue(0);
     } finally {
@@ -187,9 +245,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   };
 
   // Salva o novo valor fixo de renovações na célula Apolices!I2
+  // Mantive o POST usando mode: 'no-cors' conforme você solicitou.
   const saveTotalRenovacoes = async () => {
     setMessage({ text: '', type: '' });
-    const valueToSave = Math.floor(Number(newTotalRenovacoesValue)); // Garante que seja inteiro
+    const valueToSave = Math.floor(Number(newTotalRenovacoesValue)); // Garante inteiro
     
     if (isNaN(valueToSave) || valueToSave < 0) {
       setMessage({ text: 'O valor deve ser um número inteiro positivo.', type: 'error' });
@@ -198,24 +257,27 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
     setIsSaving(true);
     try {
-      // Prepara os dados para o POST (simulando um GET com o corpo POST)
       const payload = {
-        v: 'setTotalRenovacoes', // Ação para o GAS
+        v: 'setTotalRenovacoes', // ajuste se seu GAS espera outro parâmetro (ex: action=updateTotalRenovacoes)
         totalRenovacoes: valueToSave,
       };
 
-      const response = await fetch(
-        `${GAS_URL}?${new URLSearchParams(payload).toString()}`, // Envia parâmetros via query string
-        {
-          method: 'POST',
-          mode: 'no-cors', // Necessário para evitar erro CORS no GAS, embora não possamos ler a resposta
-        }
-      );
+      // POST com no-cors (como você pediu):
+      await fetch(`${GAS_URL}?${new URLSearchParams(payload).toString()}`, {
+        method: 'POST',
+        mode: 'no-cors', // mantido conforme sua instrução
+      });
 
-      // Assumimos sucesso, pois não podemos ler o corpo da resposta em no-cors
+      // Feedback imediato e tentativa de revalidação/refresh do valor
       setTotalRenovacoes(valueToSave);
       setIsEditingRenovacoes(false);
       setMessage({ text: 'Total de Renovações salvo com sucesso!', type: 'success' });
+
+      // Delay curto para garantir que o GAS tenha escrito no Sheets,
+      // depois tentamos buscar via GET (cors) para confirmar o valor gravado.
+      setTimeout(() => {
+        fetchTotalRenovacoes();
+      }, 800);
 
     } catch (error) {
       console.error('Erro ao salvar total de renovações:', error);
@@ -225,11 +287,11 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     }
   };
 
-
   // refresh automático ao entrar na aba
   useEffect(() => {
     buscarLeadsClosedFromAPI();
     fetchTotalRenovacoes(); // Busca o valor fixo ao montar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const aplicarFiltroData = () => {
@@ -238,7 +300,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
   // Filtro por data dos leads gerais (vindos via prop `leads`)
   const leadsFiltradosPorDataGeral = leads.filter((lead) => {
-    // LÓGICA DE EXCLUSÃO: Ignora leads com status 'Cancelado'
     if (lead.status === 'Cancelado') return false; 
     
     const dataLeadStr = getValidDateStr(lead.createdAt);
@@ -248,8 +309,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
-  // O totalLeads agora é usado apenas para calcular as porcentagens,
-  // pois o primeiro card agora usa totalRenovacoes (fixo)
   const totalLeads = leadsFiltradosPorDataGeral.length; 
   const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
 
@@ -372,7 +431,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           {/* Primeira Seção: 3 Contadores Principais + Gráfico (Grid com 4 colunas) */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', // Colunas responsivas
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
             gap: '20px',
             marginBottom: '30px',
           }}>
@@ -418,11 +477,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                   >
                     {isSaving ? 'Salvando...' : <><Save size={16} /> Salvar</>}
                   </button>
-                  {/* Botão Cancelar (opcional, para conveniência) */}
                   <button
                     onClick={() => {
                       setIsEditingRenovacoes(false);
-                      setNewTotalRenovacoesValue(totalRenovacoes); // Reseta para o valor salvo
+                      setNewTotalRenovacoesValue(totalRenovacoes);
                     }}
                     style={{
                         backgroundColor: 'transparent',
@@ -518,7 +576,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
             <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Métricas Financeiras (Mês)</h2>
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', // 2 colunas responsivas
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
                 gap: '20px',
             }}>
               <div style={{ ...compactCardStyle, backgroundColor: '#eef2ff', border: '1px solid #c7d2fe' }}>
