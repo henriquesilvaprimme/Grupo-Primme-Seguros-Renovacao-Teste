@@ -186,11 +186,25 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
+    // Lista de seguradoras que devem ser contadas como "Demais Seguradoras"
+  const demaisSeguradorasLista = [
+    'tokio',
+    'yelum',
+    'suhai',
+    'allianz',
+    'bradesco',
+    'hdi',
+    'zurich',
+    'alfa',
+    'mitsui',
+    'mapfre',
+    'demais seguradoras' // inclui explicitamente o rótulo "Demais Seguradoras"
+  ];
+
   // Contadores por seguradora
   const portoSeguro = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
   const azulSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
   const itauSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
-  const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
 
   // O campo Vendas soma os contadores das seguradoras
   const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais;
