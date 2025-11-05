@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { RefreshCcw, Search, CheckCircle, DollarSign, Calendar, Edit, X } from 'lucide-react';
 
 // ===============================================
-// 1. COMPONENTE PRINCIPAL: LeadsFechados
+// 1. COMPONENTE PRINCIPAL: Renovados
 // ===============================================
 
 const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdateDetalhes, fetchRenovadosFromSheet, isAdmin, scrollContainerRef }) => {
     // --- ESTADOS ---
-    const [fechadosFiltradosInterno, setFechadosFiltradosInterno] = useState([]);
+    const [renovadosFiltradosInterno, setRenovadosFiltradosInterno] = useState([]);
     const [paginaAtual, setPaginaAtual] = useState(1);
     const leadsPorPagina = 10;
 
@@ -107,7 +107,7 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
         try {
             await fetchRenovadosFromSheet();
         } catch (error) {
-            console.error('Erro ao atualizar leads fechados:', error);
+            console.error('Erro ao atualizar renovados:', error);
         } finally {
             setIsLoading(false);
         }
@@ -121,12 +121,12 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
 
     // --- EFEITO DE FILTRAGEM E SINCRONIZAÇÃO DE ESTADOS ---
     useEffect(() => {
-        const fechadosAtuais = leads.filter(lead => lead.Status === 'Renovado');
+        const renovadosAtuais = leads.filter(lead => lead.Status === 'Renovado');
 
         // Sincronização de estados
         setValores(prevValores => {
             const novosValores = { ...prevValores };
-            fechadosAtuais.forEach(lead => {
+            renovadosAtuais.forEach(lead => {
                 const rawPremioFromApi = String(lead.PremioLiquido || '');
                 const premioFromApi = parseFloat(rawPremioFromApi.replace('.', '').replace(',', '.'));
                 const premioInCents = isNaN(premioFromApi) || rawPremioFromApi === '' ? null : Math.round(premioFromApi * 100);
@@ -166,7 +166,7 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
         // >>> NOVO: Sincronização do estado de Nome Temporário <<<
         setNomeTemporario(prevNomes => {
             const novosNomes = { ...prevNomes };
-            fechadosAtuais.forEach(lead => {
+            renovadosAtuais.forEach(lead => {
                 if (novosNomes[lead.ID] === undefined) {
                     novosNomes[lead.ID] = lead.name || '';
                 }
@@ -175,10 +175,9 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
         });
         // <<< FIM NOVO ESTADO NOME TEMPORÁRIO >>>
 
-
         setPremioLiquidoInputDisplay(prevDisplay => {
             const newDisplay = { ...prevDisplay };
-            fechadosAtuais.forEach(lead => {
+            renovadosAtuais.forEach(lead => {
                 const currentPremio = String(lead.PremioLiquido || '');
                 if (currentPremio !== '') {
                     const premioFloat = parseFloat(currentPremio.replace(',', '.'));
@@ -192,7 +191,7 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
 
         setVigencia(prevVigencia => {
             const novasVigencias = { ...prevVigencia };
-            fechadosAtuais.forEach(lead => {
+            renovadosAtuais.forEach(lead => {
                 const vigenciaInicioStrApi = String(lead.VigenciaInicial || '');
                 const vigenciaFinalStrApi = String(lead.VigenciaFinal || '');
 
@@ -207,7 +206,7 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
         });
 
         // ORDENAÇÃO
-        const fechadosOrdenados = [...fechadosAtuais].sort((a, b) => {
+        const renovadosOrdenados = [...renovadosAtuais].sort((a, b) => {
             const dataA = new Date(getDataParaComparacao(a.Data) + 'T00:00:00');
             const dataB = new Date(getDataParaComparacao(b.Data) + 'T00:00:00');
             return dataB.getTime() - dataA.getTime();
@@ -216,20 +215,20 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
         // Aplicação da lógica de filtragem
         let leadsFiltrados;
         if (filtroNome) {
-            leadsFiltrados = fechadosOrdenados.filter(lead =>
+            leadsFiltrados = renovadosOrdenados.filter(lead =>
                 nomeContemFiltro(lead.name, filtroNome)
             );
         } else if (filtroData) {
-            leadsFiltrados = fechadosOrdenados.filter(lead => {
+            leadsFiltrados = renovadosOrdenados.filter(lead => {
                 const dataLeadFormatada = getDataParaComparacao(lead.Data);
                 const dataLeadMesAno = dataLeadFormatada ? dataLeadFormatada.substring(0, 7) : '';
                 return dataLeadMesAno === filtroData;
             });
         } else {
-            leadsFiltrados = fechadosOrdenados;
+            leadsFiltrados = renovadosOrdenados;
         }
 
-        setFechadosFiltradosInterno(leadsFiltrados);
+        setRenovadosFiltradosInterno(leadsFiltrados);
     }, [leads, filtroNome, filtroData]);
 
 
@@ -445,11 +444,11 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
 
 
     // --- LÓGICA DE PAGINAÇÃO ---
-    const totalPaginas = Math.max(1, Math.ceil(fechadosFiltradosInterno.length / leadsPorPagina));
+    const totalPaginas = Math.max(1, Math.ceil(renovadosFiltradosInterno.length / leadsPorPagina));
     const paginaCorrigida = Math.min(paginaAtual, totalPaginas);
     const inicio = (paginaCorrigida - 1) * leadsPorPagina;
     const fim = inicio + leadsPorPagina;
-    const leadsPagina = fechadosFiltradosInterno.slice(inicio, fim);
+    const leadsPagina = renovadosFiltradosInterno.slice(inicio, fim);
 
     const handlePaginaAnterior = () => {
         setPaginaAtual(prev => Math.max(prev - 1, 1));
@@ -473,7 +472,7 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <p className="ml-4 text-xl font-semibold text-gray-700 mt-3">Carregando Leads Concluídos...</p>
+                        <p className="ml-4 text-xl font-semibold text-gray-700 mt-3">Carregando Renovados...</p>
                     </div>
                 </div>
             )}
@@ -483,7 +482,7 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
                 <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4 mb-4">
                     <h1 className="text-4xl font-extrabold text-gray-900 flex items-center">
                         <CheckCircle size={32} className="text-green-500 mr-3" />
-                        Leads Fechados
+                        Renovados
                     </h1>
 
                     <button
@@ -534,9 +533,9 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
                 </div>
             </div>
 
-            {/* Lista de Cards de Leads */}
+            {/* Lista de Cards de Renovados */}
             <div className="space-y-5">
-                {fechadosFiltradosInterno.length === 0 && !isLoading ? (
+                {renovadosFiltradosInterno.length === 0 && !isLoading ? (
                     <div className="text-center p-12 bg-white rounded-xl shadow-md text-gray-600 text-lg">
                         <p> Você não tem nenhum cliente renovado no período filtrado. </p>
                     </div>
@@ -620,11 +619,11 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
                                     )}
                                 </div>
 
-                                {/* COLUNA 2: Detalhes do Fechamento */}
+                                {/* COLUNA 2: Detalhes da Renovação */}
                                 <div className="col-span-1 border-b pb-4 lg:border-r lg:pb-0 lg:px-6">
                                     <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
                                         <DollarSign size={18} className="mr-2 text-green-500" />
-                                        Detalhes do Fechamento
+                                        Detalhes da Renovação
                                     </h3>
 
                                     {/* 1. Seguradora (Select) */}
@@ -637,9 +636,9 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
                                             className="w-full p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-100 disabled:cursor-not-allowed transition duration-150 focus:ring-green-500 focus:border-green-500"
                                         >
                                             <option value="">Selecione a seguradora</option>
-                                            <option value="Porto Seguro">Porto Seguro</option>
-                                            <option value="Azul Seguros">Azul Seguros</option>
-                                            <option value="Itau Seguros">Itau Seguros</option>
+                                            <option value="Porto Seguro">Porto Seguro</option>
+                                            <option value="Azul Seguros">Azul Seguros</option>
+                                            <option value="Itau Seguros">Itau Seguros</option>
                                             <option value="Tokio">Tokio</option>
                                             <option value="Yelum">Yelum</option>
                                             <option value="Bradesco">Bradesco</option>
@@ -807,7 +806,7 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
                                     ) : (
                                         <div className="w-full py-3 px-4 rounded-xl font-bold bg-green-100 text-green-700 flex items-center justify-center border border-green-300">
                                             <CheckCircle size={20} className="mr-2" />
-                                            Fechado!
+                                            Renovado!
                                         </div>
                                     )}
                                 </div>
@@ -818,8 +817,8 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
             </div>
 
             {/* Rodapé e Paginação */}
-            {fechadosFiltradosInterno.length > 0 && (
-                <div className="mt-8 flex justify-center bg-white p-4 rounded-xl shadow-lg">
+            {renovadosFiltradosInterno.length > 0 && (
+                <div className="mt-8 flex justificar-center bg-white p-4 rounded-xl shadow-lg">
                     <div className="flex justify-center items-center gap-4 mt-8 pb-8">
                         <button
                             onClick={handlePaginaAnterior}
@@ -855,4 +854,4 @@ const Renovados = ({ leads, usuarios, onUpdateInsurer, onConfirmInsurer, onUpdat
     );
 };
 
-export default LeadsFechados;
+export default Renovados;
