@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCcw } from 'lucide-react'; // Importação do ícone de refresh
+import { RefreshCcw, Pencil, Save } from 'lucide-react'; // Importação dos ícones necessários
 
 // --- NOVOS ESTILOS PARA CARDS MAIS COMPACTOS E MINIMALISTAS ---
 const compactCardStyle = {
@@ -76,7 +76,7 @@ const CircularProgressChart = ({ percentage }) => {
             strokeDashoffset: dashoffset,
           }}
         />
-      </svg> {/* <-- TAG </svg> FALTANTE ADICIONADA AQUI */}
+      </svg>
       {/* Texto da Porcentagem no Centro */}
       <div style={{
         position: 'absolute',
@@ -97,8 +97,19 @@ const CircularProgressChart = ({ percentage }) => {
 const Dashboard = ({ leads, usuarioLogado }) => {
   const [leadsClosed, setLeadsClosed] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [totalRenovacoes, setTotalRenovacoes] = useState(0); // Novo estado para total de renovações
+  
+  // --- NOVOS ESTADOS PARA EDIÇÃO DO VALOR FIXO ---
+  const [totalRenovacoes, setTotalRenovacoes] = useState(0); // Valor fixo salvo
+  const [isEditingRenovacoes, setIsEditingRenovacoes] = useState(false); // Modo de edição
+  const [newTotalRenovacoesValue, setNewTotalRenovacoesValue] = useState(0); // Valor no input
+  const [isSaving, setIsSaving] = useState(false); // Estado de salvamento
+  // -------------------------------------------------
+  
   const [isLoading, setIsLoading] = useState(false);
+  const [message, setMessage] = useState({ text: '', type: '' }); // Para mensagens de erro/sucesso
+
+  // URL do seu Google Apps Script (GAS)
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 
   // 🚀 FUNÇÕES PARA O FILTRO DE DATA ATUALIZADO (Primeiro e Último dia do Mês)
   const getPrimeiroDiaMes = () => {
@@ -114,10 +125,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   };
 
   const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
-  const [dataFim, setDataFim] = useState(getUltimoDiaMes()); // 💡 ATUALIZADO para usar o último dia
+  const [dataFim, setDataFim] = useState(getUltimoDiaMes()); 
   const [filtroAplicado, setFiltroAplicado] = useState({ 
     inicio: getPrimeiroDiaMes(), 
-    fim: getUltimoDiaMes() // 💡 ATUALIZADO para usar o último dia
+    fim: getUltimoDiaMes()
   });
   // --------------------------------------------------------------------------
 
@@ -137,7 +148,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     setLoading(true);
     try {
       const respostaLeads = await fetch(
-        'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=pegar_clientes_fechados'
+        `${GAS_URL}?v=pegar_clientes_fechados`
       );
       const dadosLeads = await respostaLeads.json();
       setLeadsClosed(dadosLeads);
@@ -149,28 +160,68 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     }
   };
 
-  // Busca o total de renovações da célula I2 da planilha 'Apolices'
+  // Busca o total de renovações fixo (célula Apolices!I2)
   const fetchTotalRenovacoes = async () => {
-    setIsLoading(true);
+    setIsSaving(true);
     try {
-      // Usando mode: 'no-cors' conforme solicitado (resposta pode ser opaca -> fallback)
-      const response = await fetch('https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=getTotalRenovacoes', { mode: 'no-cors' });
-      try {
-        const data = await response.json();
-        if (data && typeof data.totalRenovacoes === 'number') {
-          setTotalRenovacoes(data.totalRenovacoes);
-        } else {
-          // Se não conseguimos ler a resposta (opaca), não alteramos o valor atual
-          console.warn('Resposta opaca ou inválida ao buscar total de renovações. Mantendo valor atual.');
-        }
-      } catch (err) {
-        // Em no-cors a leitura poderá falhar; ignora e mantém valor atual
-        console.warn('Não foi possível ler o body da resposta ao buscar total de renovações (no-cors).', err);
+      const response = await fetch(`${GAS_URL}?v=getTotalRenovacoes`);
+      const data = await response.json();
+      
+      let fetchedValue = 0;
+      if (data && typeof data.totalRenovacoes === 'number') {
+        fetchedValue = data.totalRenovacoes;
+      } else {
+        console.error('Dados de renovações inválidos:', data);
       }
+      
+      setTotalRenovacoes(fetchedValue);
+      setNewTotalRenovacoesValue(fetchedValue); // Inicializa o valor de edição
+      
     } catch (error) {
       console.error('Erro ao buscar total de renovações:', error);
+      setTotalRenovacoes(0);
+      setNewTotalRenovacoesValue(0);
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
+    }
+  };
+
+  // Salva o novo valor fixo de renovações na célula Apolices!I2
+  const saveTotalRenovacoes = async () => {
+    setMessage({ text: '', type: '' });
+    const valueToSave = Math.floor(Number(newTotalRenovacoesValue)); // Garante que seja inteiro
+    
+    if (isNaN(valueToSave) || valueToSave < 0) {
+      setMessage({ text: 'O valor deve ser um número inteiro positivo.', type: 'error' });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Prepara os dados para o POST (simulando um GET com o corpo POST)
+      const payload = {
+        v: 'setTotalRenovacoes', // Ação para o GAS
+        totalRenovacoes: valueToSave,
+      };
+
+      const response = await fetch(
+        `${GAS_URL}?${new URLSearchParams(payload).toString()}`, // Envia parâmetros via query string
+        {
+          method: 'POST',
+          mode: 'no-cors', // Necessário para evitar erro CORS no GAS, embora não possamos ler a resposta
+        }
+      );
+
+      // Assumimos sucesso, pois não podemos ler o corpo da resposta em no-cors
+      setTotalRenovacoes(valueToSave);
+      setIsEditingRenovacoes(false);
+      setMessage({ text: 'Total de Renovações salvo com sucesso!', type: 'success' });
+
+    } catch (error) {
+      console.error('Erro ao salvar total de renovações:', error);
+      setMessage({ text: 'Erro ao salvar: verifique a configuração do seu GAS.', type: 'error' });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -178,7 +229,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   // refresh automático ao entrar na aba
   useEffect(() => {
     buscarLeadsClosedFromAPI();
-    fetchTotalRenovacoes(); // Chama a nova função ao montar o componente
+    fetchTotalRenovacoes(); // Busca o valor fixo ao montar
   }, []);
 
   const aplicarFiltroData = () => {
@@ -197,7 +248,9 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
-  const totalLeads = leadsFiltradosPorDataGeral.length;
+  // O totalLeads agora é usado apenas para calcular as porcentagens,
+  // pois o primeiro card agora usa totalRenovacoes (fixo)
+  const totalLeads = leadsFiltradosPorDataGeral.length; 
   const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
 
   // Filtra leads fechados por responsável e data
@@ -238,12 +291,27 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const comissaoMediaGlobal =
     totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
 
-  // Cálculo: Porcentagem de Vendidos
-  const porcentagemVendidos = totalLeads > 0 ? (leadsFechadosCount / totalLeads) * 100 : 0;
+  // Cálculo: Porcentagem de Vendidos (usando o totalRenovacoes FIXO como base)
+  const porcentagemVendidos = totalRenovacoes > 0 ? (leadsFechadosCount / totalRenovacoes) * 100 : 0;
 
   return (
-    <div style={{ padding: '20px', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
+    <div style={{ padding: '20px', backgroundColor: '#f9fafb', minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
       <h1 style={{ color: '#1f2937', marginBottom: '20px', fontWeight: '700' }}>Dashboard de Vendas</h1>
+
+      {/* Mensagens de Sucesso/Erro */}
+      {message.text && (
+        <div style={{
+          padding: '10px 20px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          backgroundColor: message.type === 'error' ? '#fecaca' : '#d1fae5',
+          color: message.type === 'error' ? '#b91c1c' : '#065f46',
+          fontWeight: '600',
+        }}>
+          {message.text}
+        </div>
+      )}
+
 
       {/* Filtro de datas e Botão de Refresh */}
       <div
@@ -279,10 +347,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         <button
           title='Clique para atualizar os dados'
           onClick={() => { buscarLeadsClosedFromAPI(); fetchTotalRenovacoes(); }}
-          disabled={isLoading}
+          disabled={isLoading || isSaving}
           style={{ backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '40px', height: '40px' }}
         >
-          {isLoading ? (
+          {(isLoading || isSaving) ? (
             <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -304,46 +372,125 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           {/* Primeira Seção: 3 Contadores Principais + Gráfico (Grid com 4 colunas) */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)', // 4 colunas iguais
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', // Colunas responsivas
             gap: '20px',
             marginBottom: '30px',
           }}>
-            {/* Contador: Total de Leads */}
-            <div style={{ ...compactCardStyle, minWidth: '150px' }}>
-                <p style={titleTextStyle}>Total de Renovações</p>
-                <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
-                
+            
+            {/* Contador: Total de Renovações (Fixo e Editável) */}
+            <div style={{ ...compactCardStyle, minWidth: '150px', position: 'relative' }}>
+              <p style={titleTextStyle}>Total Renovações (Meta)</p>
+              
+              {isEditingRenovacoes ? (
+                // --- MODO EDIÇÃO ---
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    value={newTotalRenovacoesValue}
+                    onChange={(e) => setNewTotalRenovacoesValue(e.target.value)}
+                    min="0"
+                    style={{ 
+                      ...valueTextStyle, 
+                      color: '#1f2937', 
+                      width: '80px', 
+                      textAlign: 'center',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '4px',
+                      padding: '2px 0'
+                    }}
+                  />
+                  <button
+                    onClick={saveTotalRenovacoes}
+                    disabled={isSaving}
+                    style={{ 
+                      backgroundColor: '#10b981', 
+                      color: 'white', 
+                      border: 'none', 
+                      borderRadius: '6px', 
+                      padding: '4px 10px', 
+                      marginTop: '8px',
+                      cursor: 'pointer', 
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    {isSaving ? 'Salvando...' : <><Save size={16} /> Salvar</>}
+                  </button>
+                  {/* Botão Cancelar (opcional, para conveniência) */}
+                  <button
+                    onClick={() => {
+                      setIsEditingRenovacoes(false);
+                      setNewTotalRenovacoesValue(totalRenovacoes); // Reseta para o valor salvo
+                    }}
+                    style={{
+                        backgroundColor: 'transparent',
+                        color: '#6b7280',
+                        border: 'none',
+                        marginTop: '4px',
+                        fontSize: '10px',
+                        cursor: 'pointer',
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                // --- MODO VISUALIZAÇÃO ---
+                <>
+                  <p style={{ ...valueTextStyle, color: '#1f2937' }}>
+                    {totalRenovacoes}
+                  </p>
+                  <button
+                    onClick={() => setIsEditingRenovacoes(true)}
+                    style={{
+                      position: 'absolute',
+                      top: '5px',
+                      right: '5px',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#6b7280'
+                    }}
+                    title="Editar Total de Renovações"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                </>
+              )}
+              
             </div>
 
-            {/* Contador: Vendas */}
+            {/* Contador: Renovados (Vendas) */}
             <div style={{ ...compactCardStyle, backgroundColor: '#d1fae5', border: '1px solid #a7f3d0' }}>
-                <p style={{ ...titleTextStyle, color: '#059669' }}>Renovados</p>
-                <p style={{ ...valueTextStyle, color: '#059669' }}>{leadsFechadosCount}</p>
+              <p style={{ ...titleTextStyle, color: '#059669' }}>Renovados (Mês)</p>
+              <p style={{ ...valueTextStyle, color: '#059669' }}>{leadsFechadosCount}</p>
             </div>
 
             {/* Contador: Leads Perdidos */}
             <div style={{ ...compactCardStyle, backgroundColor: '#fee2e2', border: '1px solid #fca5a5' }}>
-                <p style={{ ...titleTextStyle, color: '#ef4444' }}>Perdidos</p>
-                <p style={{ ...valueTextStyle, color: '#ef4444' }}>{leadsPerdidos}</p>
+              <p style={{ ...titleTextStyle, color: '#ef4444' }}>Perdidos (Mês)</p>
+              <p style={{ ...valueTextStyle, color: '#ef4444' }}>{leadsPerdidos}</p>
             </div>
 
             {/* Gráfico Circular de Progresso (Ultima Coluna, à Direita) */}
             <div style={{
-                ...compactCardStyle,
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: '150px'
+              ...compactCardStyle,
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: '150px'
             }}>
-                <h3 style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '5px' }}>Taxa de Renovação</h3>
-                <CircularProgressChart percentage={porcentagemVendidos} />
+              <h3 style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '5px' }}>Taxa de Renovação</h3>
+              <CircularProgressChart percentage={porcentagemVendidos} />
             </div>
           </div>
 
           {/* Segunda Seção: Contadores por Seguradora (Grid com 4 colunas) */}
-          <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Vendas por Seguradora</h2>
+          <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Renovações por Seguradora (Mês)</h2>
           <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)', // 4 colunas iguais
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
               gap: '20px',
               marginBottom: '30px',
           }}>
@@ -368,10 +515,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           {/* Terceira Seção: Prêmios e Comissão (Grid com 2 colunas) */}
           {usuarioLogado.tipo === 'Admin' && (
             <>
-            <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Métricas Financeiras</h2>
+            <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Métricas Financeiras (Mês)</h2>
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)', // 2 colunas iguais
+                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', // 2 colunas responsivas
                 gap: '20px',
             }}>
               <div style={{ ...compactCardStyle, backgroundColor: '#eef2ff', border: '1px solid #c7d2fe' }}>
