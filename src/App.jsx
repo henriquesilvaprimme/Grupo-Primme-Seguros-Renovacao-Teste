@@ -36,6 +36,7 @@ const GOOGLE_SHEETS_RENOVADOS = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes
 const GOOGLE_SHEETS_USERS_AUTH_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_usuario`;
 const SALVAR_AGENDAMENTO_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?action=salvarAgendamento`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}`;
+const TOTAL_RENOVACOES_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}`; // Usaremos a mesma base para GET e POST
 
 function App() {
   const navigate = useNavigate();
@@ -55,6 +56,11 @@ function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [leadsCount, setLeadsCount] = useState(0);
   const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
+
+  // ✅ NOVOS ESTADOS PARA TOTAL DE RENOVAÇÕES
+  const [totalRenovacoes, setTotalRenovacoes] = useState(0);
+  const [editandoTotalRenovacoes, setEditandoTotalRenovacoes] = useState(false);
+  const [novoTotalRenovacoes, setNovoTotalRenovacoes] = useState(0);
 
   useEffect(() => {
     const img = new Image();
@@ -226,6 +232,26 @@ function App() {
       return () => clearInterval(interval);
     }
   }, [isEditing]);
+
+  // ✅ NOVO useEffect para buscar o total de renovações
+  useEffect(() => {
+    const fetchTotalRenovacoes = async () => {
+      try {
+        const response = await fetch(`${TOTAL_RENOVACOES_SCRIPT_URL}?action=getTotalRenovacoes`);
+        const data = await response.json();
+        if (data && data.totalRenovacoes !== undefined) {
+          setTotalRenovacoes(Number(data.totalRenovacoes));
+          setNovoTotalRenovacoes(Number(data.totalRenovacoes)); // Inicializa o campo de edição
+        }
+      } catch (error) {
+        console.error('Erro ao buscar total de renovações:', error);
+      }
+    };
+
+    fetchTotalRenovacoes();
+    const interval = setInterval(fetchTotalRenovacoes, 300000); // Atualiza a cada 5 minutos
+    return () => clearInterval(interval);
+  }, []);
 
   const adicionarUsuario = (usuario) => {
     setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
@@ -477,6 +503,37 @@ function App() {
     }
   };
 
+  // ✅ NOVA FUNÇÃO PARA SALVAR O TOTAL DE RENOVAÇÕES
+  const handleSaveTotalRenovacoes = async () => {
+    try {
+      const response = await fetch(TOTAL_RENOVACOES_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'updateTotalRenovacoes',
+          totalRenovacoes: novoTotalRenovacoes,
+        }),
+      });
+
+      if (response.ok) {
+        console.log('Total de renovações salvo com sucesso!');
+        setTotalRenovacoes(novoTotalRenovacoes);
+        setEditandoTotalRenovacoes(false);
+      } else {
+        console.error('Erro ao salvar total de renovações:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Erro de rede ao salvar total de renovações:', error);
+    }
+  };
+
+  // ✅ NOVA FUNÇÃO PARA HABILITAR EDIÇÃO DO TOTAL DE RENOVAÇÕES
+  const handleEditTotalRenovacoes = () => {
+    setEditandoTotalRenovacoes(true);
+  };
+
   if (!isAuthenticated) {
     return (
       <div
@@ -552,6 +609,13 @@ function App() {
                 }
                 usuarioLogado={usuarioLogado}
                 setIsEditing={setIsEditing}
+                // ✅ NOVAS PROPS PARA O DASHBOARD
+                totalRenovacoes={totalRenovacoes}
+                editandoTotalRenovacoes={editandoTotalRenovacoes}
+                novoTotalRenovacoes={novoTotalRenovacoes}
+                setNovoTotalRenovacoes={setNovoTotalRenovacoes}
+                handleSaveTotalRenovacoes={handleSaveTotalRenovacoes}
+                handleEditTotalRenovacoes={handleEditTotalRenovacoes}
               />
             }
           />
