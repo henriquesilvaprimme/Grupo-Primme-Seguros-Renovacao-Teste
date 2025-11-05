@@ -166,49 +166,54 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
-  // === AQUI: contar linhas da aba "Apolices" a partir da linha 2 (índice 1)
-  // somente se a coluna C (índice 2) estiver preenchida (campo name/nome)
-  const countApolicesWhereNameFilledFromRow2 = () => {
+  // === AQUI: contar linhas da aba "Apolices" a partir da linha 2,
+  // somente se a coluna C (índice 2) estiver preenchida (nome do lead) ===
+  const countApolicesByColumnCFromRow2 = () => {
     if (!leads) return 0;
 
     // localizar aba Apolices (várias variações)
-    const sheet = leads.Apolices ?? leads.apolices ?? leads.APOLICES ?? null;
+    const sheet =
+      leads.Apolices ??
+      leads.apolices ??
+      leads.APOLICES ??
+      leads['Apolices'] ??
+      leads['Apólices'] ??
+      null;
 
     const isFilled = (v) => v !== null && v !== undefined && String(v).trim() !== '';
 
-    // tenta identificar chave de "name" em objetos (nome, Name, name)
-    const findNameKey = (obj) => {
+    // helper para detectar chave "name" em objeto (várias possibilidades)
+    const detectNameKey = (obj) => {
       if (!obj || typeof obj !== 'object') return null;
       const keys = Object.keys(obj);
-      const candidate = keys.find(k => /^(name|nome)$/i.test(k));
-      if (candidate) return candidate;
-      // fallback heurístico: busca por chave que contenha 'name' ou 'nome'
+      // procura por chaves exatas comuns
+      const exact = keys.find(k => /^(name|nome|fullName|fullname|full_name|nomecompleto|nome_completo)$/i.test(k));
+      if (exact) return exact;
+      // procura por chaves que contenham name/nome
       const fuzzy = keys.find(k => /name|nome/i.test(k));
       if (fuzzy) return fuzzy;
-      // fallback final: retorna a terceira chave (índice 2) se existir
+      // fallback: retorna a terceira chave (índice 2) se existir (corresponde à coluna C)
       return keys.length > 2 ? keys[2] : null;
     };
 
-    // 1) Se achou aba explicitamente
+    // 1) Se achou aba explicitamente como array
     if (Array.isArray(sheet)) {
       let count = 0;
-      // percorre a partir do índice 1 (linha 2)
-      for (let i = 1; i < sheet.length; i++) {
+      for (let i = 1; i < sheet.length; i++) { // começa na linha 2 -> índice 1
         const row = sheet[i];
         if (Array.isArray(row)) {
-          // coluna C = índice 2
+          // formato array-de-arrays: coluna C = índice 2
           if (isFilled(row[2])) count++;
         } else if (row && typeof row === 'object') {
-          const key = findNameKey(row);
+          // formato array-de-objetos: tentar detectar chave do nome, senão usar a 3ª propriedade
+          const key = detectNameKey(row);
           if (key && isFilled(row[key])) count++;
-        } else {
-          // se linha for primitiva (improvável), ignora
         }
       }
       return count;
     }
 
-    // 2) Se leads for a própria matriz da aba
+    // 2) Se 'leads' for a própria matriz/array da aba
     if (Array.isArray(leads)) {
       let count = 0;
       for (let i = 1; i < leads.length; i++) {
@@ -216,18 +221,18 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         if (Array.isArray(row)) {
           if (isFilled(row[2])) count++;
         } else if (row && typeof row === 'object') {
-          const key = findNameKey(row);
+          const key = detectNameKey(row);
           if (key && isFilled(row[key])) count++;
         }
       }
       return count;
     }
 
-    // 3) fallback: retorno 0 se não for possível interpretar
+    // 3) fallback: se não conseguir interpretar a estrutura, retornar 0
     return 0;
   };
 
-  const totalLeads = countApolicesWhereNameFilledFromRow2();
+  const totalLeads = countApolicesByColumnCFromRow2();
   // === fim do ajuste solicitado ===
 
   const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
