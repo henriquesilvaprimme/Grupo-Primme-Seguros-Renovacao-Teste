@@ -582,7 +582,7 @@ function App() {
                 onUpdateInsurer={atualizarSeguradoraRenovacao}
                 onConfirmInsurer={confirmarSeguradoraRenovado}
                 onUpdateDetalhes={atualizarDetalhesRenovado}
-                fetchLeadsFechadosFromSheet={fetchRenovadosFromSheet}
+                fetchRenovadosFromSheet={fetchRenovadosFromSheet}
                 isAdmin={isAdmin}
                 ultimoFechadoId={ultimoFechadoId}
                 onAbrirLead={onAbrirLead}
