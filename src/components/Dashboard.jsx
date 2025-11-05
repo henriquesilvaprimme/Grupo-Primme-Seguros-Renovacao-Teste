@@ -166,27 +166,67 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
-  // === AQUI: novo cálculo de "Total de Renovações"
-  // Deve puxar todos os leads que estão na aba "Apolices", contando a partir da linha 2 (ignorando cabeçalho).
-  const getApolicesLeads = () => {
-    // Caso 1: leads é um objeto que contém a chave 'Apolices' (ex.: retorno da API com sheets)
-    if (leads && Array.isArray(leads.Apolices)) {
-      return leads.Apolices.slice(1); // pular linha 1 (cabeçalho)
+  // === AQUI: novo cálculo de "Total de Renovações" usando a aba "Apolices" do Sheets,
+  // contando a partir da linha 2 (ou seja, ignorando a primeira linha/header da aba).
+  const getApolicesLeadsFromSheets = () => {
+    if (!leads) return [];
+
+    // tenta localizar a aba pelo nome (várias variações)
+    const sheet = leads.Apolices ?? leads.apolices ?? leads.APOLICES ?? null;
+
+    // se existe a aba explícita
+    if (Array.isArray(sheet)) {
+      // caso: sheet é array de arrays (rows) => primeira linha é cabeçalho
+      if (sheet.length > 0 && Array.isArray(sheet[0])) {
+        const header = sheet[0];
+        const rows = sheet.slice(1); // pular linha 1 (cabeçalho)
+        // Mapear cada row para objeto usando header (opcional, mas útil se quiser usar campos)
+        return rows.map((row) => {
+          const obj = {};
+          for (let i = 0; i < header.length; i++) {
+            const key = header[i] ?? `col_${i}`;
+            obj[key] = row[i];
+          }
+          return obj;
+        });
+      }
+      // caso: sheet já é array de objetos (provavelmente a primeira linha já foi transformada)
+      if (sheet.length > 0 && typeof sheet[0] === 'object' && !Array.isArray(sheet[0])) {
+        // Porque é uma array de objetos, considerar que já não há header separado.
+        // Porém o pedido foi contar a partir da linha 2 do Sheets original — se a origem
+        // já converteu o header em keys, então não há linha de cabeçalho na array.
+        // Neste caso, retornamos a array inteira (não slice).
+        return sheet;
+      }
+      // fallback: se for array simples de strings/números, pular o primeiro elemento
+      return sheet.slice(1);
     }
-    // Caso 2: key em lowercase
-    if (leads && Array.isArray(leads.apolices)) {
-      return leads.apolices.slice(1);
+
+    // se não existe a aba sob a chave, talvez `leads` seja a própria matriz de linhas da aba
+    if (Array.isArray(leads)) {
+      if (leads.length > 0 && Array.isArray(leads[0])) {
+        const header = leads[0];
+        const rows = leads.slice(1);
+        return rows.map((row) => {
+          const obj = {};
+          for (let i = 0; i < header.length; i++) {
+            const key = header[i] ?? `col_${i}`;
+            obj[key] = row[i];
+          }
+          return obj;
+        });
+      }
+      // se é array de objetos, assumimos que não há linha de header separada
+      if (leads.length > 0 && typeof leads[0] === 'object' && !Array.isArray(leads[0])) {
+        return leads;
+      }
+      return leads.slice(1);
     }
-    // Caso 3: se safeLeads for um array (provavelmente já representa a aba Apolices),
-    // assumimos que a primeira linha é cabeçalho e removemos.
-    if (Array.isArray(safeLeads) && safeLeads.length > 1) {
-      return safeLeads.slice(1);
-    }
-    // Caso padrão: vazio
+
     return [];
   };
 
-  const apolicesLeads = getApolicesLeads();
+  const apolicesLeads = getApolicesLeadsFromSheets();
   const totalLeads = apolicesLeads.length;
   // === fim do ajuste solicitado ===
 
