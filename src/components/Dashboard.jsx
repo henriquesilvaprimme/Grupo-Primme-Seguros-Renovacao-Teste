@@ -1,5 +1,3 @@
-Pode fazer o ajuste no meu Dashboar.jsx para ficar de acordo com isso para eu conseguir visualizar. Exemplo: Na coluna i linha 2 tem a numeração 10, ai eu quero ver no Total de Renovações a contagem de 10.
-
 import React, { useState, useEffect } from 'react';
 import { RefreshCcw } from 'lucide-react'; // Importação do ícone de refresh
 
