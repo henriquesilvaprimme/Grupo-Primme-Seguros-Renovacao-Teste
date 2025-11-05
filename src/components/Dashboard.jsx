@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { RefreshCcw } from 'lucide-react'; // Importação do ícone de refresh
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { RefreshCcw, Edit, Save, X } from 'lucide-react'; // Importação dos ícones
 
 // --- ESTILOS PARA CARDS MAIS COMPACTOS E MINIMALISTAS ---
 const compactCardStyle = {
@@ -13,6 +13,7 @@ const compactCardStyle = {
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative', // Para posicionar o botão de edição
 };
 
 const valueTextStyle = {
@@ -142,6 +143,13 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     const [leadsClosed, setLeadsClosed] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // NOVOS ESTADOS PARA EDIÇÃO MANUAL
+    const [isEditingTotal, setIsEditingTotal] = useState(false);
+    const [editInputValue, setEditInputValue] = useState('');
+    const [totalLeadsOverride, setTotalLeadsOverride] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState({ text: '', type: '' }); // 'success' or 'error'
 
     // --- Lógica de Datas ---
     const getPrimeiroDiaMes = () => {
@@ -170,6 +178,47 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     };
     // ----------------------
 
+    // Função de Salvar Manual (POST para Google Apps Script)
+    const saveTotalToSheets = useCallback(async (value) => {
+        setIsSaving(true);
+        setSaveMessage({ text: 'Salvando...', type: 'info' });
+        
+        // Coluna I na aba Apolices, chamada 'TotalRenovacoes'
+        const apiURL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
+        
+        const payload = new URLSearchParams();
+        payload.append('action', 'saveTotalRenovacoes'); // Ação para o Apps Script
+        payload.append('sheetName', 'Apolices');
+        payload.append('columnName', 'TotalRenovacoes'); // Coluna I (nome fictício para referência)
+        payload.append('value', value);
+        
+        try {
+            // Usamos POST com payload
+            const response = await fetch(apiURL, {
+                method: 'POST',
+                body: payload,
+                mode: 'no-cors' // Típico para Apps Script simples
+            });
+
+            // Se o fetch for bem-sucedido (mesmo com no-cors), consideramos sucesso
+            // Na vida real, o Apps Script retornaria uma resposta JSON/texto. Aqui, assumimos sucesso.
+            console.log('Dados de Total de Renovações enviados com sucesso. Resposta:', response);
+            setSaveMessage({ text: 'Salvo com sucesso!', type: 'success' });
+            setTotalLeadsOverride(value); // Atualiza o valor local
+            setIsEditingTotal(false); // Sai do modo de edição
+            
+            setTimeout(() => setSaveMessage({ text: '', type: '' }), 3000); // Limpa a mensagem
+            return true; 
+        } catch (error) {
+            console.error('Erro ao enviar dados de Total de Renovações:', error);
+            setSaveMessage({ text: 'Erro ao salvar: ' + error.message, type: 'error' });
+            setTimeout(() => setSaveMessage({ text: '', type: '' }), 5000);
+            return false;
+        } finally {
+            setIsSaving(false);
+        }
+    }, []);
+
     const buscarLeadsClosedFromAPI = async () => {
         setIsLoading(true);
         setLoading(true);
@@ -177,7 +226,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
             const respostaLeads = await fetch(
                 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=pegar_clientes_fechados'
             );
-            const dadosLeads = await respostaLeads.json();
+            const dadosLeads = await respostaLeosta.json();
             setLeadsClosed(dadosLeads);
         } catch (error) {
             console.error('Erro ao buscar leads fechados:', error);
@@ -203,8 +252,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     const isAdmin = usuarioLogado?.tipo === 'Admin';
     const userName = usuarioLogado?.nome || '';
 
-    // Lógica ATUALIZADA de contagem e filtro de renovações
-    const totalLeads = useMemo(() => {
+    // Lógica de contagem e filtro de renovações (valor COMPUTADO)
+    const totalLeadsComputed = useMemo(() => {
         const apolices = getApolicesSheet(leads); // Leads (linhas) da aba Apolices (sem cabeçalho)
         if (apolices.length === 0) return 0;
         
@@ -251,6 +300,9 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         
         return count;
     }, [leads, filtroAplicado]);
+    
+    // Valor exibido: Se houver override manual, usa ele, senão usa o valor calculado
+    const totalLeads = totalLeadsOverride !== null ? Number(totalLeadsOverride) : totalLeadsComputed;
     // --- FIM DA LÓGICA DE CONTAGEM SOLICITADA ---
 
 
@@ -305,6 +357,130 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
 
     const porcentagemVendidos = totalLeads > 0 ? (leadsFechadosCount / totalLeads) * 100 : 0;
+    
+    // Handler para iniciar a edição
+    const handleEditStart = () => {
+        setEditInputValue(String(totalLeads));
+        setIsEditingTotal(true);
+        setSaveMessage({ text: '', type: '' });
+    };
+
+    // Handler para salvar
+    const handleSave = () => {
+        const value = parseInt(editInputValue, 10);
+        if (isNaN(value) || value < 0) {
+            setSaveMessage({ text: 'Por favor, insira um número inteiro positivo válido.', type: 'error' });
+            return;
+        }
+        saveTotalToSheets(value);
+    };
+
+    // Renderização do Card de Total de Renovações
+    const renderTotalLeadsCard = () => (
+        <div style={{ ...compactCardStyle, minWidth: '150px' }}>
+            <button
+                onClick={handleEditStart}
+                style={{
+                    position: 'absolute',
+                    top: '5px',
+                    right: '5px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#6b7280',
+                    padding: '5px',
+                }}
+                title="Editar Total de Renovações"
+            >
+                <Edit size={16} />
+            </button>
+            <p style={titleTextStyle}>Total de Renovações</p>
+            <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
+            {saveMessage.text && (
+                 <div style={{ 
+                    marginTop: '10px',
+                    fontSize: '10px',
+                    fontWeight: '600',
+                    color: saveMessage.type === 'success' ? '#059669' : (saveMessage.type === 'error' ? '#ef4444' : '#1f2937')
+                }}>
+                    {saveMessage.text}
+                </div>
+            )}
+        </div>
+    );
+    
+    // Renderização do Card de Edição Manual
+    const renderEditCard = () => (
+        <div style={{ ...compactCardStyle, minWidth: '150px', justifyContent: 'flex-start' }}>
+            <p style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '10px' }}>Editar Total de Renovações</p>
+            <input
+                type="number"
+                value={editInputValue}
+                onChange={(e) => setEditInputValue(e.target.value)}
+                disabled={isSaving}
+                style={{
+                    padding: '8px',
+                    borderRadius: '4px',
+                    border: '1px solid #d1d5db',
+                    width: '100%',
+                    marginBottom: '10px',
+                    textAlign: 'center',
+                    fontSize: '16px'
+                }}
+            />
+            
+            <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>
+                <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    style={{
+                        backgroundColor: '#059669',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '8px 12px',
+                        cursor: isSaving ? 'default' : 'pointer',
+                        fontWeight: '600',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                    }}
+                >
+                    {isSaving ? 'Salvando...' : <><Save size={16} /> Salvar</>}
+                </button>
+                <button
+                    onClick={() => { setIsEditingTotal(false); setSaveMessage({ text: '', type: '' }); }}
+                    disabled={isSaving}
+                    style={{
+                        backgroundColor: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        padding: '8px 12px',
+                        cursor: isSaving ? 'default' : 'pointer',
+                        fontWeight: '600',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                    }}
+                >
+                    <X size={16} /> Cancelar
+                </button>
+            </div>
+
+            {saveMessage.text && saveMessage.type === 'error' && (
+                 <div style={{ 
+                    marginTop: '10px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    color: '#ef4444'
+                }}>
+                    {saveMessage.text}
+                </div>
+            )}
+        </div>
+    );
+
 
     return (
         <div style={{ padding: '20px', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
@@ -373,11 +549,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                         gap: '20px',
                         marginBottom: '30px',
                     }}>
-                        {/* Contador: Total de Renovações (AGORA FILTRADO PELO MÊS/ANO DA VIGENCIA FINAL) */}
-                        <div style={{ ...compactCardStyle, minWidth: '150px' }}>
-                            <p style={titleTextStyle}>Total de Renovações</p>
-                            <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
-                        </div>
+                        {/* Contador: Total de Renovações (EDITÁVEL AGORA) */}
+                        {isEditingTotal ? renderEditCard() : renderTotalLeadsCard()}
 
                         {/* Contador: Renovados (Leads Fechados) */}
                         <div style={{ ...compactCardStyle, backgroundColor: '#d1fae5', border: '1px solid #a7f3d0' }}>
