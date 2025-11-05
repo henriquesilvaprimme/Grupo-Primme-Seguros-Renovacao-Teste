@@ -1,3 +1,5 @@
+Pode fazer o ajuste no meu Dashboar.jsx para ficar de acordo com isso para eu conseguir visualizar. Exemplo: Na coluna i linha 2 tem a numeração 10, ai eu quero ver no Total de Renovações a contagem de 10.
+
 import React, { useState, useEffect } from 'react';
 import { RefreshCcw } from 'lucide-react'; // Importação do ícone de refresh
 
@@ -76,7 +78,7 @@ const CircularProgressChart = ({ percentage }) => {
             strokeDashoffset: dashoffset,
           }}
         />
-      </svg>
+      </svg> {/* <-- TAG </svg> FALTANTE ADICIONADA AQUI */}
       {/* Texto da Porcentagem no Centro */}
       <div style={{
         position: 'absolute',
@@ -96,8 +98,8 @@ const CircularProgressChart = ({ percentage }) => {
 
 const Dashboard = ({ leads, usuarioLogado }) => {
   const [leadsClosed, setLeadsClosed] = useState([]);
-  const [totalRenovacoes, setTotalRenovacoes] = useState(0); // NOVO: Estado para o Total de Renovações (Célula I2)
   const [loading, setLoading] = useState(true);
+  const [totalRenovacoes, setTotalRenovacoes] = useState(0); // Novo estado para total de renovações
   const [isLoading, setIsLoading] = useState(false);
 
   // 🚀 FUNÇÕES PARA O FILTRO DE DATA ATUALIZADO (Primeiro e Último dia do Mês)
@@ -115,8 +117,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
   const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
   const [dataFim, setDataFim] = useState(getUltimoDiaMes()); // 💡 ATUALIZADO para usar o último dia
-  const [filtroAplicado, setFiltroAplicado] = useState({ 
-    inicio: getPrimeiroDiaMes(), 
+  const [filtroAplicado, setFiltroAplicado] = useState({ 
+    inicio: getPrimeiroDiaMes(), 
     fim: getUltimoDiaMes() // 💡 ATUALIZADO para usar o último dia
   });
   // --------------------------------------------------------------------------
@@ -149,37 +151,32 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     }
   };
 
-  // NOVO: Função para buscar o Total de Renovações da Célula I2 na aba Apólices
-  const buscarTotalRenovacoes = async () => {
-    try {
-      // Endpoint simulado para buscar o valor da célula I2 na aba Apólices
-      const respostaTotal = await fetch(
-        'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=pegar_total_renovacoes'
-      );
-      const dadosTotal = await respostaTotal.json();
-      
-      let valorTotal = 0;
-      // Tenta extrair o número, suportando respostas como número direto ou { totalRenovacoes: 123 }
-      if (typeof dadosTotal === 'number') {
-        valorTotal = dadosTotal;
-      } else if (typeof dadosTotal.totalRenovacoes === 'number') {
-        valorTotal = dadosTotal.totalRenovacoes;
-      } else {
-      	 // Tenta converter para número se for uma string, ou assume 0
-      	 valorTotal = Number(dadosTotal) || 0;
-      }
+  // Busca o total de renovações da célula I2 da planilha 'Apolices'
+  const fetchTotalRenovacoes = async () => {
+    setIsLoading(true);
+    try {
+      // Substitua 'YOUR_GAS_WEB_APP_URL' pela URL do seu Google Apps Script implantado
+      const response = await fetch('https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=getTotalRenovacoes');
+      const data = await response.json();
+      if (data && typeof data.totalRenovacoes === 'number') {
+        setTotalRenovacoes(data.totalRenovacoes);
+      } else {
+        console.error('Dados de renovações inválidos:', data);
+        setTotalRenovacoes(0);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar total de renovações:', error);
+      setTotalRenovacoes(0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      setTotalRenovacoes(valorTotal);
-    } catch (error) {
-      console.error('Erro ao buscar Total de Renovações:', error);
-      setTotalRenovacoes(0);
-    }
-  };
-  
+
   // refresh automático ao entrar na aba
   useEffect(() => {
     buscarLeadsClosedFromAPI();
-    buscarTotalRenovacoes(); // CHAMADA PARA BUSCAR O TOTAL DE RENOVAÇÕES
+    fetchTotalRenovacoes(); // Chama a nova função ao montar o componente
   }, []);
 
   const aplicarFiltroData = () => {
@@ -188,9 +185,9 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
   // Filtro por data dos leads gerais (vindos via prop `leads`)
   const leadsFiltradosPorDataGeral = leads.filter((lead) => {
-    // LÓGICA DE EXCLUSÃO: Ignora leads com status 'Cancelado'
-    if (lead.status === 'Cancelado') return false; 
-    
+    // LÓGICA DE EXCLUSÃO: Ignora leads com status 'Cancelado'
+    if (lead.status === 'Cancelado') return false; 
+    
     const dataLeadStr = getValidDateStr(lead.createdAt);
     if (!dataLeadStr) return false;
     if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
@@ -198,8 +195,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
-  // Este totalLeads é a base filtrada de leads LOCAIS, usada apenas para calcular perdidos
-  const totalLeads = leadsFiltradosPorDataGeral.length; 
+  const totalLeads = leadsFiltradosPorDataGeral.length;
   const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
 
   // Filtra leads fechados por responsável e data
@@ -222,7 +218,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const itauSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
   const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
 
-  // O campo Renovados soma os contadores das seguradoras
+  // O campo Vendas soma os contadores das seguradoras
   const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais;
 
   // Soma de prêmio líquido e média ponderada de comissão
@@ -241,14 +237,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
 
   // Cálculo: Porcentagem de Vendidos
-  // USA O VALOR DA PLANILHA (totalRenovacoes) COMO DENOMINADOR PRINCIPAL
-  const baseParaPorcentagem = totalRenovacoes > 0 ? totalRenovacoes : 1; 
-  const porcentagemVendidos = (leadsFechadosCount / baseParaPorcentagem) * 100;
-
-  const handleRefresh = () => {
-  	buscarLeadsClosedFromAPI();
-  	buscarTotalRenovacoes();
-  }
+  const porcentagemVendidos = totalLeads > 0 ? (leadsFechadosCount / totalLeads) * 100 : 0;
 
   return (
     <div style={{ padding: '20px', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
@@ -287,7 +276,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
         <button
           title='Clique para atualizar os dados'
-          onClick={handleRefresh} // Chamada para atualizar TODOS os dados
+          onClick={() => { buscarLeadsClosedFromAPI(); fetchTotalRenovacoes(); }}
           disabled={isLoading}
           style={{ backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '40px', height: '40px' }}
         >
@@ -317,15 +306,14 @@ const Dashboard = ({ leads, usuarioLogado }) => {
             gap: '20px',
             marginBottom: '30px',
           }}>
-            {/* Contador: Total de Renovações (Vindo da Célula I2) */}
+            {/* Contador: Total de Leads */}
             <div style={{ ...compactCardStyle, minWidth: '150px' }}>
                 <p style={titleTextStyle}>Total de Renovações</p>
-                {/* NOVO: Valor buscado da célula I2 (totalRenovacoes) */}
-                <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalRenovacoes}</p> 
-                
+                <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
+                
             </div>
 
-            {/* Contador: Renovados (Calculado a partir dos leads fechados) */}
+            {/* Contador: Vendas */}
             <div style={{ ...compactCardStyle, backgroundColor: '#d1fae5', border: '1px solid #a7f3d0' }}>
                 <p style={{ ...titleTextStyle, color: '#059669' }}>Renovados</p>
                 <p style={{ ...valueTextStyle, color: '#059669' }}>{leadsFechadosCount}</p>
@@ -337,7 +325,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                 <p style={{ ...valueTextStyle, color: '#ef4444' }}>{leadsPerdidos}</p>
             </div>
 
-            {/* Gráfico Circular de Progresso (Taxa de Renovação) */}
+            {/* Gráfico Circular de Progresso (Ultima Coluna, à Direita) */}
             <div style={{
                 ...compactCardStyle,
                 alignItems: 'center',
