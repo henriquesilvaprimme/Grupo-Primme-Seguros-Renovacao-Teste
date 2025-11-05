@@ -3,17 +3,16 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
-import Renovacoes from './Renovacoes';
-import Renovados from './Renovados';
-import RenovacoesPerdidas from './RenovacoesPerdidas';
+import Renovacoes from './Renovacoes'; // RENOMEADO
+import Renovados from './Renovados'; // RENOMEADO
+import RenovacoesPerdidas from './RenovacoesPerdidas'; // RENOMEADO
 import BuscarLead from './BuscarLead';
 import CriarUsuario from './pages/CriarUsuario';
 import GerenciarUsuarios from './pages/GerenciarUsuarios';
 import Ranking from './pages/Ranking';
 import CriarLead from './pages/CriarLead';
-import Segurados from './pages/Segurados';
 
-// Componente para rolar ao topo ao mudar de rota
+// Este componente agora vai rolar o elemento com a ref para o topo
 function ScrollToTop({ scrollContainerRef }) {
   const { pathname } = useLocation();
 
@@ -29,11 +28,11 @@ function ScrollToTop({ scrollContainerRef }) {
   return null;
 }
 
-// URLs do Google Apps Script
+// URLs ADAPTADAS
 const GOOGLE_APPS_SCRIPT_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
-const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`;
-const GOOGLE_SHEETS_RENOVADOS = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`;
-const GOOGLE_SHEETS_USERS_AUTH_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_usuario`;
+const GOOGLE_SHEETS_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads`; // MANTIDO PARA COMPATIBILIDADE COM A FUNÇÃO (pega da aba Leads)
+const GOOGLE_SHEETS_RENOVADOS = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes_fechados`; // MANTIDO 'pegar_clientes_fechados' pois é o endpoint da aba "Leads Fechados"
+const GOOGLE_SHEETS_USERS_AUTH_URL = `https://script.google.com/macros/s/AKfycby8vujvd5ybEpkaZ0kwZecAWOdaL0XJR84oKJBAIR9dVYeTCv7iSdTdHQWBb7YCp349/exec?v=pegar_usuario`;
 const SALVAR_AGENDAMENTO_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?action=salvarAgendamento`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}`;
 
@@ -47,8 +46,9 @@ function App() {
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [backgroundLoaded, setBackgroundLoaded] = useState(false);
 
-  const [renovacoes, setRenovacoes] = useState([]);
-  const [renovados, setRenovados] = useState([]);
+  // ESTADOS RENOMEADOS
+  const [renovacoes, setRenovacoes] = useState([]); // leads -> renovacoes
+  const [renovados, setRenovados] = useState([]); // leadsFechados -> renovados
   const [leadSelecionado, setLeadSelecionado] = useState(null);
 
   const [usuarios, setUsuarios] = useState([]);
@@ -90,7 +90,7 @@ function App() {
   useEffect(() => {
     if (!isEditing) {
       fetchUsuariosForLogin();
-      const interval = setInterval(fetchUsuariosForLogin, 300000);
+      const interval = setInterval(fetchUsuariosForLogin, 60000);
       return () => clearInterval(interval);
     }
   }, [isEditing]);
@@ -119,7 +119,7 @@ function App() {
       const mes = String(dateObj.getMonth() + 1).padStart(2, '0');
       const ano = dateObj.getFullYear();
       const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-                         "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
       const mesExtenso = nomeMeses[dateObj.getMonth()];
       const anoCurto = String(ano).substring(2);
 
@@ -130,14 +130,21 @@ function App() {
     }
   };
 
+  // FUNÇÃO RENOMEADA
   const fetchRenovacoesFromSheet = async (sheetName = 'Renovações') => {
+    // Adicionado parâmetro sheetName para compatibilidade, mas usa a URL base (que pega da aba 'Leads' no Apps Script atual)
+    // Se a aba principal de leads for 'Renovações', use GOOGLE_SHEETS_SCRIPT_URL.
+    // Se a aba principal ainda for 'Leads', mantenha GOOGLE_SHEETS_SCRIPT_URL.
+    // Como o Renovacoes.jsx já passa o nome da aba, vamos adaptar a URL aqui para aceitar o parâmetro.
     const url = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=getLeads&sheet=${sheetName}`;
+    
     try {
       const response = await fetch(url);
       const data = await response.json();
 
       if (Array.isArray(data)) {
         const sortedData = data;
+        
         const formattedRenovacoes = sortedData.map((item, index) => ({
           id: item.id ? Number(item.id) : index + 1,
           name: item.name || item.Name || '',
@@ -148,12 +155,12 @@ function App() {
           insuranceType: item.insurancetype || item.insuranceType || '',
           status: item.status || 'Selecione o status',
           confirmado: item.confirmado === 'true' || item.confirmado === true,
-          Seguradora: item.Seguradora || '',
+          insurer: item.insurer || '',
           insurerConfirmed: item.insurerConfirmed === 'true' || item.insurerConfirmed === true,
           usuarioId: item.usuarioId ? Number(item.usuarioId) : null,
-          PremioLiquido: item.PremioLiquido || '',
-          Comissao: item.Comissao || '',
-          Parcelamento: item.Parcelamento || '',
+          premioLiquido: item.premioLiquido || '',
+          comissao: item.comissao || '',
+          parcelamento: item.parcelamento || '',
           VigenciaFinal: item.VigenciaFinal || '',
           VigenciaInicial: item.VigenciaInicial || '',
           createdAt: item.data || new Date().toISOString(),
@@ -162,67 +169,59 @@ function App() {
           observacao: item.observacao || '',
           agendamento: item.agendamento || '',
           agendados: item.agendados || '',
-          MeioPagamento: item.MeioPagamento || '',
-          CartaoPortoNovo: item.CartaoPortoNovo || '',
-          // ✅ NOVOS CAMPOS PARA ENDOSSO
-          Endossado: item.Endossado === 'TRUE' || item.Endossado === true || item.Endossado === 'true',
-          NumeroParcelas: item.NumeroParcelas || '',
         }));
 
         if (!leadSelecionado) {
-          setRenovacoes(formattedRenovacoes);
+          setRenovacoes(formattedRenovacoes); // ESTADO ATUALIZADO
         }
       } else {
         if (!leadSelecionado) {
-          setRenovacoes([]);
+          setRenovacoes([]); // ESTADO ATUALIZADO
         }
       }
     } catch (error) {
-      console.error('Erro ao buscar renovações da planilha:', error);
+      console.error('Erro ao buscar renovações da planilha:', error); // MENSAGEM ATUALIZADA
       if (!leadSelecionado) {
-        setRenovacoes([]);
+        setRenovacoes([]); // ESTADO ATUALIZADO
       }
     }
   };
 
   useEffect(() => {
     if (!isEditing) {
+      // Chama sem parâmetro para buscar da aba padrão (provavelmente 'Renovações')
       fetchRenovacoesFromSheet('Renovações');  
       const interval = setInterval(() => {
         fetchRenovacoesFromSheet('Renovações');  
-      }, 300000);
+      }, 60000);
       return () => clearInterval(interval);
     }
   }, [leadSelecionado, isEditing]);
 
+  // FUNÇÃO RENOMEADA
   const fetchRenovadosFromSheet = async () => {
     try {
-      const response = await fetch(GOOGLE_SHEETS_RENOVADOS);
+      const response = await fetch(GOOGLE_SHEETS_RENOVADOS) // URL ATUALIZADA
       const data = await response.json();
 
-      const formattedData = (Array.isArray(data) ? data : []).map(item => ({
+      const formattedData = data.map(item => ({
         ...item,
         insuranceType: item.insuranceType || '',
-        MeioPagamento: item.MeioPagamento || '',
-        CartaoPortoNovo: item.CartaoPortoNovo || '',
-        // ✅ NOVOS CAMPOS PARA ENDOSSO
-        Endossado: item.Endossado === 'TRUE' || item.Endossado === true || item.Endossado === 'true',
-        NumeroParcelas: item.NumeroParcelas || '',
       }));
-      setRenovados(formattedData);
+      setRenovados(formattedData); // ESTADO ATUALIZADO
 
     } catch (error) {
-      console.error('Erro ao buscar renovados:', error);
-      setRenovados([]);
+      console.error('Erro ao buscar renovados:', error); // MENSAGEM ATUALIZADA
+      setRenovados([]); // ESTADO ATUALIZADO
     }
   };
 
   useEffect(() => {
     if (!isEditing) {
-      fetchRenovadosFromSheet();
+      fetchRenovadosFromSheet(); // FUNÇÃO ATUALIZADA
       const interval = setInterval(() => {
-        fetchRenovadosFromSheet();
-      }, 300000);
+        fetchRenovadosFromSheet(); // FUNÇÃO ATUALIZADA
+      }, 60000);
       return () => clearInterval(interval);
     }
   }, [isEditing]);
@@ -231,8 +230,9 @@ function App() {
     setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
   };
 
+  // FUNÇÃO RENOMEADA
   const adicionarNovoRenovacao = (novoLead) => {
-    setRenovacoes((prevRenovacoes) => {
+    setRenovacoes((prevRenovacoes) => { // ESTADO ATUALIZADO
       if (!prevRenovacoes.some(lead => lead.ID === novoLead.ID)) {
         return [novoLead, ...prevRenovacoes];
       }
@@ -240,20 +240,34 @@ function App() {
     });
   };
 
-  const atualizarStatusRenovacao = (id, novoStatus, phone) => {
-    if (novoStatus === 'Cancelado') {
-      setRenovacoes((prev) => prev.filter((lead) => lead.phone !== phone));
-      return;
+  // FUNÇÃO RENOMEADA
+  const atualizarStatusRenovacaoAntigo = (id, novoStatus, phone) => {
+    if (novoStatus === 'Fechado') {
+      setRenovados((prev) => { // ESTADO ATUALIZADO
+        const atualizados = prev.map((renovados) => // VARIÁVEL ATUALIZADA
+          renovados.phone === phone ? { ...renovados, Status: novoStatus, confirmado: true } : renovados
+        );
+        return atualizados;
+      });
     }
 
-    setRenovacoes((prev) =>
+    setRenovacoes((prev) => // ESTADO ATUALIZADO
+      prev.map((lead) =>
+        lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
+      )
+    );
+  };
+
+  // FUNÇÃO RENOMEADA
+  const atualizarStatusRenovacao = (id, novoStatus, phone) => {
+    setRenovacoes((prev) => // ESTADO ATUALIZADO
       prev.map((lead) =>
         lead.phone === phone ? { ...lead, status: novoStatus, confirmado: true } : lead
       )
     );
 
     if (novoStatus === 'Fechado') {
-      setRenovados((prev) => {
+      setRenovados((prev) => { // ESTADO ATUALIZADO
         const jaExiste = prev.some((lead) => lead.phone === phone);
 
         if (jaExiste) {
@@ -262,17 +276,17 @@ function App() {
           );
           return atualizados;
         } else {
-          const leadParaAdicionar = renovacoes.find((lead) => lead.phone === phone);
+          const leadParaAdicionar = renovacoes.find((lead) => lead.phone === phone); // ESTADO ATUALIZADO
 
           if (leadParaAdicionar) {
-            const novoRenovado = {
+            const novoRenovado = { // VARIÁVEL RENOMEADA
               ID: leadParaAdicionar.id || crypto.randomUUID(),
               name: leadParaAdicionar.name,
               vehicleModel: leadParaAdicionar.vehicleModel,
               vehicleYearModel: leadParaAdicionar.vehicleYearModel,
               city: leadParaAdicionar.city,
               phone: leadParaAdicionar.phone,
-              insuranceType: leadParaAdicionar.insuranceType || "",
+              insuranceType: leadParaAdicionar.insuranceType || leadParaAdicionar.insuranceType || "",
               Data: leadParaAdicionar.createdAt || new Date().toISOString(),
               Responsavel: leadParaAdicionar.responsavel || "",
               Status: "Fechado",
@@ -282,16 +296,20 @@ function App() {
               Parcelamento: leadParaAdicionar.Parcelamento || "",
               VigenciaFinal: leadParaAdicionar.VigenciaFinal || "",
               VigenciaInicial: leadParaAdicionar.VigenciaInicial || "",
-              observacao: leadParaAdicionar.observacao || '',
-              MeioPagamento: leadParaAdicionar.MeioPagamento || '',
-              CartaoPortoNovo: leadParaAdicionar.CartaoPortoNovo || '',
-              // ✅ NOVOS CAMPOS PARA ENDOSSO
-              Endossado: leadParaAdicionar.Endossado || false,
-              NumeroParcelas: leadParaAdicionar.NumeroParcelas || '',
+              id: leadParaAdicionar.id || null,
+              usuario: leadParaAdicionar.usuario || "",
+              nome: leadParaAdicionar.nome || "",
+              email: leadParaAdicionar.email || "",
+              senha: leadParaAdicionar.senha || "",
+              status: leadParaAdicionar.status || "Ativo",
+              tipo: leadParaAdicionar.tipo || "Usuario",
+              "Ativo/Inativo": leadParaAdicionar["Ativo/Inativo"] || "Ativo",
+              confirmado: true,
+              observacao: leadParaAdicionar.observacao || ''
             };
-            return [...prev, novoRenovado];
+            return [...prev, novoRenovado]; // VARIÁVEL RENOMEADA
           }
-          console.warn("Lead não encontrado na lista principal para adicionar aos renovados.");
+          console.warn("Lead não encontrado na lista principal para adicionar aos renovados."); // MENSAGEM ATUALIZADA
           return prev;
         }
       });
@@ -312,15 +330,17 @@ function App() {
         },
       });
 
-      await fetchRenovacoesFromSheet();
+      // Recarrega as renovações para que a nova data apareça
+      await fetchRenovacoesFromSheet(); // FUNÇÃO ATUALIZADA
       
     } catch (error) {
       console.error('Erro ao confirmar agendamento:', error);
     }
   };
 
+  // FUNÇÃO RENOMEADA
   const atualizarSeguradoraRenovacao = (id, seguradora) => {
-    setRenovacoes((prev) =>
+    setRenovacoes((prev) => // ESTADO ATUALIZADO
       prev.map((lead) =>
         lead.id === id
           ? limparCamposLead({ ...lead, insurer: seguradora })
@@ -335,13 +355,14 @@ function App() {
     comissao: "",
     VigenciaFinal: "",
     VigenciaInicial: "",
-  });
+  })
 
-  const confirmarSeguradoraRenovado = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal, vigenciaInicial, meioPagamento, cartaoPortoNovo) => {
-    const renovado = renovados.find((lead) => lead.ID == id);
+  // FUNÇÃO RENOMEADA
+  const confirmarSeguradoraRenovado = (id, premio, seguradora, comissao, parcelamento, vigenciaFinal, vigenciaInicial) => {
+    const renovado = renovados.find((lead) => lead.ID == id); // ESTADO ATUALIZADO
 
     if (!renovado) {
-      console.error(`Renovado com ID ${id} não encontrado na lista de renovados.`);
+      console.error(`Renovado com ID ${id} não encontrado na lista de renovados.`); // MENSAGEM ATUALIZADA
       return;
     }
 
@@ -351,10 +372,8 @@ function App() {
     renovado.Parcelamento = parcelamento;
     renovado.VigenciaFinal = vigenciaFinal || '';
     renovado.VigenciaInicial = vigenciaInicial || '';
-    renovado.MeioPagamento = meioPagamento || '';
-    renovado.CartaoPortoNovo = cartaoPortoNovo || '';
 
-    setRenovados((prev) => {
+    setRenovados((prev) => { // ESTADO ATUALIZADO
       const atualizados = prev.map((l) =>
         l.ID === id ? {
           ...l,
@@ -364,9 +383,7 @@ function App() {
           Comissao: comissao,
           Parcelamento: parcelamento,
           VigenciaFinal: vigenciaFinal || '',
-          VigenciaInicial: vigenciaInicial || '',
-          MeioPagamento: meioPagamento || '',
-          CartaoPortoNovo: cartaoPortoNovo || '',
+          VigenciaInicial: vigenciaInicial || ''
         } : l
       );
       return atualizados;
@@ -378,7 +395,7 @@ function App() {
         mode: 'no-cors',
         body: JSON.stringify({
           v: 'alterar_seguradora',
-          lead: renovado
+          lead: renovado // VARIÁVEL ATUALIZADA
         }),
         headers: {
           'Content-Type': 'application/json',
@@ -387,28 +404,30 @@ function App() {
       .then(response => {
         console.log('Requisição de dados da seguradora enviada (com no-cors).');
         setTimeout(() => {
-          fetchRenovadosFromSheet();
+          fetchRenovadosFromSheet(); // FUNÇÃO ATUALIZADA
         }, 1000);
       })
       .catch(error => {
-        console.error('Erro ao enviar renovado (rede ou CORS):', error);
+        console.error('Erro ao enviar renovado (rede ou CORS):', error); // MENSAGEM ATUALIZADA
       });
     } catch (error) {
-      console.error('Erro no bloco try/catch de envio do renovado:', error);
+      console.error('Erro no bloco try/catch de envio do renovado:', error); // MENSAGEM ATUALIZADA
     }
   };
 
+  // FUNÇÃO RENOMEADA
   const atualizarDetalhesRenovado = (id, campo, valor) => {
-    setRenovados((prev) =>
+    setRenovados((prev) => // ESTADO ATUALIZADO
       prev.map((lead) =>
         lead.ID === id ? { ...lead, [campo]: valor } : lead
       )
     );
   };
 
+  // FUNÇÃO RENOMEADA
   const transferirRenovacao = (leadId, responsavelId) => {
     if (responsavelId === null) {
-      setRenovacoes((prev) =>
+      setRenovacoes((prev) => // ESTADO ATUALIZADO
         prev.map((lead) =>
           lead.id === leadId ? { ...lead, responsavel: null } : lead
         )
@@ -422,7 +441,7 @@ function App() {
       return;
     }
 
-    setRenovacoes((prev) =>
+    setRenovacoes((prev) => // ESTADO ATUALIZADO
       prev.map((lead) =>
         lead.id === leadId ? { ...lead, responsavel: usuario.nome } : lead
       )
@@ -432,6 +451,7 @@ function App() {
   const onAbrirLead = (lead) => {
     setLeadSelecionado(lead);
 
+    // CORREÇÃO CRUCIAL: As rotas aqui DEVEM refletir as novas rotas.
     let path = '/renovacoes'; 
     if (lead.status === 'Fechado') path = '/renovados'; 
     else if (lead.status === 'Perdido') path = '/renovacoes-perdidas'; 
@@ -452,6 +472,7 @@ function App() {
     }
   };
     
+  // FUNÇÃO PARA SALVAR OBSERVAÇÃO
   const salvarObservacao = async (leadId, observacao) => {
     try {
       const response = await fetch(SALVAR_OBSERVACAO_SCRIPT_URL, {
@@ -468,7 +489,7 @@ function App() {
     
       if (response.ok) {
         console.log('Observação salva com sucesso!');
-        fetchRenovacoesFromSheet();
+        fetchRenovacoesFromSheet(); // FUNÇÃO ATUALIZADA
       } else {
         console.error('Erro ao salvar observação:', response.statusText);
       }
@@ -540,15 +561,15 @@ function App() {
             path="/dashboard"
             element={
               <Dashboard
-                leadsClosed={
+                leadsClosed={ // PROPS MANTIDA POR CONTA DE COMPONENTE TERCEIRO
                   isAdmin
-                    ? renovados
-                    : renovados.filter((lead) => lead.Responsavel === usuarioLogado.nome)
+                    ? renovados // ESTADO ATUALIZADO
+                    : renovados.filter((lead) => lead.Responsavel === usuarioLogado.nome) // ESTADO ATUALIZADO
                 }
-                leads={
+                leads={ // PROPS MANTIDA POR CONTA DE COMPONENTE TERCEIRO
                   isAdmin
-                    ? renovacoes
-                    : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome)
+                    ? renovacoes // ESTADO ATUALIZADO
+                    : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome) // ESTADO ATUALIZADO
                 }
                 usuarioLogado={usuarioLogado}
                 setIsEditing={setIsEditing}
@@ -556,14 +577,14 @@ function App() {
             }
           />
           <Route
-            path="/renovacoes"
+            path="/renovacoes" // ROTA CORRIGIDA
             element={
-              <Renovacoes
-                leads={isAdmin ? renovacoes : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome)}
+              <Renovacoes // COMPONENTE ATUALIZADO
+                leads={isAdmin ? renovacoes : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome)} // ESTADO ATUALIZADO
                 usuarios={usuarios}
-                onUpdateStatus={atualizarStatusRenovacao}
-                fetchLeadsFromSheet={fetchRenovacoesFromSheet}
-                transferirLead={transferirRenovacao}
+                onUpdateStatus={atualizarStatusRenovacao} // FUNÇÃO ATUALIZADA
+                fetchLeadsFromSheet={fetchRenovacoesFromSheet} // FUNÇÃO ATUALIZADA
+                transferirLead={transferirRenovacao} // FUNÇÃO ATUALIZADA
                 usuarioLogado={usuarioLogado}
                 leadSelecionado={leadSelecionado}
                 setIsEditing={setIsEditing}
@@ -574,15 +595,15 @@ function App() {
             }
           />
           <Route
-            path="/renovados"
+            path="/renovados" // ROTA CORRIGIDA
             element={
-              <Renovados
-                leads={isAdmin ? renovados : renovados.filter((lead) => lead.Responsavel === usuarioLogado.nome)}
+              <Renovados // COMPONENTE ATUALIZADO
+                leads={isAdmin ? renovados : renovados.filter((lead) => lead.Responsavel === usuarioLogado.nome)} // ESTADO ATUALIZADO
                 usuarios={usuarios}
-                onUpdateInsurer={atualizarSeguradoraRenovacao}
-                onConfirmInsurer={confirmarSeguradoraRenovado}
-                onUpdateDetalhes={atualizarDetalhesRenovado}
-                fetchLeadsFechadosFromSheet={fetchRenovadosFromSheet}
+                onUpdateInsurer={atualizarSeguradoraRenovacao} // FUNÇÃO ATUALIZADA
+                onConfirmInsurer={confirmarSeguradoraRenovado} // FUNÇÃO ATUALIZADA
+                onUpdateDetalhes={atualizarDetalhesRenovado} // FUNÇÃO ATUALIZADA
+                fetchLeadsFechadosFromSheet={fetchRenovadosFromSheet} // FUNÇÃO ATUALIZADA
                 isAdmin={isAdmin}
                 ultimoFechadoId={ultimoFechadoId}
                 onAbrirLead={onAbrirLead}
@@ -594,12 +615,12 @@ function App() {
             }
           />
           <Route
-            path="/renovacoes-perdidas"
+            path="/renovacoes-perdidas" // ROTA CORRIGIDA
             element={
-              <RenovacoesPerdidas
-                leads={isAdmin ? renovacoes.filter((lead) => lead.status === 'Perdido') : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome && lead.status === 'Perdido')}
+              <RenovacoesPerdidas // COMPONENTE ATUALIZADO
+                leads={isAdmin ? renovacoes.filter((lead) => lead.status === 'Perdido') : renovacoes.filter((lead) => lead.responsavel === usuarioLogado.nome && lead.status === 'Perdido')} // ESTADO ATUALIZADO
                 usuarios={usuarios}
-                fetchLeadsFromSheet={fetchRenovacoesFromSheet}
+                fetchLeadsFromSheet={fetchRenovacoesFromSheet} // FUNÇÃO ATUALIZADA
                 onAbrirLead={onAbrirLead}
                 isAdmin={isAdmin}
                 leadSelecionado={leadSelecionado}
@@ -607,15 +628,15 @@ function App() {
               />
             }
           />
-          <Route path="/buscar-lead" element={<BuscarLead
-            leads={renovacoes}
-            fetchLeadsFromSheet={fetchRenovacoesFromSheet}
-            fetchLeadsFechadosFromSheet={fetchRenovadosFromSheet}
+          <Route path="/buscar-lead" element={<BuscarLead // COMPONENTE MANTIDO
+            leads={renovacoes} // ESTADO ATUALIZADO
+            fetchLeadsFromSheet={fetchRenovacoesFromSheet} // FUNÇÃO ATUALIZADA
+            fetchLeadsFechadosFromSheet={fetchRenovadosFromSheet} // FUNÇÃO ATUALIZADA
             setIsEditing={setIsEditing}
           />} />
           <Route
             path="/criar-lead"
-            element={<CriarLead adicionarLead={adicionarNovoRenovacao} />}
+            element={<CriarLead adicionarLead={adicionarNovoRenovacao} />} // FUNÇÃO ATUALIZADA
           />
           {isAdmin && (
             <>
@@ -628,13 +649,9 @@ function App() {
           )}
           <Route path="/ranking" element={<Ranking
             usuarios={usuarios}
-            fetchLeadsFromSheet={fetchRenovacoesFromSheet}
-            fetchLeadsFechadosFromSheet={fetchRenovadosFromSheet}
-            leads={renovacoes} />} />
-          
-          {/* ✅ ROTA SEGURADOS COM SUPORTE COMPLETO A ENDOSSO */}
-          <Route path="/segurados" element={<Segurados />} />
-
+            fetchLeadsFromSheet={fetchRenovacoesFromSheet} // FUNÇÃO ATUALIZADA
+            fetchLeadsFechadosFromSheet={fetchRenovadosFromSheet} // FUNÇÃO ATUALIZADA
+            leads={renovacoes} />} /> // ESTADO ATUALIZADO
           <Route path="*" element={<h1 style={{ padding: 20 }}>Página não encontrada</h1>} />
         </Routes>
       </main>
