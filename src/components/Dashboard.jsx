@@ -166,81 +166,57 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
-  // === AQUI: pegar o número que está na linha 2 da coluna I (índice 8) da aba "Apolices" do Sheets ===
-  const getTotalFromApolicesRow2ColI = () => {
+  // === AQUI: novo cálculo do "Total de Renovações" contando apenas linhas preenchidas da aba "Apolices" a partir da linha 2 ===
+  const countFilledRowsApolicesFromRow2 = () => {
     if (!leads) return 0;
 
     // localizar aba Apolices (várias variações)
     const sheet = leads.Apolices ?? leads.apolices ?? leads.APOLICES ?? null;
 
-    // helper para parse de número (suporta formatos BR/EN)
-    const toNumber = (v) => {
-      if (v === null || v === undefined || v === '') return NaN;
-      if (typeof v === 'number') return v;
-      const s = String(v).trim();
-      if (s === '') return NaN;
-      if (s.indexOf(',') > -1 && s.indexOf('.') > -1) {
-        if (s.lastIndexOf('.') < s.lastIndexOf(',')) {
-          return Number(s.replace(/\./g, '').replace(',', '.'));
-        }
-        return Number(s.replace(/,/g, ''));
-      } else if (s.indexOf(',') > -1) {
-        return Number(s.replace(/\./g, '').replace(',', '.'));
-      } else {
-        return Number(s.replace(/[^0-9.-]/g, ''));
-      }
+    const isRowFilledArray = (row) => {
+      if (!Array.isArray(row)) return false;
+      return row.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== '');
     };
 
-    // função que tenta extrair a célula desejada de uma "linha" que pode ser array ou objeto
-    const extractCellFromRow = (row) => {
-      if (!row) return NaN;
-      if (Array.isArray(row)) {
-        return toNumber(row[8]);
-      }
-      if (typeof row === 'object') {
-        // tenta chave conhecida "TotalRenovacoes" (variações)
-        const candidateKey = Object.keys(row).find(k => /total.*renov/i.test(k) || /total.*renova/i.test(k) || k.toLowerCase() === 'i' || k.toLowerCase().includes('totalrenov'));
-        if (candidateKey) return toNumber(row[candidateKey]);
-        // fallback: pegar a 9ª propriedade (índice 8) se existir
-        const keys = Object.keys(row);
-        if (keys.length > 8) return toNumber(row[keys[8]]);
-        return NaN;
-      }
-      // primitives
-      return toNumber(row);
+    const isRowFilledObject = (row) => {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
+      return Object.values(row).some((v) => v !== null && v !== undefined && String(v).trim() !== '');
     };
 
     // 1) Se achou aba explicitamente
     if (Array.isArray(sheet)) {
-      // se é matriz de linhas (array de arrays)
-      if (sheet.length > 1 && Array.isArray(sheet[1])) {
-        return Number.isNaN(extractCellFromRow(sheet[1])) ? 0 : extractCellFromRow(sheet[1]);
+      // contar a partir do índice 1 (linha 2 do Sheets)
+      let count = 0;
+      for (let i = 1; i < sheet.length; i++) {
+        const row = sheet[i];
+        if (Array.isArray(row) && isRowFilledArray(row)) count++;
+        else if (typeof row === 'object' && !Array.isArray(row) && isRowFilledObject(row)) count++;
+        else if (!Array.isArray(row) && (typeof row === 'string' || typeof row === 'number')) {
+          if (String(row).trim() !== '') count++;
+        }
       }
-      // se é array de objetos, segunda linha é sheet[1]
-      if (sheet.length > 1 && typeof sheet[1] === 'object' && !Array.isArray(sheet[1])) {
-        return Number.isNaN(extractCellFromRow(sheet[1])) ? 0 : extractCellFromRow(sheet[1]);
-      }
-      // fallback: se existe sheet[1] de qualquer tipo
-      if (sheet.length > 1) {
-        return Number.isNaN(extractCellFromRow(sheet[1])) ? 0 : extractCellFromRow(sheet[1]);
-      }
+      return count;
     }
 
     // 2) Se leads for a própria matriz da aba
     if (Array.isArray(leads)) {
-      if (leads.length > 1 && Array.isArray(leads[1])) {
-        return Number.isNaN(extractCellFromRow(leads[1])) ? 0 : extractCellFromRow(leads[1]);
+      let count = 0;
+      for (let i = 1; i < leads.length; i++) {
+        const row = leads[i];
+        if (Array.isArray(row) && isRowFilledArray(row)) count++;
+        else if (typeof row === 'object' && !Array.isArray(row) && isRowFilledObject(row)) count++;
+        else if (!Array.isArray(row) && (typeof row === 'string' || typeof row === 'number')) {
+          if (String(row).trim() !== '') count++;
+        }
       }
-      if (leads.length > 1 && typeof leads[1] === 'object' && !Array.isArray(leads[1])) {
-        return Number.isNaN(extractCellFromRow(leads[1])) ? 0 : extractCellFromRow(leads[1]);
-      }
+      return count;
     }
 
-    // 3) fallback geral
+    // 3) fallback: retorno 0 se não for possível interpretar
     return 0;
   };
 
-  const totalLeads = getTotalFromApolicesRow2ColI();
+  const totalLeads = countFilledRowsApolicesFromRow2();
   // === fim do ajuste solicitado ===
 
   const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
