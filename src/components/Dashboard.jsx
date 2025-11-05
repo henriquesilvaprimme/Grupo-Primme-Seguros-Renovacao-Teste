@@ -104,7 +104,7 @@ const parseDDMMYYYY = (dateStr) => {
     // Cria a data no fuso horário local
     const date = new Date(year, month, day);
     
-    // Validação básica para garantir que o parse foi correto
+    // Validação básica
     if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
         return null;
     }
@@ -128,6 +128,11 @@ const getApolicesSheet = (leadsData) => {
         // Assume que a primeira linha é o cabeçalho e retorna o resto
         return sheet.slice(1); 
     }
+    
+    // Fallback: se leadsData é o próprio array de dados
+    if (Array.isArray(leadsData) && leadsData.length > 0 && leadsData[0]?.VigenciaFinal) {
+        return leadsData; // Se for um array de leads diretamente, retorna tudo
+    }
 
     return [];
 };
@@ -141,13 +146,11 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     // --- Lógica de Datas ---
     const getPrimeiroDiaMes = () => {
         const hoje = new Date();
-        // Define para o primeiro dia do mês atual (e converte para string ISO YYYY-MM-DD)
         return new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
     };
 
     const getUltimoDiaMes = () => {
         const hoje = new Date();
-        // Define para o último dia do mês atual
         const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
         return ultimoDia.toISOString().slice(0, 10);
     };
@@ -171,7 +174,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         setIsLoading(true);
         setLoading(true);
         try {
-            // URL da API externa para buscar leads fechados
             const respostaLeads = await fetch(
                 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=pegar_clientes_fechados'
             );
@@ -201,12 +203,12 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     const isAdmin = usuarioLogado?.tipo === 'Admin';
     const userName = usuarioLogado?.nome || '';
 
-    // Lógica de contagem e filtro de renovações
+    // Lógica ATUALIZADA de contagem e filtro de renovações
     const totalLeads = useMemo(() => {
-        const apolices = getApolicesSheet(leads);
+        const apolices = getApolicesSheet(leads); // Leads (linhas) da aba Apolices (sem cabeçalho)
         if (apolices.length === 0) return 0;
         
-        // Usamos a data de início do filtro para definir o Mês e Ano de referência
+        // Data de referência do filtro (mês e ano)
         const filtroDataObj = new Date(filtroAplicado.inicio);
         const filtroMes = filtroDataObj.getMonth();
         const filtroAno = filtroDataObj.getFullYear();
@@ -214,24 +216,33 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         let count = 0;
         
         apolices.forEach(apolice => {
-            let vigenciaFinalDateStr;
-            
-            // Tenta obter a data pelo nome da coluna (VigenciaFinal - Coluna B)
-            if (apolice && typeof apolice === 'object') {
+            let vigenciaFinalDateStr = null;
+            let idValue = null; 
+
+            // Tenta acessar dados no formato Objeto
+            if (apolice && typeof apolice === 'object' && !Array.isArray(apolice)) {
+                 // Coluna B (VigenciaFinal)
                  vigenciaFinalDateStr = apolice.VigenciaFinal || apolice['VigênciaFinal'] || apolice.vigenciafinal;
+                 // Coluna A (ID)
+                 idValue = apolice.ID || apolice.id || apolice.Id; 
             } 
             
-            // Fallback: Acesso por índice para formato Array-de-Arrays (Coluna B = índice 1)
-            if (!vigenciaFinalDateStr && Array.isArray(apolice) && apolice.length > 1) {
-                 vigenciaFinalDateStr = apolice[1];
+            // Tenta acessar dados no formato Array (Coluna A=índice 0, Coluna B=índice 1)
+            if (Array.isArray(apolice) && apolice.length >= 2) {
+                 vigenciaFinalDateStr = apolice[1]; // Coluna B
+                 idValue = apolice[0]; // Coluna A
             }
+            
+            // 1. **MANDATÓRIO**: Checa se a Coluna A (ID) está preenchida para contar o lead
+            if (!idValue || String(idValue).trim() === '') return;
 
+            // 2. Checa se há data de vigência para aplicar o filtro
             if (!vigenciaFinalDateStr) return;
 
             const vigenciaDate = parseDDMMYYYY(String(vigenciaFinalDateStr).trim());
             
             if (vigenciaDate) {
-                // Contagem se o Mês e o Ano da VigenciaFinal coincidirem com o filtro aplicado
+                // 3. Contagem: Filtra por Mês e Ano da VigenciaFinal
                 if (vigenciaDate.getMonth() === filtroMes && vigenciaDate.getFullYear() === filtroAno) {
                     count++;
                 }
@@ -240,7 +251,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         
         return count;
     }, [leads, filtroAplicado]);
-    // --- FIM DA NOVA LÓGICA DE CONTAGEM SOLICITADA ---
+    // --- FIM DA LÓGICA DE CONTAGEM SOLICITADA ---
 
 
     // Filtro por data dos leads gerais (vindos via prop `leads`)
@@ -248,7 +259,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         if (!lead) return false;
         if (lead.status === 'Cancelado') return false;
 
-        // Note: Este filtro ainda usa o createdAt ou similar, não a VigenciaFinal
         const dataLeadStr = getValidDateStr(lead.createdAt); 
         if (!dataLeadStr) return false;
         if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
@@ -294,7 +304,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     const comissaoMediaGlobal =
         totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
 
-    // Agora, totalLeads é o total de leads com vencimento no mês do filtro
     const porcentagemVendidos = totalLeads > 0 ? (leadsFechadosCount / totalLeads) * 100 : 0;
 
     return (
