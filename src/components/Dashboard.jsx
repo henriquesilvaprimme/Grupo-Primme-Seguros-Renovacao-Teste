@@ -108,6 +108,40 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   // URL do seu Google Apps Script (GAS)
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
 
+  // Helper: extrai e normaliza o primeiro número encontrado no texto
+  const parseNumberFromText = (raw) => {
+    if (!raw) return null;
+    // remove tags HTML básicas
+    const withoutHtml = raw.replace(/<[^>]*>/g, ' ').replace(/\u00A0/g, ' ').trim();
+
+    // procura por um padrão de número: considera milhar com ., , ou espaço e decimais com . ou ,
+    const numberRegex = /[-+]?(?:\d{1,3}(?:[.,\s]\d{3})+|\d+)(?:[.,]\d+)?/;
+    const match = withoutHtml.match(numberRegex);
+    if (!match) return null;
+
+    let numStr = match[0].replace(/\s/g, ''); // remove espaços usados como milhares
+
+    // Normalização:
+    // - Se contém '.' e ',' -> assume '.' milhares e ',' decimal -> remove '.' e troca ',' por '.'
+    // - Se contém only ',' -> troca ',' por '.'
+    // - If only '.' -> heurística: se parte após '.' tem 3 dígitos -> assume milhar e remove '.', senão assume decimal
+    if (numStr.includes('.') && numStr.includes(',')) {
+      numStr = numStr.replace(/\./g, '').replace(',', '.');
+    } else if (numStr.includes(',')) {
+      numStr = numStr.replace(',', '.');
+    } else if (numStr.includes('.')) {
+      const parts = numStr.split('.');
+      if (parts.length === 2 && parts[1].length === 3) {
+        // ex: "1.234" -> tratar como milhar
+        numStr = parts.join('');
+      } // caso contrário "12.34" -> decimal -> mantém
+    }
+
+    const parsed = parseFloat(numStr);
+    if (Number.isNaN(parsed)) return null;
+    return parsed;
+  };
+
   // 🚀 FUNÇÕES PARA O FILTRO DE DATA ATUALIZADO (Primeiro e Último dia do Mês)
   const getPrimeiroDiaMes = () => {
     const hoje = new Date();
@@ -159,9 +193,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   // Busca o total de renovações fixo (célula Apolices!I2)
   // Observação: usamos GET com modo 'cors' para conseguir ler o JSON retornado.
   const fetchTotalRenovacoes = async () => {
+    // Usamos isSaving para manter compatibilidade com o resto do código,
+    // mas ideal seria ter um estado separado (ex: isFetchingTotalRenovacoes).
     setIsSaving(true);
     try {
-      // Tentativas em diferentes parâmetros que seu GAS pode aceitar
       const endpointsToTry = [
         `${GAS_URL}?action=getTotalRenovacoesFromCell`,
         `${GAS_URL}?v=getTotalRenovacoes`,
@@ -170,75 +205,117 @@ const Dashboard = ({ leads, usuarioLogado }) => {
       ];
 
       let lastError = null;
-      let data = null;
+      let resolvedValue = null;
 
       for (const url of endpointsToTry) {
         try {
           console.log('Tentando buscar totalRenovacoes em:', url);
           const resp = await fetch(url, {
             method: 'GET',
-            mode: 'cors', // necessário para ler o corpo da resposta
-            headers: { 'Accept': 'application/json' },
+            mode: 'cors',
+            headers: { 'Accept': 'application/json, text/plain, */*' },
           });
 
-          console.log('Status resposta:', resp.status, 'type:', resp.type);
+          console.log('Status resposta:', resp.status, 'ok:', resp.ok, 'type:', resp.type);
 
           const text = await resp.text();
           console.log('Resposta bruta do endpoint:', text);
 
-          if (!text) {
+          if (!text || text.trim() === '') {
             lastError = new Error('Resposta vazia do endpoint ' + url);
             continue;
           }
 
-          // Tenta parse JSON
+          // 1) Tentar parsear JSON diretamente
+          let parsed = null;
           try {
-            data = JSON.parse(text);
-          } catch (parseErr) {
-            // Se não for JSON, tenta converter o texto para número
-            const numeric = Number(text.trim());
-            if (!Number.isNaN(numeric)) {
-              data = { totalRenovacoes: numeric };
-            } else {
-              throw new Error('Não foi possível parsear JSON nem extrair número do texto');
+            parsed = JSON.parse(text);
+          } catch (e) {
+            // tentar extrair JSON dentro de HTML (caso o GAS retorne uma página)
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              try {
+                parsed = JSON.parse(jsonMatch[0]);
+              } catch (inner) {
+                parsed = null;
+              }
             }
           }
 
-          // Se chegou até aqui temos 'data'
-          break;
+          if (parsed) {
+            // Se for um número direto dentro do JSON (ou string)
+            if (parsed.totalRenovacoes !== undefined && parsed.totalRenovacoes !== null) {
+              const numeric = parseNumberFromText(String(parsed.totalRenovacoes));
+              if (numeric !== null) {
+                resolvedValue = numeric;
+                break;
+              }
+              // se não conseguiu, tenta Number direto
+              const numeric2 = Number(parsed.totalRenovacoes);
+              if (!Number.isNaN(numeric2)) {
+                resolvedValue = numeric2;
+                break;
+              }
+            } else {
+              // Se o objeto JSON não tem a chave, tenta pegar o primeiro valor numérico do JSON stringificado
+              const firstVal = Object.values(parsed)[0];
+              if (firstVal !== undefined && firstVal !== null) {
+                const maybe = parseNumberFromText(String(firstVal));
+                if (maybe !== null) {
+                  resolvedValue = maybe;
+                  break;
+                }
+                const numeric3 = Number(firstVal);
+                if (!Number.isNaN(numeric3)) {
+                  resolvedValue = numeric3;
+                  break;
+                }
+              }
+            }
+          }
+
+          // 2) Se não veio JSON, tenta extrair número do texto/HTML bruto
+          const numericFromText = parseNumberFromText(text);
+          if (numericFromText !== null) {
+            resolvedValue = numericFromText;
+            break;
+          }
+
+          // 3) Se ainda não temos, tenta converter texto puro (pode ser "15")
+          const trimmed = text.trim();
+          const plainNumber = Number(trimmed.replace(/[^\d\-,.]/g, '').replace(',', '.'));
+          if (!Number.isNaN(plainNumber)) {
+            resolvedValue = plainNumber;
+            break;
+          }
+
+          // nada deu certo nesse endpoint -> registrar e continuar
+          lastError = new Error('Não foi possível extrair número do endpoint ' + url);
         } catch (err) {
           console.warn('Falha ao consultar endpoint de totalRenovacoes:', err);
           lastError = err;
-          data = null;
           // continua para próximo endpoint
         }
       }
 
-      if (!data) {
+      if (resolvedValue === null) {
         console.error('Não foi possível obter totalRenovacoes de nenhum endpoint. Erro final:', lastError);
         setTotalRenovacoes(0);
         setNewTotalRenovacoesValue(0);
+        setMessage({ text: 'Não foi possível obter total de renovações (resposta inválida).', type: 'error' });
         return;
       }
 
-      // Aceita strings ou numbers; tenta converter para inteiro
-      let fetchedValue = 0;
-      if (data.totalRenovacoes !== undefined && data.totalRenovacoes !== null) {
-        const numeric = Number(data.totalRenovacoes);
-        fetchedValue = Number.isNaN(numeric) ? 0 : Math.floor(numeric);
-      } else {
-        const firstVal = Object.values(data)[0];
-        const numeric = Number(firstVal);
-        fetchedValue = Number.isNaN(numeric) ? 0 : Math.floor(numeric);
-      }
-
-      setTotalRenovacoes(fetchedValue);
-      setNewTotalRenovacoesValue(fetchedValue);
-
+      // garante inteiro e não negativo
+      const finalVal = Math.max(0, Math.floor(Number(resolvedValue) || 0));
+      setTotalRenovacoes(finalVal);
+      setNewTotalRenovacoesValue(finalVal);
+      setMessage({ text: '', type: '' });
     } catch (error) {
       console.error('Erro inesperado ao buscar total de renovações:', error);
       setTotalRenovacoes(0);
       setNewTotalRenovacoesValue(0);
+      setMessage({ text: 'Erro ao buscar total de renovações. Veja console para mais detalhes.', type: 'error' });
     } finally {
       setIsSaving(false);
     }
