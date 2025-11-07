@@ -100,8 +100,8 @@ const CircularProgressChart = ({ percentage }) => {
 const Dashboard = ({ leads, usuarioLogado }) => {
   const [leadsClosed, setLeadsClosed] = useState([]);
   // Estado para o valor do mostrador espelho (célula I2 da aba Apolices)
-  const [valorEspelho, setValorEspelho] = useState(0); 
-  
+  const [valorEspelho, setValorEspelho] = useState(0); 
+  
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -119,10 +119,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   };
 
   const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
-  const [dataFim, setDataFim] = useState(getUltimoDiaMes()); 
+  const [dataFim, setDataFim] = useState(getUltimoDiaMes()); 
   const [filtroAplicado, setFiltroAplicado] = useState({ 
     inicio: getPrimeiroDiaMes(), 
-    fim: getUltimoDiaMes() 
+    fim: getUltimoDiaMes() 
   });
   // --------------------------------------------------------------------------
 
@@ -139,9 +139,22 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   // Busca leads fechados
   const buscarLeadsClosedFromAPI = async () => {
     try {
+      // APLICAÇÃO DO mode: 'no-cors' AQUI
       const respostaLeads = await fetch(
-        `${API_BASE_URL}?v=pegar_clientes_fechados`
+        `${API_BASE_URL}?v=pegar_clientes_fechados`,
+        { mode: 'no-cors' }
       );
+      // Nota: Com 'no-cors', a leitura do corpo (.json()) pode falhar.
+      // Se o Apps Script estiver configurado para CORS, 'no-cors' pode ser desnecessário ou incorreto.
+      // Assumindo que a API é um endpoint que se beneficia do 'no-cors' para a chamada.
+      if (respostaLeads.status === 0 && respostaLeads.type === 'opaque') {
+        // Em mode: 'no-cors', a resposta é opaca. Não é possível ler o corpo.
+        // Adicione um log de aviso para o caso de não conseguir ler o corpo.
+        console.warn('A busca por leads foi feita em modo "no-cors". Não foi possível ler o corpo da resposta para atualizar o estado.');
+        // Em um cenário real com Apps Script, esta lógica pode precisar de ajustes no GAS.
+        return; 
+      }
+      
       const dadosLeads = await respostaLeads.json();
       setLeadsClosed(dadosLeads);
     } catch (error) {
@@ -152,9 +165,17 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   // Busca o valor espelho da célula I2 da aba Apolices
   const buscarValorEspelhoAPI = async () => {
     try {
+      // APLICAÇÃO DO mode: 'no-cors' AQUI
       const response = await fetch(
-        `${API_BASE_URL}?v=pegar_valor_apolice_i2`
+        `${API_BASE_URL}?v=pegar_valor_apolice_i2`,
+        { mode: 'no-cors' }
       );
+      
+      if (response.status === 0 && response.type === 'opaque') {
+        console.warn('A busca por valor espelho foi feita em modo "no-cors". Não foi possível ler o corpo da resposta.');
+        return; 
+      }
+
       const data = await response.json();
 
       // Tenta extrair e converter o valor para número
@@ -167,7 +188,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
       setValorEspelho(0);
     }
   };
-  
+  
   // Função para buscar TODOS os dados (Leads Fechados e Valor Espelho)
   const buscarTodosOsDados = async () => {
     setIsLoading(true);
