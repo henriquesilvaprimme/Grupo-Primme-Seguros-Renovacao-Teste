@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { RefreshCcw, Pencil, Save } from 'lucide-react'; // Importação dos ícones necessários
+import React, { useState, useEffect, useMemo } from 'react';
+import { RefreshCcw, Pencil, Save, BookOpen } from 'lucide-react'; // Adicionado BookOpen para o novo contador
 
-// --- NOVOS ESTILOS PARA CARDS MAIS COMPACTOS E MINIMALISTAS ---
+// --- ESTILOS ---
 const compactCardStyle = {
   backgroundColor: '#ffffff',
   borderRadius: '8px',
@@ -13,6 +13,7 @@ const compactCardStyle = {
   flexDirection: 'column',
   justifyContent: 'center',
   alignItems: 'center',
+  textAlign: 'center',
 };
 
 const valueTextStyle = {
@@ -20,6 +21,7 @@ const valueTextStyle = {
   fontWeight: '700',
   marginTop: '5px',
   lineHeight: '1.2',
+  wordBreak: 'break-all', // Previne overflow em valores grandes
 };
 
 const titleTextStyle = {
@@ -94,16 +96,18 @@ const CircularProgressChart = ({ percentage }) => {
 const Dashboard = ({ leads, usuarioLogado }) => {
   const [leadsClosed, setLeadsClosed] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // --- NOVOS ESTADOS PARA EDIÇÃO DO VALOR FIXO ---
-  const [totalRenovacoes, setTotalRenovacoes] = useState(0); // Valor fixo salvo
-  const [isEditingRenovacoes, setIsEditingRenovacoes] = useState(false); // Modo de edição
-  const [newTotalRenovacoesValue, setNewTotalRenovacoesValue] = useState(0); // Valor no input
-  const [isSaving, setIsSaving] = useState(false); // Estado de salvamento
-  // -------------------------------------------------
+
+  // --- ESTADOS DE RENOVAÇÃO (Meta Editável) ---
+  const [totalRenovacoesMeta, setTotalRenovacoesMeta] = useState(0); // I1: Valor fixo salvo (META)
+  const [isEditingRenovacoes, setIsEditingRenovacoes] = useState(false);
+  const [newTotalRenovacoesValue, setNewTotalRenovacoesValue] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // --- NOVO ESTADO (Valor da célula I2) ---
+  const [renovacoesApolicesI2, setRenovacoesApolicesI2] = useState(0);
   
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' }); // Para mensagens de erro/sucesso
+  const [message, setMessage] = useState({ text: '', type: '' });
 
   // URL do seu Google Apps Script (GAS)
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
@@ -111,20 +115,13 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   // Helper: extrai e normaliza o primeiro número encontrado no texto
   const parseNumberFromText = (raw) => {
     if (!raw) return null;
-    // remove tags HTML básicas
     const withoutHtml = raw.replace(/<[^>]*>/g, ' ').replace(/\u00A0/g, ' ').trim();
-
-    // procura por um padrão de número: considera milhar com ., , ou espaço e decimais com . ou ,
     const numberRegex = /[-+]?(?:\d{1,3}(?:[.,\s]\d{3})+|\d+)(?:[.,]\d+)?/;
     const match = withoutHtml.match(numberRegex);
     if (!match) return null;
 
-    let numStr = match[0].replace(/\s/g, ''); // remove espaços usados como milhares
+    let numStr = match[0].replace(/\s/g, '');
 
-    // Normalização:
-    // - Se contém '.' e ',' -> assume '.' milhares e ',' decimal -> remove '.' e troca ',' por '.'
-    // - Se contém only ',' -> troca ',' por '.'
-    // - If only '.' -> heurística: se parte após '.' tem 3 dígitos -> assume milhar e remove '.', senão assume decimal
     if (numStr.includes('.') && numStr.includes(',')) {
       numStr = numStr.replace(/\./g, '').replace(',', '.');
     } else if (numStr.includes(',')) {
@@ -132,9 +129,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     } else if (numStr.includes('.')) {
       const parts = numStr.split('.');
       if (parts.length === 2 && parts[1].length === 3) {
-        // ex: "1.234" -> tratar como milhar
         numStr = parts.join('');
-      } // caso contrário "12.34" -> decimal -> mantém
+      } 
     }
 
     const parsed = parseFloat(numStr);
@@ -142,7 +138,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return parsed;
   };
 
-  // 🚀 FUNÇÕES PARA O FILTRO DE DATA ATUALIZADO (Primeiro e Último dia do Mês)
+  // 🚀 FUNÇÕES PARA O FILTRO DE DATA ATUALIZADO
   const getPrimeiroDiaMes = () => {
     const hoje = new Date();
     return new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
@@ -155,12 +151,11 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   };
 
   const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
-  const [dataFim, setDataFim] = useState(getUltimoDiaMes()); 
-  const [filtroAplicado, setFiltroAplicado] = useState({ 
-    inicio: getPrimeiroDiaMes(), 
+  const [dataFim, setDataFim] = useState(getUltimoDiaMes());
+  const [filtroAplicado, setFiltroAplicado] = useState({
+    inicio: getPrimeiroDiaMes(),
     fim: getUltimoDiaMes()
   });
-  // --------------------------------------------------------------------------
 
   // Função auxiliar para validar e formatar a data
   const getValidDateStr = (dateValue) => {
@@ -177,9 +172,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     setIsLoading(true);
     setLoading(true);
     try {
-      const respostaLeads = await fetch(
-        `${GAS_URL}?v=pegar_clientes_fechados`
-      );
+      const respostaLeads = await fetch(`${GAS_URL}?v=pegar_clientes_fechados`);
       const dadosLeads = await respostaLeads.json();
       setLeadsClosed(dadosLeads);
     } catch (error) {
@@ -190,139 +183,62 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     }
   };
 
-  // Busca o total de renovações fixo (célula Apolices!I2)
-  // Observação: usamos GET com modo 'cors' para conseguir ler o JSON retornado.
-  const fetchTotalRenovacoes = async () => {
-    // Usamos isSaving para manter compatibilidade com o resto do código,
-    // mas ideal seria ter um estado separado (ex: isFetchingTotalRenovacoes).
+  // NOVO: Busca o total de renovações da célula Apolices!I2
+  const fetchRenovacoesByCell = async () => {
+    try {
+      // Usamos o mode: 'cors' para garantir a leitura do corpo da resposta (texto/número)
+      const resp = await fetch(`${GAS_URL}?action=getRenovacoesCellI2`, {
+        method: 'GET',
+        // mode: 'cors' é o padrão, não precisa declarar
+      });
+
+      const text = await resp.text();
+      const parsed = parseNumberFromText(text);
+
+      const finalVal = Math.max(0, Math.floor(Number(parsed) || 0));
+      setRenovacoesApolicesI2(finalVal);
+      console.log(`Valor de Apolices!I2 (Renovações) lido: ${finalVal}`);
+      
+    } catch (error) {
+      console.error('Erro ao buscar renovações da célula I2:', error);
+      setRenovacoesApolicesI2(0);
+    }
+  };
+  
+  // Busca a Meta de renovações (célula I1)
+  const fetchTotalRenovacoesMeta = async () => {
     setIsSaving(true);
     try {
-      const endpointsToTry = [
-        `${GAS_URL}?action=getTotalRenovacoesFromCell`,
-        `${GAS_URL}?v=getTotalRenovacoes`,
-        `${GAS_URL}?v=getTotalRenovacoesFromCell`,
-        `${GAS_URL}?action=getTotalRenovacoes`
-      ];
+      // Usamos GET com mode: 'cors' para conseguir ler a resposta (texto/número)
+      const resp = await fetch(`${GAS_URL}?action=getTotalRenovacoes`, {
+        method: 'GET',
+        // mode: 'cors' é o padrão
+      });
 
-      let lastError = null;
-      let resolvedValue = null;
-
-      for (const url of endpointsToTry) {
-        try {
-          console.log('Tentando buscar totalRenovacoes em:', url);
-          const resp = await fetch(url, {
-            method: 'GET',
-            mode: 'no-cors',
-            headers: { 'Accept': 'application/json, text/plain, */*' },
-          });
-
-          console.log('Status resposta:', resp.status, 'ok:', resp.ok, 'type:', resp.type);
-
-          const text = await resp.text();
-          console.log('Resposta bruta do endpoint:', text);
-
-          if (!text || text.trim() === '') {
-            lastError = new Error('Resposta vazia do endpoint ' + url);
-            continue;
-          }
-
-          // 1) Tentar parsear JSON diretamente
-          let parsed = null;
-          try {
-            parsed = JSON.parse(text);
-          } catch (e) {
-            // tentar extrair JSON dentro de HTML (caso o GAS retorne uma página)
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              try {
-                parsed = JSON.parse(jsonMatch[0]);
-              } catch (inner) {
-                parsed = null;
-              }
-            }
-          }
-
-          if (parsed) {
-            // Se for um número direto dentro do JSON (ou string)
-            if (parsed.totalRenovacoes !== undefined && parsed.totalRenovacoes !== null) {
-              const numeric = parseNumberFromText(String(parsed.totalRenovacoes));
-              if (numeric !== null) {
-                resolvedValue = numeric;
-                break;
-              }
-              // se não conseguiu, tenta Number direto
-              const numeric2 = Number(parsed.totalRenovacoes);
-              if (!Number.isNaN(numeric2)) {
-                resolvedValue = numeric2;
-                break;
-              }
-            } else {
-              // Se o objeto JSON não tem a chave, tenta pegar o primeiro valor numérico do JSON stringificado
-              const firstVal = Object.values(parsed)[0];
-              if (firstVal !== undefined && firstVal !== null) {
-                const maybe = parseNumberFromText(String(firstVal));
-                if (maybe !== null) {
-                  resolvedValue = maybe;
-                  break;
-                }
-                const numeric3 = Number(firstVal);
-                if (!Number.isNaN(numeric3)) {
-                  resolvedValue = numeric3;
-                  break;
-                }
-              }
-            }
-          }
-
-          // 2) Se não veio JSON, tenta extrair número do texto/HTML bruto
-          const numericFromText = parseNumberFromText(text);
-          if (numericFromText !== null) {
-            resolvedValue = numericFromText;
-            break;
-          }
-
-          // 3) Se ainda não temos, tenta converter texto puro (pode ser "15")
-          const trimmed = text.trim();
-          const plainNumber = Number(trimmed.replace(/[^\d\-,.]/g, '').replace(',', '.'));
-          if (!Number.isNaN(plainNumber)) {
-            resolvedValue = plainNumber;
-            break;
-          }
-
-          // nada deu certo nesse endpoint -> registrar e continuar
-          lastError = new Error('Não foi possível extrair número do endpoint ' + url);
-        } catch (err) {
-          console.warn('Falha ao consultar endpoint de totalRenovacoes:', err);
-          lastError = err;
-          // continua para próximo endpoint
-        }
-      }
+      const text = await resp.text();
+      const resolvedValue = parseNumberFromText(text);
 
       if (resolvedValue === null) {
-        console.error('Não foi possível obter totalRenovacoes de nenhum endpoint. Erro final:', lastError);
-        setTotalRenovacoes(0);
-        setNewTotalRenovacoesValue(0);
-        setMessage({ text: 'Não foi possível obter total de renovações (resposta inválida).', type: 'error' });
-        return;
+        throw new Error('Não foi possível extrair número de getTotalRenovacoes (Resposta:' + text + ')');
       }
 
       // garante inteiro e não negativo
       const finalVal = Math.max(0, Math.floor(Number(resolvedValue) || 0));
-      setTotalRenovacoes(finalVal);
+      setTotalRenovacoesMeta(finalVal);
       setNewTotalRenovacoesValue(finalVal);
       setMessage({ text: '', type: '' });
+      
     } catch (error) {
-      console.error('Erro inesperado ao buscar total de renovações:', error);
-      setTotalRenovacoes(0);
+      console.error('Erro ao buscar total de renovações (META I1):', error);
+      setTotalRenovacoesMeta(0);
       setNewTotalRenovacoesValue(0);
-      setMessage({ text: 'Erro ao buscar total de renovações. Veja console para mais detalhes.', type: 'error' });
+      setMessage({ text: `Erro ao buscar Meta I1: ${error.message}`, type: 'error' });
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Salva o novo valor fixo de renovações na célula Apolices!I2
-  // Mantive o POST usando mode: 'no-cors' conforme você solicitou.
+  // Salva o novo valor fixo de renovações na célula Apolices!I1
   const saveTotalRenovacoes = async () => {
     setMessage({ text: '', type: '' });
     const valueToSave = Math.floor(Number(newTotalRenovacoesValue)); // Garante inteiro
@@ -335,30 +251,29 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     setIsSaving(true);
     try {
       const payload = {
-        v: 'setTotalRenovacoes', // ajuste se seu GAS espera outro parâmetro (ex: action=updateTotalRenovacoes)
+        action: 'setTotalRenovacoes',
         totalRenovacoes: valueToSave,
       };
 
-      // POST com no-cors (como você pediu):
+      // POST com no-cors (necessário se o GAS não retornar nada no final da execução):
       await fetch(`${GAS_URL}?${new URLSearchParams(payload).toString()}`, {
         method: 'POST',
-        mode: 'no-cors', // mantido conforme sua instrução
+        mode: 'no-cors',
       });
 
-      // Feedback imediato e tentativa de revalidação/refresh do valor
-      setTotalRenovacoes(valueToSave);
+      // Feedback imediato e revalidação
+      setTotalRenovacoesMeta(valueToSave);
       setIsEditingRenovacoes(false);
-      setMessage({ text: 'Total de Renovações salvo com sucesso!', type: 'success' });
+      setMessage({ text: 'Meta de Renovações (I1) salva com sucesso!', type: 'success' });
 
-      // Delay curto para garantir que o GAS tenha escrito no Sheets,
-      // depois tentamos buscar via GET (cors) para confirmar o valor gravado.
+      // Delay curto para garantir que o GAS tenha escrito no Sheets, depois busca via GET para confirmar
       setTimeout(() => {
-        fetchTotalRenovacoes();
+        fetchTotalRenovacoesMeta();
       }, 800);
 
     } catch (error) {
-      console.error('Erro ao salvar total de renovações:', error);
-      setMessage({ text: 'Erro ao salvar: verifique a configuração do seu GAS.', type: 'error' });
+      console.error('Erro ao salvar total de renovações (META I1):', error);
+      setMessage({ text: 'Erro ao salvar Meta I1: verifique a configuração do seu GAS.', type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -367,7 +282,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   // refresh automático ao entrar na aba
   useEffect(() => {
     buscarLeadsClosedFromAPI();
-    fetchTotalRenovacoes(); // Busca o valor fixo ao montar
+    fetchTotalRenovacoesMeta();
+    fetchRenovacoesByCell(); // Busca o valor da célula I2
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -375,33 +291,36 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     setFiltroAplicado({ inicio: dataInicio, fim: dataFim });
   };
 
-  // Filtro por data dos leads gerais (vindos via prop `leads`)
-  const leadsFiltradosPorDataGeral = leads.filter((lead) => {
-    if (lead.status === 'Cancelado') return false; 
-    
-    const dataLeadStr = getValidDateStr(lead.createdAt);
-    if (!dataLeadStr) return false;
-    if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
-    if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
-    return true;
-  });
+  // --- FILTROS E CÁLCULOS ---
+  const leadsFiltradosPorDataGeral = useMemo(() => {
+    return leads.filter((lead) => {
+      if (lead.status === 'Cancelado') return false;
+      
+      const dataLeadStr = getValidDateStr(lead.createdAt);
+      if (!dataLeadStr) return false;
+      if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
+      if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
+      return true;
+    });
+  }, [leads, filtroAplicado]);
 
-  const totalLeads = leadsFiltradosPorDataGeral.length; 
+  const totalLeads = leadsFiltradosPorDataGeral.length;
   const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
 
-  // Filtra leads fechados por responsável e data
-  let leadsFiltradosClosed =
-    usuarioLogado.tipo === 'Admin'
+  const leadsFiltradosClosed = useMemo(() => {
+    let filtrados = usuarioLogado.tipo === 'Admin'
       ? leadsClosed
       : leadsClosed.filter((lead) => lead.Responsavel === usuarioLogado.nome);
 
-  leadsFiltradosClosed = leadsFiltradosClosed.filter((lead) => {
-    const dataLeadStr = getValidDateStr(lead.Data);
-    if (!dataLeadStr) return false;
-    if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
-    if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
-    return true;
-  });
+    return filtrados.filter((lead) => {
+      const dataLeadStr = getValidDateStr(lead.Data);
+      if (!dataLeadStr) return false;
+      if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
+      if (filtroAplicado.fim && dataLeadStr > filtroAplicado.fim) return false;
+      return true;
+    });
+  }, [leadsClosed, filtroAplicado, usuarioLogado.tipo, usuarioLogado.nome]);
+
 
   // Contadores por seguradora
   const portoSeguro = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
@@ -427,8 +346,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const comissaoMediaGlobal =
     totalPremioLiquido > 0 ? (somaPonderadaComissao / totalPremioLiquido) * 100 : 0;
 
-  // Cálculo: Porcentagem de Vendidos (usando o totalRenovacoes FIXO como base)
-  const porcentagemVendidos = totalRenovacoes > 0 ? (leadsFechadosCount / totalRenovacoes) * 100 : 0;
+  // Cálculo: Porcentagem de Vendidos (usando a META totalRenovacoesMeta como base)
+  const porcentagemVendidos = totalRenovacoesMeta > 0 ? (leadsFechadosCount / totalRenovacoesMeta) * 100 : 0;
+  // --- FIM DOS CÁLCULOS ---
+
 
   return (
     <div style={{ padding: '20px', backgroundColor: '#f9fafb', minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
@@ -482,7 +403,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
         <button
           title='Clique para atualizar os dados'
-          onClick={() => { buscarLeadsClosedFromAPI(); fetchTotalRenovacoes(); }}
+          onClick={() => { buscarLeadsClosedFromAPI(); fetchTotalRenovacoesMeta(); fetchRenovacoesByCell(); }}
           disabled={isLoading || isSaving}
           style={{ backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '40px', height: '40px' }}
         >
@@ -505,7 +426,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
       {!loading && (
         <>
-          {/* Primeira Seção: 3 Contadores Principais + Gráfico (Grid com 4 colunas) */}
+          {/* Primeira Seção: 4 Contadores Principais (Grid com 4 colunas) */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
@@ -513,9 +434,18 @@ const Dashboard = ({ leads, usuarioLogado }) => {
             marginBottom: '30px',
           }}>
             
-            {/* Contador: Total de Renovações (Fixo e Editável) */}
+            {/* NOVO: Contador: Renovações Lidas da Célula I2 */}
+            <div style={{ ...compactCardStyle, backgroundColor: '#eff6ff', border: '1px solid #93c5fd' }}>
+              <p style={{ ...titleTextStyle, color: '#2563eb' }}>Renovações (Célula I2)</p>
+              <BookOpen size={24} style={{ color: '#2563eb', marginBottom: '5px' }} />
+              <p style={{ ...valueTextStyle, color: '#2563eb' }}>
+                {renovacoesApolicesI2}
+              </p>
+            </div>
+            
+            {/* Contador: Total de Renovações (Meta Editável I1) */}
             <div style={{ ...compactCardStyle, minWidth: '150px', position: 'relative' }}>
-              <p style={titleTextStyle}>Total Renovações (Meta)</p>
+              <p style={titleTextStyle}>Meta (Célula I1)</p>
               
               {isEditingRenovacoes ? (
                 // --- MODO EDIÇÃO ---
@@ -557,7 +487,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                   <button
                     onClick={() => {
                       setIsEditingRenovacoes(false);
-                      setNewTotalRenovacoesValue(totalRenovacoes);
+                      setNewTotalRenovacoesValue(totalRenovacoesMeta);
                     }}
                     style={{
                         backgroundColor: 'transparent',
@@ -575,7 +505,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                 // --- MODO VISUALIZAÇÃO ---
                 <>
                   <p style={{ ...valueTextStyle, color: '#1f2937' }}>
-                    {totalRenovacoes}
+                    {totalRenovacoesMeta}
                   </p>
                   <button
                     onClick={() => setIsEditingRenovacoes(true)}
@@ -588,7 +518,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                       cursor: 'pointer',
                       color: '#6b7280'
                     }}
-                    title="Editar Total de Renovações"
+                    title="Editar Meta de Renovações"
                   >
                     <Pencil size={16} />
                   </button>
@@ -608,18 +538,22 @@ const Dashboard = ({ leads, usuarioLogado }) => {
               <p style={{ ...titleTextStyle, color: '#ef4444' }}>Perdidos (Mês)</p>
               <p style={{ ...valueTextStyle, color: '#ef4444' }}>{leadsPerdidos}</p>
             </div>
-
-            {/* Gráfico Circular de Progresso (Ultima Coluna, à Direita) */}
-            <div style={{
-              ...compactCardStyle,
-              alignItems: 'center',
-              justifyContent: 'center',
-              minWidth: '150px'
-            }}>
-              <h3 style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '5px' }}>Taxa de Renovação</h3>
-              <CircularProgressChart percentage={porcentagemVendidos} />
-            </div>
+            
           </div>
+          
+          {/* Seção de Gráfico (Sempre no topo da segunda linha para mobile/desktop) */}
+          <div style={{
+            ...compactCardStyle,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '30px',
+            maxWidth: '250px', // Limita o tamanho para ser um destaque, mas responsivo
+            margin: '0 auto 30px',
+          }}>
+            <h3 style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '5px' }}>Taxa de Renovação (vs. Meta I1)</h3>
+            <CircularProgressChart percentage={porcentagemVendidos} />
+          </div>
+
 
           {/* Segunda Seção: Contadores por Seguradora (Grid com 4 colunas) */}
           <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Renovações por Seguradora (Mês)</h2>
