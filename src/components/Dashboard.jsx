@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCcw } from 'lucide-react'; // Importação do ícone de refresh
 
-// URL base do seu Google Apps Script (assumindo a mesma base)
-const API_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
-
 // --- NOVOS ESTILOS PARA CARDS MAIS COMPACTOS E MINIMALISTAS ---
 const compactCardStyle = {
   backgroundColor: '#ffffff',
@@ -79,7 +76,7 @@ const CircularProgressChart = ({ percentage }) => {
             strokeDashoffset: dashoffset,
           }}
         />
-      </svg>
+      </svg> {/* <-- TAG </svg> FALTANTE ADICIONADA AQUI */}
       {/* Texto da Porcentagem no Centro */}
       <div style={{
         position: 'absolute',
@@ -99,9 +96,6 @@ const CircularProgressChart = ({ percentage }) => {
 
 const Dashboard = ({ leads, usuarioLogado }) => {
   const [leadsClosed, setLeadsClosed] = useState([]);
-  // Estado para o valor do mostrador espelho (célula I2 da aba Apolices)
-  const [valorEspelho, setValorEspelho] = useState(0); 
-  
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -119,10 +113,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   };
 
   const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
-  const [dataFim, setDataFim] = useState(getUltimoDiaMes()); 
-  const [filtroAplicado, setFiltroAplicado] = useState({ 
-    inicio: getPrimeiroDiaMes(), 
-    fim: getUltimoDiaMes() 
+  const [dataFim, setDataFim] = useState(getUltimoDiaMes()); // 💡 ATUALIZADO para usar o último dia
+  const [filtroAplicado, setFiltroAplicado] = useState({ 
+    inicio: getPrimeiroDiaMes(), 
+    fim: getUltimoDiaMes() // 💡 ATUALIZADO para usar o último dia
   });
   // --------------------------------------------------------------------------
 
@@ -138,72 +132,25 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
   // Busca leads fechados
   const buscarLeadsClosedFromAPI = async () => {
+    setIsLoading(true);
+    setLoading(true);
     try {
-      // APLICAÇÃO DO mode: 'no-cors' AQUI
       const respostaLeads = await fetch(
-        `${API_BASE_URL}?v=pegar_clientes_fechados`,
-        { mode: 'no-cors' }
+        'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=pegar_clientes_fechados'
       );
-      // Nota: Com 'no-cors', a leitura do corpo (.json()) pode falhar.
-      // Se o Apps Script estiver configurado para CORS, 'no-cors' pode ser desnecessário ou incorreto.
-      // Assumindo que a API é um endpoint que se beneficia do 'no-cors' para a chamada.
-      if (respostaLeads.status === 0 && respostaLeads.type === 'opaque') {
-        // Em mode: 'no-cors', a resposta é opaca. Não é possível ler o corpo.
-        // Adicione um log de aviso para o caso de não conseguir ler o corpo.
-        console.warn('A busca por leads foi feita em modo "no-cors". Não foi possível ler o corpo da resposta para atualizar o estado.');
-        // Em um cenário real com Apps Script, esta lógica pode precisar de ajustes no GAS.
-        return; 
-      }
-      
       const dadosLeads = await respostaLeads.json();
       setLeadsClosed(dadosLeads);
     } catch (error) {
       console.error('Erro ao buscar leads:', error);
+    } finally {
+      setIsLoading(false);
+      setLoading(false);
     }
-  };
-
-  // Busca o valor espelho da célula I2 da aba Apolices
-  const buscarValorEspelhoAPI = async () => {
-    try {
-      // APLICAÇÃO DO mode: 'no-cors' AQUI
-      const response = await fetch(
-        `${API_BASE_URL}?v=pegar_valor_apolice_i2`,
-        { mode: 'no-cors' }
-      );
-      
-      if (response.status === 0 && response.type === 'opaque') {
-        console.warn('A busca por valor espelho foi feita em modo "no-cors". Não foi possível ler o corpo da resposta.');
-        return; 
-      }
-
-      const data = await response.json();
-
-      // Tenta extrair e converter o valor para número
-      const rawValue = data.valor || data.value || data;
-      const numericValue = parseFloat(String(rawValue).replace(',', '.')) || 0;
-      setValorEspelho(numericValue);
-
-    } catch (error) {
-      console.error('Erro ao buscar valor espelho (I2):', error);
-      setValorEspelho(0);
-    }
-  };
-  
-  // Função para buscar TODOS os dados (Leads Fechados e Valor Espelho)
-  const buscarTodosOsDados = async () => {
-    setIsLoading(true);
-    setLoading(true);
-    await Promise.all([
-      buscarLeadsClosedFromAPI(),
-      buscarValorEspelhoAPI(),
-    ]);
-    setIsLoading(false);
-    setLoading(false);
   };
 
   // refresh automático ao entrar na aba
   useEffect(() => {
-    buscarTodosOsDados();
+    buscarLeadsClosedFromAPI();
   }, []);
 
   const aplicarFiltroData = () => {
@@ -212,9 +159,9 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
   // Filtro por data dos leads gerais (vindos via prop `leads`)
   const leadsFiltradosPorDataGeral = leads.filter((lead) => {
-    // LÓGICA DE EXCLUSÃO: Ignora leads com status 'Cancelado'
-    if (lead.status === 'Cancelado') return false; 
-    
+    // LÓGICA DE EXCLUSÃO: Ignora leads com status 'Cancelado'
+    if (lead.status === 'Cancelado') return false; 
+    
     const dataLeadStr = getValidDateStr(lead.createdAt);
     if (!dataLeadStr) return false;
     if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
@@ -303,7 +250,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
         <button
           title='Clique para atualizar os dados'
-          onClick={buscarTodosOsDados} // Atualizado para buscar todos os dados
+          onClick={buscarLeadsClosedFromAPI}
           disabled={isLoading}
           style={{ backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '40px', height: '40px' }}
         >
@@ -326,27 +273,18 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
       {!loading && (
         <>
-          {/* Primeira Seção: Contadores Principais + Gráfico (Grid responsivo) */}
+          {/* Primeira Seção: 3 Contadores Principais + Gráfico (Grid com 4 colunas) */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', // Layout responsivo
+            gridTemplateColumns: 'repeat(4, 1fr)', // 4 colunas iguais
             gap: '20px',
             marginBottom: '30px',
           }}>
-            {/* Mostrador Espelho (Apolices I2) - AGORA COMO NÚMERO SIMPLES */}
-            <div style={{ ...compactCardStyle, backgroundColor: '#eff6ff', border: '1px solid #93c5fd' }}>
-                <p style={{ ...titleTextStyle, color: '#2563eb' }}>Célula I2 (Apólices)</p>
-                {/* ALTERADO: Formatação para número simples, duas casas decimais com vírgula */}
-                <p style={{ ...valueTextStyle, color: '#2563eb' }}>
-                  {valorEspelho.toFixed(2).replace('.', ',')}
-                </p>
-            </div>
-
             {/* Contador: Total de Leads */}
-            <div style={{ ...compactCardStyle }}>
+            <div style={{ ...compactCardStyle, minWidth: '150px' }}>
                 <p style={titleTextStyle}>Total de Renovações</p>
                 <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
-                
+                
             </div>
 
             {/* Contador: Vendas */}
@@ -377,7 +315,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Vendas por Seguradora</h2>
           <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', // Layout responsivo
+              gridTemplateColumns: 'repeat(4, 1fr)', // 4 colunas iguais
               gap: '20px',
               marginBottom: '30px',
           }}>
@@ -405,7 +343,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
             <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Métricas Financeiras</h2>
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', // Layout responsivo
+                gridTemplateColumns: 'repeat(2, 1fr)', // 2 colunas iguais
                 gap: '20px',
             }}>
               <div style={{ ...compactCardStyle, backgroundColor: '#eef2ff', border: '1px solid #c7d2fe' }}>
