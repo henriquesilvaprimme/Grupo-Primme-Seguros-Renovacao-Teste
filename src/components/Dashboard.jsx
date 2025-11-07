@@ -21,7 +21,7 @@ const valueTextStyle = {
   fontWeight: '700',
   marginTop: '5px',
   lineHeight: '1.2',
-  wordBreak: 'break-all', // Previne overflow em valores grandes
+  wordBreak: 'break-all',
 };
 
 const titleTextStyle = {
@@ -105,7 +105,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
   // --- NOVO ESTADO (Valor da célula I2) ---
   const [renovacoesApolicesI2, setRenovacoesApolicesI2] = useState(0);
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
 
@@ -114,8 +114,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
   // Helper: extrai e normaliza o primeiro número encontrado no texto
   const parseNumberFromText = (raw) => {
-    if (!raw) return null;
-    const withoutHtml = raw.replace(/<[^>]*>/g, ' ').replace(/\u00A0/g, ' ').trim();
+    if (raw === undefined || raw === null) return null;
+    const withoutHtml = String(raw).replace(/<[^>]*>/g, ' ').replace(/\u00A0/g, ' ').trim();
     const numberRegex = /[-+]?(?:\d{1,3}(?:[.,\s]\d{3})+|\d+)(?:[.,]\d+)?/;
     const match = withoutHtml.match(numberRegex);
     if (!match) return null;
@@ -130,7 +130,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
       const parts = numStr.split('.');
       if (parts.length === 2 && parts[1].length === 3) {
         numStr = parts.join('');
-      } 
+      }
     }
 
     const parsed = parseFloat(numStr);
@@ -138,7 +138,41 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return parsed;
   };
 
-  // 🚀 FUNÇÕES PARA O FILTRO DE DATA ATUALIZADO
+  // JSONP loader (retorna Promise) — usado como fallback quando CORS/fetch falham
+  function loadJsonp(url, timeout = 9000) {
+    return new Promise((resolve, reject) => {
+      const callbackName = '__gas_cb_' + Math.random().toString(36).slice(2);
+      // define callback global
+      window[callbackName] = (data) => {
+        cleanup();
+        resolve(data);
+      };
+
+      const script = document.createElement('script');
+      script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName;
+      script.async = true;
+
+      function cleanup() {
+        try { delete window[callbackName]; } catch (e) {}
+        if (script.parentNode) script.parentNode.removeChild(script);
+        clearTimeout(timer);
+      }
+
+      script.onerror = () => {
+        cleanup();
+        reject(new Error('Erro ao carregar JSONP'));
+      };
+
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error('Timeout JSONP'));
+      }, timeout);
+
+      document.body.appendChild(script);
+    });
+  }
+
+  // Data helpers
   const getPrimeiroDiaMes = () => {
     const hoje = new Date();
     return new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
@@ -183,51 +217,198 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     }
   };
 
-  // NOVO: Busca o total de renovações da célula Apolices!I2
+  // NOVO: Busca o total de renovações da célula Apolices!I2 com fallback JSONP
   const fetchRenovacoesByCell = async () => {
+    const url = `${GAS_URL}?action=getRenovacoesCellI2`;
     try {
-      // Usamos o mode: 'cors' para garantir a leitura do corpo da resposta (texto/número)
-      const resp = await fetch(`${GAS_URL}?action=getRenovacoesCellI2`, {
-        method: 'GET',
-        // mode: 'cors' é o padrão, não precisa declarar
-      });
+      // 1) tenta fetch normal (requer CORS configurado no GAS)
+      try {
+        const resp = await fetch(url, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json, text/plain, */*' },
+        });
 
-      const text = await resp.text();
-      const parsed = parseNumberFromText(text);
+        if (resp.ok) {
+          // tenta ler como texto primeiro (pode ser apenas um número/texto)
+          try {
+            const text = await resp.text();
+            const parsed = parseNumberFromText(text);
+            if (parsed !== null) {
+              const finalVal = Math.max(0, Math.floor(Number(parsed) || 0));
+              setRenovacoesApolicesI2(finalVal);
+              console.log(`Valor de Apolices!I2 (Renovações) lido via fetch/text: ${finalVal}`);
+              return;
+            }
+          } catch (tErr) {
+            console.warn('Erro ao ler texto de resposta de getRenovacoesCellI2:', tErr);
+          }
 
-      const finalVal = Math.max(0, Math.floor(Number(parsed) || 0));
-      setRenovacoesApolicesI2(finalVal);
-      console.log(`Valor de Apolices!I2 (Renovações) lido: ${finalVal}`);
-      
+          // tenta JSON como fallback
+          try {
+            const json = await resp.json();
+            let num = null;
+            if (json && json.totalRenovacoes !== undefined) {
+              num = parseNumberFromText(String(json.totalRenovacoes)) ?? Number(json.totalRenovacoes);
+            } else if (typeof json === 'number') {
+              num = json;
+            } else if (typeof json === 'string') {
+              num = parseNumberFromText(json);
+            } else if (json && typeof json === 'object') {
+              const v = Object.values(json)[0];
+              if (v !== undefined) {
+                num = parseNumberFromText(String(v)) ?? Number(v);
+              }
+            }
+
+            if (num !== null && !Number.isNaN(num)) {
+              const finalVal = Math.max(0, Math.floor(Number(num)));
+              setRenovacoesApolicesI2(finalVal);
+              console.log(`Valor de Apolices!I2 (Renovações) lido via fetch/json: ${finalVal}`);
+              return;
+            } else {
+              console.warn('fetch ok mas não conseguiu extrair número do JSON/texto (I2).');
+            }
+          } catch (jErr) {
+            console.warn('Não foi possível parsear JSON de getRenovacoesCellI2:', jErr);
+          }
+        } else {
+          console.warn('fetch retornou status não-OK para I2:', resp.status);
+        }
+      } catch (fetchErr) {
+        console.warn('fetch (CORS) falhou para getRenovacoesCellI2, tentando JSONP:', fetchErr);
+      }
+
+      // 2) fallback JSONP
+      try {
+        const data = await loadJsonp(url, 9000);
+        let num = null;
+        if (data && data.totalRenovacoes !== undefined) {
+          num = parseNumberFromText(String(data.totalRenovacoes)) ?? Number(data.totalRenovacoes);
+        } else if (typeof data === 'number') {
+          num = data;
+        } else if (typeof data === 'string') {
+          num = parseNumberFromText(data);
+        } else if (data && typeof data === 'object') {
+          const v = Object.values(data)[0];
+          if (v !== undefined) num = parseNumberFromText(String(v)) ?? Number(v);
+        }
+
+        if (num !== null && !Number.isNaN(num)) {
+          const finalVal = Math.max(0, Math.floor(Number(num)));
+          setRenovacoesApolicesI2(finalVal);
+          console.log(`Valor de Apolices!I2 (Renovações) lido via JSONP: ${finalVal}`);
+          return;
+        } else {
+          throw new Error('JSONP não retornou número válido para I2.');
+        }
+      } catch (jsonpErr) {
+        console.error('Erro ao buscar renovações da célula I2 (fallback JSONP falhou):', jsonpErr);
+        setRenovacoesApolicesI2(0);
+      }
+
     } catch (error) {
       console.error('Erro ao buscar renovações da célula I2:', error);
       setRenovacoesApolicesI2(0);
     }
   };
-  
-  // Busca a Meta de renovações (célula I1)
+
+  // Busca a Meta de renovações (célula I1) com fallback JSONP
   const fetchTotalRenovacoesMeta = async () => {
     setIsSaving(true);
+    const url = `${GAS_URL}?action=getTotalRenovacoes`;
     try {
-      // Usamos GET com mode: 'cors' para conseguir ler a resposta (texto/número)
-      const resp = await fetch(`${GAS_URL}?action=getTotalRenovacoes`, {
-        method: 'GET',
-        // mode: 'cors' é o padrão
-      });
+      // 1) tenta fetch normal (CORS)
+      try {
+        const resp = await fetch(url, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json, text/plain, */*' },
+        });
 
-      const text = await resp.text();
-      const resolvedValue = parseNumberFromText(text);
+        if (resp.ok) {
+          // tenta texto primeiro
+          try {
+            const text = await resp.text();
+            const parsed = parseNumberFromText(text);
+            if (parsed !== null) {
+              const finalVal = Math.max(0, Math.floor(Number(parsed) || 0));
+              setTotalRenovacoesMeta(finalVal);
+              setNewTotalRenovacoesValue(finalVal);
+              setMessage({ text: '', type: '' });
+              console.log('Meta I1 lida via fetch/text:', finalVal);
+              return;
+            }
+          } catch (tErr) {
+            console.warn('Erro ao ler texto da resposta de getTotalRenovacoes:', tErr);
+          }
 
-      if (resolvedValue === null) {
-        throw new Error('Não foi possível extrair número de getTotalRenovacoes (Resposta:' + text + ')');
+          // tenta JSON
+          try {
+            const json = await resp.json();
+            let num = null;
+            if (json && json.totalRenovacoes !== undefined) {
+              num = parseNumberFromText(String(json.totalRenovacoes)) ?? Number(json.totalRenovacoes);
+            } else if (typeof json === 'number') {
+              num = json;
+            } else if (typeof json === 'string') {
+              num = parseNumberFromText(json);
+            } else if (json && typeof json === 'object') {
+              const v = Object.values(json)[0];
+              if (v !== undefined) num = parseNumberFromText(String(v)) ?? Number(v);
+            }
+
+            if (num !== null && !Number.isNaN(num)) {
+              const finalVal = Math.max(0, Math.floor(Number(num)));
+              setTotalRenovacoesMeta(finalVal);
+              setNewTotalRenovacoesValue(finalVal);
+              setMessage({ text: '', type: '' });
+              console.log('Meta I1 lida via fetch/json:', finalVal);
+              return;
+            } else {
+              console.warn('fetch ok mas não conseguiu extrair número do JSON/texto (I1).');
+            }
+          } catch (jErr) {
+            console.warn('Não foi possível parsear JSON de getTotalRenovacoes:', jErr);
+          }
+        } else {
+          console.warn('fetch retornou status não-OK para I1:', resp.status);
+        }
+      } catch (fetchErr) {
+        console.warn('fetch (CORS) falhou para getTotalRenovacoes, tentando JSONP:', fetchErr);
       }
 
-      // garante inteiro e não negativo
-      const finalVal = Math.max(0, Math.floor(Number(resolvedValue) || 0));
-      setTotalRenovacoesMeta(finalVal);
-      setNewTotalRenovacoesValue(finalVal);
-      setMessage({ text: '', type: '' });
-      
+      // 2) fallback JSONP
+      try {
+        const data = await loadJsonp(url, 9000);
+        let num = null;
+        if (data && data.totalRenovacoes !== undefined) {
+          num = parseNumberFromText(String(data.totalRenovacoes)) ?? Number(data.totalRenovacoes);
+        } else if (typeof data === 'number') {
+          num = data;
+        } else if (typeof data === 'string') {
+          num = parseNumberFromText(data);
+        } else if (data && typeof data === 'object') {
+          const v = Object.values(data)[0];
+          if (v !== undefined) num = parseNumberFromText(String(v)) ?? Number(v);
+        }
+
+        if (num !== null && !Number.isNaN(num)) {
+          const finalVal = Math.max(0, Math.floor(Number(num)));
+          setTotalRenovacoesMeta(finalVal);
+          setNewTotalRenovacoesValue(finalVal);
+          setMessage({ text: '', type: '' });
+          console.log('Meta I1 lida via JSONP:', finalVal);
+          return;
+        } else {
+          throw new Error('JSONP não retornou número válido para I1.');
+        }
+      } catch (jsonpErr) {
+        console.error('Fallback JSONP falhou para getTotalRenovacoes:', jsonpErr);
+        setTotalRenovacoesMeta(0);
+        setNewTotalRenovacoesValue(0);
+        setMessage({ text: 'Não foi possível obter Meta I1 (CORS/JSONP falhou).', type: 'error' });
+        return;
+      }
+
     } catch (error) {
       console.error('Erro ao buscar total de renovações (META I1):', error);
       setTotalRenovacoesMeta(0);
@@ -242,7 +423,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const saveTotalRenovacoes = async () => {
     setMessage({ text: '', type: '' });
     const valueToSave = Math.floor(Number(newTotalRenovacoesValue)); // Garante inteiro
-    
+
     if (isNaN(valueToSave) || valueToSave < 0) {
       setMessage({ text: 'O valor deve ser um número inteiro positivo.', type: 'error' });
       return;
@@ -295,7 +476,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const leadsFiltradosPorDataGeral = useMemo(() => {
     return leads.filter((lead) => {
       if (lead.status === 'Cancelado') return false;
-      
+
       const dataLeadStr = getValidDateStr(lead.createdAt);
       if (!dataLeadStr) return false;
       if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
@@ -433,7 +614,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
             gap: '20px',
             marginBottom: '30px',
           }}>
-            
+
             {/* NOVO: Contador: Renovações Lidas da Célula I2 */}
             <div style={{ ...compactCardStyle, backgroundColor: '#eff6ff', border: '1px solid #93c5fd' }}>
               <p style={{ ...titleTextStyle, color: '#2563eb' }}>Renovações (Célula I2)</p>
@@ -442,11 +623,11 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                 {renovacoesApolicesI2}
               </p>
             </div>
-            
+
             {/* Contador: Total de Renovações (Meta Editável I1) */}
             <div style={{ ...compactCardStyle, minWidth: '150px', position: 'relative' }}>
               <p style={titleTextStyle}>Meta (Célula I1)</p>
-              
+
               {isEditingRenovacoes ? (
                 // --- MODO EDIÇÃO ---
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -455,10 +636,10 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                     value={newTotalRenovacoesValue}
                     onChange={(e) => setNewTotalRenovacoesValue(e.target.value)}
                     min="0"
-                    style={{ 
-                      ...valueTextStyle, 
-                      color: '#1f2937', 
-                      width: '80px', 
+                    style={{
+                      ...valueTextStyle,
+                      color: '#1f2937',
+                      width: '80px',
                       textAlign: 'center',
                       border: '1px solid #d1d5db',
                       borderRadius: '4px',
@@ -468,14 +649,14 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                   <button
                     onClick={saveTotalRenovacoes}
                     disabled={isSaving}
-                    style={{ 
-                      backgroundColor: '#10b981', 
-                      color: 'white', 
-                      border: 'none', 
-                      borderRadius: '6px', 
-                      padding: '4px 10px', 
+                    style={{
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '4px 10px',
                       marginTop: '8px',
-                      cursor: 'pointer', 
+                      cursor: 'pointer',
                       fontWeight: '600',
                       display: 'flex',
                       alignItems: 'center',
@@ -490,12 +671,12 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                       setNewTotalRenovacoesValue(totalRenovacoesMeta);
                     }}
                     style={{
-                        backgroundColor: 'transparent',
-                        color: '#6b7280',
-                        border: 'none',
-                        marginTop: '4px',
-                        fontSize: '10px',
-                        cursor: 'pointer',
+                      backgroundColor: 'transparent',
+                      color: '#6b7280',
+                      border: 'none',
+                      marginTop: '4px',
+                      fontSize: '10px',
+                      cursor: 'pointer',
                     }}
                   >
                     Cancelar
@@ -524,7 +705,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
                   </button>
                 </>
               )}
-              
+
             </div>
 
             {/* Contador: Renovados (Vendas) */}
@@ -538,16 +719,16 @@ const Dashboard = ({ leads, usuarioLogado }) => {
               <p style={{ ...titleTextStyle, color: '#ef4444' }}>Perdidos (Mês)</p>
               <p style={{ ...valueTextStyle, color: '#ef4444' }}>{leadsPerdidos}</p>
             </div>
-            
+
           </div>
-          
+
           {/* Seção de Gráfico (Sempre no topo da segunda linha para mobile/desktop) */}
           <div style={{
             ...compactCardStyle,
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: '30px',
-            maxWidth: '250px', // Limita o tamanho para ser um destaque, mas responsivo
+            maxWidth: '250px',
             margin: '0 auto 30px',
           }}>
             <h3 style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '5px' }}>Taxa de Renovação (vs. Meta I1)</h3>
