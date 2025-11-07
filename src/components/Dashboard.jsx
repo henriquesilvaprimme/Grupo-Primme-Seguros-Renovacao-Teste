@@ -212,7 +212,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
           console.log('Tentando buscar totalRenovacoes em:', url);
           const resp = await fetch(url, {
             method: 'GET',
-            mode: 'cors',
+            mode: 'no-cors',
             headers: { 'Accept': 'application/json, text/plain, */*' },
           });
 
