@@ -99,6 +99,41 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
+  // --- NOVA LÓGICA: Edição de Total de Renovações ---
+  const [totalRenovacoes, setTotalRenovacoes] = useState(0);
+  const [editandoRenovacoes, setEditandoRenovacoes] = useState(false);
+  const [valorTemporario, setValorTemporario] = useState('');
+
+  const salvarTotalRenovacoes = async () => {
+    try {
+      const valorNumerico = Number(valorTemporario);
+      if (isNaN(valorNumerico)) {
+        alert('Por favor, insira um número válido.');
+        return;
+      }
+
+      // Atualiza o estado local
+      setTotalRenovacoes(valorNumerico);
+      setEditandoRenovacoes(false);
+
+      // Envia para a planilha na aba "Apolices", coluna I (TotalRenovacoes)
+      await fetch('https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec', {
+        method: 'POST',
+        body: JSON.stringify({
+          acao: 'salvar_total_renovacoes',
+          totalRenovacoes: valorNumerico
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      alert('Total de Renovações salvo com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar Total de Renovações:', error);
+      alert('Erro ao salvar Total de Renovações. Verifique sua conexão ou o script.');
+    }
+  };
+  // ----------------------------------------------------------------------
+
   // 🚀 FUNÇÕES PARA O FILTRO DE DATA ATUALIZADO (Primeiro e Último dia do Mês)
   const getPrimeiroDiaMes = () => {
     const hoje = new Date();
@@ -106,31 +141,25 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   };
 
   const getUltimoDiaMes = () => {
-    // Cria uma data que é o primeiro dia do PRÓXIMO mês, e subtrai 1 dia
     const hoje = new Date();
     const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
     return ultimoDia.toISOString().slice(0, 10);
   };
 
   const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
-  const [dataFim, setDataFim] = useState(getUltimoDiaMes()); // 💡 ATUALIZADO para usar o último dia
-  const [filtroAplicado, setFiltroAplicado] = useState({ 
-    inicio: getPrimeiroDiaMes(), 
-    fim: getUltimoDiaMes() // 💡 ATUALIZADO para usar o último dia
+  const [dataFim, setDataFim] = useState(getUltimoDiaMes());
+  const [filtroAplicado, setFiltroAplicado] = useState({
+    inicio: getPrimeiroDiaMes(),
+    fim: getUltimoDiaMes()
   });
-  // --------------------------------------------------------------------------
 
-  // Função auxiliar para validar e formatar a data
   const getValidDateStr = (dateValue) => {
     if (!dateValue) return null;
     const dateObj = new Date(dateValue);
-    if (isNaN(dateObj.getTime())) {
-      return null;
-    }
+    if (isNaN(dateObj.getTime())) return null;
     return dateObj.toISOString().slice(0, 10);
   };
 
-  // Busca leads fechados
   const buscarLeadsClosedFromAPI = async () => {
     setIsLoading(true);
     setLoading(true);
@@ -148,7 +177,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     }
   };
 
-  // refresh automático ao entrar na aba
   useEffect(() => {
     buscarLeadsClosedFromAPI();
   }, []);
@@ -157,11 +185,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     setFiltroAplicado({ inicio: dataInicio, fim: dataFim });
   };
 
-  // Filtro por data dos leads gerais (vindos via prop `leads`)
   const leadsFiltradosPorDataGeral = leads.filter((lead) => {
-    // LÓGICA DE EXCLUSÃO: Ignora leads com status 'Cancelado'
-    if (lead.status === 'Cancelado') return false; 
-    
+    if (lead.status === 'Cancelado') return false;
     const dataLeadStr = getValidDateStr(lead.createdAt);
     if (!dataLeadStr) return false;
     if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
@@ -172,7 +197,6 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const totalLeads = leadsFiltradosPorDataGeral.length;
   const leadsPerdidos = leadsFiltradosPorDataGeral.filter((lead) => lead.status === 'Perdido').length;
 
-  // Filtra leads fechados por responsável e data
   let leadsFiltradosClosed =
     usuarioLogado.tipo === 'Admin'
       ? leadsClosed
@@ -186,39 +210,25 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     return true;
   });
 
-  // Contadores por seguradora
   const portoSeguro = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Porto Seguro').length;
   const azulSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Azul Seguros').length;
   const itauSeguros = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Itau Seguros').length;
   const demais = leadsFiltradosClosed.filter((lead) => lead.Seguradora === 'Demais Seguradoras').length;
-
-  // O campo Vendas soma os contadores das seguradoras
   const leadsFechadosCount = portoSeguro + azulSeguros + itauSeguros + demais;
 
-  // Soma de prêmio líquido (Mantido, pois é usado no card "Total Prêmio Líquido")
   const totalPremioLiquido = leadsFiltradosClosed.reduce(
     (acc, lead) => acc + (Number(lead.PremioLiquido) || 0),
     0
   );
 
-  // --- LÓGICA ATUALIZADA PARA MÉDIA COMISSÃO (Conforme solicitado) ---
-  // Cálculo: Total de percentual de comissão dividido pelo numero total de Vendas.
-
-  // 1. Soma total dos percentuais de comissão
   const somaTotalPercentualComissao = leadsFiltradosClosed.reduce(
     (acc, lead) => acc + (Number(lead.Comissao) || 0),
     0
   );
-
-  // 2. Número total de vendas (igual a leadsFiltradosClosed.length)
   const totalVendasParaMedia = leadsFiltradosClosed.length;
-
-  // 3. Média Comissão: Total Percentual / Total Vendas
   const comissaoMediaGlobal =
     totalVendasParaMedia > 0 ? somaTotalPercentualComissao / totalVendasParaMedia : 0;
-  // ------------------------------------------------------------------
 
-  // Cálculo: Porcentagem de Vendidos
   const porcentagemVendidos = totalLeads > 0 ? (leadsFechadosCount / totalLeads) * 100 : 0;
 
   return (
@@ -281,97 +291,63 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
       {!loading && (
         <>
-          {/* Primeira Seção: 3 Contadores Principais + Gráfico (Grid com 4 colunas) */}
+          {/* Primeira Seção */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', // Colunas responsivas
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
             gap: '20px',
             marginBottom: '30px',
           }}>
-            {/* Contador: Total de Leads */}
+            {/* Total de Renovações */}
             <div style={{ ...compactCardStyle, minWidth: '150px' }}>
-                <p style={titleTextStyle}>Total de Renovações</p>
-                <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalLeads}</p>
-                
+              <p style={titleTextStyle}>Total de Renovações</p>
+
+              {editandoRenovacoes ? (
+                <>
+                  <input
+                    type="number"
+                    value={valorTemporario}
+                    onChange={(e) => setValorTemporario(e.target.value)}
+                    style={{ ...valueTextStyle, width: '80px', textAlign: 'center' }}
+                  />
+                  <button
+                    onClick={salvarTotalRenovacoes}
+                    style={{ marginTop: '8px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer' }}
+                  >
+                    Salvar
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalRenovacoes}</p>
+                  <button
+                    onClick={() => { setEditandoRenovacoes(true); setValorTemporario(totalRenovacoes); }}
+                    style={{ marginTop: '8px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer' }}
+                  >
+                    {totalRenovacoes === 0 ? 'Editar' : 'Alterar'}
+                  </button>
+                </>
+              )}
             </div>
 
-            {/* Contador: Vendas */}
+            {/* Renovados */}
             <div style={{ ...compactCardStyle, backgroundColor: '#d1fae5', border: '1px solid #a7f3d0' }}>
-                <p style={{ ...titleTextStyle, color: '#059669' }}>Renovados</p>
-                <p style={{ ...valueTextStyle, color: '#059669' }}>{leadsFechadosCount}</p>
+              <p style={{ ...titleTextStyle, color: '#059669' }}>Renovados</p>
+              <p style={{ ...valueTextStyle, color: '#059669' }}>{leadsFechadosCount}</p>
             </div>
 
-            {/* Contador: Leads Perdidos */}
+            {/* Perdidos */}
             <div style={{ ...compactCardStyle, backgroundColor: '#fee2e2', border: '1px solid #fca5a5' }}>
-                <p style={{ ...titleTextStyle, color: '#ef4444' }}>Perdidos</p>
-                <p style={{ ...valueTextStyle, color: '#ef4444' }}>{leadsPerdidos}</p>
+              <p style={{ ...titleTextStyle, color: '#ef4444' }}>Perdidos</p>
+              <p style={{ ...valueTextStyle, color: '#ef4444' }}>{leadsPerdidos}</p>
             </div>
 
-            {/* Gráfico Circular de Progresso (Ultima Coluna, à Direita) */}
-            <div style={{
-                ...compactCardStyle,
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: '150px'
-            }}>
-                <h3 style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '5px' }}>Taxa de Renovação</h3>
-                <CircularProgressChart percentage={porcentagemVendidos} />
+            {/* Gráfico */}
+            <div style={{ ...compactCardStyle, alignItems: 'center', justifyContent: 'center', minWidth: '150px' }}>
+              <h3 style={{ ...titleTextStyle, color: '#1f2937', marginBottom: '5px' }}>Taxa de Renovação</h3>
+              <CircularProgressChart percentage={porcentagemVendidos} />
             </div>
           </div>
-
-          {/* Segunda Seção: Contadores por Seguradora (Grid com 4 colunas) */}
-          <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Vendas por Seguradora</h2>
-          <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', // Colunas responsivas
-              gap: '20px',
-              marginBottom: '30px',
-          }}>
-            <div style={{ ...compactCardStyle, backgroundColor: '#f0f9ff', border: '1px solid #bfdbfe' }}>
-              <p style={{ ...titleTextStyle, color: '#1e40af' }}>Porto Seguro</p>
-              <p style={{ ...valueTextStyle, color: '#1e40af' }}>{portoSeguro}</p>
-            </div>
-            <div style={{ ...compactCardStyle, backgroundColor: '#f0fdf4', border: '1px solid #a7f3d0' }}>
-              <p style={{ ...titleTextStyle, color: '#065f46' }}>Azul Seguros</p>
-              <p style={{ ...valueTextStyle, color: '#065f46' }}>{azulSeguros}</p>
-            </div>
-            <div style={{ ...compactCardStyle, backgroundColor: '#fff7ed', border: '1px solid #fed7aa' }}>
-              <p style={{ ...titleTextStyle, color: '#92400e' }}>Itau Seguros</p>
-              <p style={{ ...valueTextStyle, color: '#92400e' }}>{itauSeguros}</p>
-            </div>
-            <div style={{ ...compactCardStyle, backgroundColor: '#f9fafb', border: '1px solid #d1d5db' }}>
-              <p style={{ ...titleTextStyle, color: '#374151' }}>Demais Seguradoras</p>
-              <p style={{ ...valueTextStyle, color: '#374151' }}>{demais}</p>
-            </div>
-          </div>
-
-          {/* Terceira Seção: Prêmios e Comissão (Grid com 2 colunas) */}
-          {usuarioLogado.tipo === 'Admin' && (
-            <>
-            <h2 style={{ color: '#1f2937', marginBottom: '15px', fontSize: '18px', fontWeight: '600' }}>Métricas Financeiras</h2>
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', // 2 colunas responsivas
-                gap: '20px',
-            }}>
-              <div style={{ ...compactCardStyle, backgroundColor: '#eef2ff', border: '1px solid #c7d2fe' }}>
-                <p style={{ ...titleTextStyle, color: '#4f46e5' }}>Total Prêmio Líquido</p>
-                <p style={{ ...valueTextStyle, color: '#4f46e5' }}>
-                  {totalPremioLiquido.toLocaleString('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL',
-                  })}
-                </p>
-              </div>
-              <div style={{ ...compactCardStyle, backgroundColor: '#ecfeff', border: '1px solid #99f6e4' }}>
-                <p style={{ ...titleTextStyle, color: '#0f766e' }}>Média Comissão</p>
-                <p style={{ ...valueTextStyle, color: '#0f766e' }}>
-                  {comissaoMediaGlobal.toFixed(2).replace('.', ',')}%
-                </p>
-              </div>
-            </div>
-            </>
-          )}
         </>
       )}
     </div>
