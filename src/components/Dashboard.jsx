@@ -94,56 +94,20 @@ const CircularProgressChart = ({ percentage }) => {
 };
 // ------------------------------------------------------------------------
 
+// URL base do seu GAS (reutilizei a mesma usada no buscarLeadsClosedFromAPI)
+const GAS_BASE_URL = 'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec';
+
 const Dashboard = ({ leads, usuarioLogado }) => {
   const [leadsClosed, setLeadsClosed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [totalRenovacoes, setTotalRenovacoes] = useState(0);
-  const [isEditingRenovacoes, setIsEditingRenovacoes] = useState(false);
-  const [editedRenovacoes, setEditedRenovacoes] = useState(0);
 
-  // Função para editar o Total de Renovações
-  const handleEditRenovacoes = () => {
-    setEditedRenovacoes(totalRenovacoes);
-    setIsEditingRenovacoes(true);
-  };
-
-  // Função para salvar o Total de Renovações no Google Sheets
-  const handleSaveRenovacoes = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=atualizar_total_renovacoes',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ totalRenovacoes: editedRenovacoes }),
-        }
-      );
-
-      // Com no-cors, não podemos ler o corpo da resposta.
-      // Apenas verificamos se a requisição foi enviada sem erros de rede.
-      // O Google Apps Script já foi ajustado para retornar uma resposta vazia/simples.
-      if (response.ok || response.type === 'opaque') { // response.ok pode não ser true com no-cors, então verificamos o tipo
-        setTotalRenovacoes(editedRenovacoes);
-        setIsEditingRenovacoes(false);
-        alert('Total de Renovações atualizado com sucesso!');
-      } else {
-        // Se houver um problema que não seja um erro de rede (ex: status HTTP de erro),
-        // mas ainda assim a resposta é opaca, é difícil obter detalhes.
-        // Você pode considerar que qualquer resposta não-ok ou não-opaca é um erro.
-        alert('Erro ao atualizar o Total de Renovações. Tente novamente.');
-      }
-    } catch (error) {
-      console.error('Erro ao salvar renovações:', error);
-      alert('Erro ao salvar o Total de Renovações. Verifique sua conexão ou tente novamente.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // NOVOS STATES para Total de Renovações espelho
+  const [totalRenovacoesMirror, setTotalRenovacoesMirror] = useState(0);
+  const [loadingTotalRenovacoes, setLoadingTotalRenovacoes] = useState(false);
+  const [isEditingTotalRenovacoes, setIsEditingTotalRenovacoes] = useState(false);
+  const [totalRenovacoesInput, setTotalRenovacoesInput] = useState('');
+  const [savingTotalRenovacoes, setSavingTotalRenovacoes] = useState(false);
 
   // 🚀 FUNÇÕES PARA O FILTRO DE DATA ATUALIZADO (Primeiro e Último dia do Mês)
   const getPrimeiroDiaMes = () => {
@@ -160,8 +124,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
   const [dataInicio, setDataInicio] = useState(getPrimeiroDiaMes());
   const [dataFim, setDataFim] = useState(getUltimoDiaMes()); // 💡 ATUALIZADO para usar o último dia
-  const [filtroAplicado, setFiltroAplicado] = useState({ 
-    inicio: getPrimeiroDiaMes(), 
+  const [filtroAplicado, setFiltroAplicado] = useState({
+    inicio: getPrimeiroDiaMes(),
     fim: getUltimoDiaMes() // 💡 ATUALIZADO para usar o último dia
   });
   // --------------------------------------------------------------------------
@@ -182,7 +146,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     setLoading(true);
     try {
       const respostaLeads = await fetch(
-        'https://script.google.com/macros/s/AKfycbyGelso1gXJEKWBCDScAyVBGPp9ncWsuUjN8XS-Cd7R8xIH7p6PWEZo2eH-WZcs99yNaA/exec?v=pegar_clientes_fechados'
+        `${GAS_BASE_URL}?v=pegar_clientes_fechados`
       );
       const dadosLeads = await respostaLeads.json();
       setLeadsClosed(dadosLeads);
@@ -194,9 +158,56 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     }
   };
 
-  // refresh automático ao entrar na aba
+  // --- NOVA FUNÇÃO: Buscar valor espelho de Apolices!I2
+  const fetchTotalRenovacoesFromApolices = async () => {
+    setLoadingTotalRenovacoes(true);
+    try {
+      const res = await fetch(`${GAS_BASE_URL}?v=pegar_valor_apolice_i2`);
+      // endpoint retorna JSON: { valor: ... }
+      const data = await res.json();
+      const valor = data && (data.valor !== undefined) ? data.valor : 0;
+      const num = Number(String(valor).replace(',', '.'));
+      setTotalRenovacoesMirror(!isNaN(num) ? Math.floor(num) : 0);
+    } catch (err) {
+      console.error('Erro ao buscar Total de Renovacoes (Apolices!I2):', err);
+      setTotalRenovacoesMirror(0);
+    } finally {
+      setLoadingTotalRenovacoes(false);
+    }
+  };
+
+  // --- NOVA FUNÇÃO: Salvar valor em Apolices!I2 via POST
+  const saveTotalRenovacoesToApolices = async (valueToSave) => {
+    setSavingTotalRenovacoes(true);
+    try {
+      // envia JSON ao doPost do GAS
+      const payload = {
+        v: 'setTotalRenovacoes',
+        totalRenovacoes: valueToSave
+      };
+      const resp = await fetch(GAS_BASE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      // Mesmo que o GAS retorne vazio para no-cors, em modo cors normalmente teremos resposta.
+      // Após salvar, recarrega o valor espelho
+      await fetchTotalRenovacoesFromApolices();
+      setIsEditingTotalRenovacoes(false);
+    } catch (err) {
+      console.error('Erro ao salvar Total de Renovacoes em Apolices!I2:', err);
+      // mantem em edição para o usuário tentar novamente
+    } finally {
+      setSavingTotalRenovacoes(false);
+    }
+  };
+
+  // refresh automático ao entrar na aba - agora também busca o valor espelho
   useEffect(() => {
     buscarLeadsClosedFromAPI();
+    fetchTotalRenovacoesFromApolices();
   }, []);
 
   const aplicarFiltroData = () => {
@@ -206,8 +217,8 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   // Filtro por data dos leads gerais (vindos via prop `leads`)
   const leadsFiltradosPorDataGeral = leads.filter((lead) => {
     // LÓGICA DE EXCLUSÃO: Ignora leads com status 'Cancelado'
-    if (lead.status === 'Cancelado') return false; 
-    
+    if (lead.status === 'Cancelado') return false;
+
     const dataLeadStr = getValidDateStr(lead.createdAt);
     if (!dataLeadStr) return false;
     if (filtroAplicado.inicio && dataLeadStr < filtroAplicado.inicio) return false;
@@ -296,7 +307,7 @@ const Dashboard = ({ leads, usuarioLogado }) => {
 
         <button
           title='Clique para atualizar os dados'
-          onClick={buscarLeadsClosedFromAPI}
+          onClick={() => { buscarLeadsClosedFromAPI(); fetchTotalRenovacoesFromApolices(); }}
           disabled={isLoading}
           style={{ backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '40px', height: '40px' }}
         >
@@ -326,36 +337,58 @@ const Dashboard = ({ leads, usuarioLogado }) => {
             gap: '20px',
             marginBottom: '30px',
           }}>
-            {/* Contador: Total de Leads */}
+            {/* Contador: Total de Renovações - agora espelho editável */}
             <div style={{ ...compactCardStyle, minWidth: '150px' }}>
                 <p style={titleTextStyle}>Total de Renovações</p>
-                {isEditingRenovacoes ? (
-                  <input
-                    type="number"
-                    value={editedRenovacoes}
-                    onChange={(e) => setEditedRenovacoes(Number(e.target.value))}
-                    style={{ ...valueTextStyle, width: '80px', textAlign: 'center' }}
-                  />
+
+                {/* Se estiver editando, mostra input + salvar/cancelar */}
+                {isEditingTotalRenovacoes ? (
+                  <>
+                    <input
+                      type="text"
+                      value={totalRenovacoesInput}
+                      onChange={(e) => setTotalRenovacoesInput(e.target.value)}
+                      style={{ padding: '6px 8px', borderRadius: '6px', border: '1px solid #d1d5db', width: '100%', textAlign: 'center', fontSize: '20px', fontWeight: '700' }}
+                      disabled={savingTotalRenovacoes}
+                    />
+                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => saveTotalRenovacoesToApolices(totalRenovacoesInput)}
+                        disabled={savingTotalRenovacoes}
+                        style={{ backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', fontWeight: '600' }}
+                      >
+                        {savingTotalRenovacoes ? 'Salvando...' : 'Salvar'}
+                      </button>
+                      <button
+                        onClick={() => { setIsEditingTotalRenovacoes(false); setTotalRenovacoesInput(String(totalRenovacoesMirror)); }}
+                        disabled={savingTotalRenovacoes}
+                        style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', fontWeight: '600' }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </>
                 ) : (
-                  <p style={{ ...valueTextStyle, color: '#1f2937' }}>{totalRenovacoes}</p>
+                  <>
+                    <p style={{ ...valueTextStyle, color: '#1f2937' }}>
+                      {loadingTotalRenovacoes ? '...' : totalRenovacoesMirror}
+                    </p>
+                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => { setIsEditingTotalRenovacoes(true); setTotalRenovacoesInput(String(totalRenovacoesMirror)); }}
+                        style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', fontWeight: '600' }}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={fetchTotalRenovacoesFromApolices}
+                        style={{ backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 10px', cursor: 'pointer', fontWeight: '600' }}
+                      >
+                        Atualizar
+                      </button>
+                    </div>
+                  </>
                 )}
-                {isEditingRenovacoes ? (
-                  <button
-                    onClick={handleSaveRenovacoes}
-                    disabled={isLoading}
-                    style={{ marginTop: '10px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '8px', padding: '5px 10px', cursor: 'pointer' }}
-                  >
-                    Salvar
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleEditRenovacoes}
-                    style={{ marginTop: '10px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', padding: '5px 10px', cursor: 'pointer' }}
-                  >
-                    Editar
-                  </button>
-                )}
-                
             </div>
 
             {/* Contador: Vendas */}
