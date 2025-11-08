@@ -145,11 +145,22 @@ const Dashboard = ({ leads, usuarioLogado }) => {
     setIsLoading(true);
     setLoading(true);
     try {
-      const respostaLeads = await fetch(
-        `${GAS_BASE_URL}?v=pegar_clientes_fechados`
-      );
-      const dadosLeads = await respostaLeads.json();
-      setLeadsClosed(dadosLeads);
+      // Usando mode: 'no-cors' conforme solicitado
+      await fetch(
+        `${GAS_BASE_URL}?v=pegar_clientes_fechados`,
+        { mode: 'no-cors' }
+      ).then(async (res) => {
+        // Em no-cors a resposta será opaca e não é possível ler o body.
+        // Para preservar funcionalidade, tentamos ler quando possível.
+        if (res && res.type === 'opaque') {
+          // Não conseguimos ler body — manter estado atual (ou fazer outra estratégia).
+          console.warn('Resposta opaca em pegar_clientes_fechados. Não foi possível ler body (no-cors).');
+          // Não atualiza leadsClosed aqui
+          return;
+        }
+        const dadosLeads = await res.json();
+        setLeadsClosed(dadosLeads);
+      });
     } catch (error) {
       console.error('Erro ao buscar leads:', error);
     } finally {
@@ -162,41 +173,65 @@ const Dashboard = ({ leads, usuarioLogado }) => {
   const fetchTotalRenovacoesFromApolices = async () => {
     setLoadingTotalRenovacoes(true);
     try {
-      const res = await fetch(`${GAS_BASE_URL}?v=pegar_valor_apolice_i2`);
-      // endpoint retorna JSON: { valor: ... }
+      const res = await fetch(`${GAS_BASE_URL}?v=pegar_valor_apolice_i2`, { mode: 'no-cors' });
+
+      if (res && res.type === 'opaque') {
+        // Resposta opaca: não é possível ler o corpo.
+        console.warn('Resposta opaca ao buscar Apolices!I2 (no-cors). Não é possível ler o body no navegador.');
+        // Mantém o valor atual exibido (não sobrescreve).
+        setLoadingTotalRenovacoes(false);
+        return;
+      }
+
+      // Se não for opaco, tentamos ler o JSON (normal)
       const data = await res.json();
       const valor = data && (data.valor !== undefined) ? data.valor : 0;
       const num = Number(String(valor).replace(',', '.'));
       setTotalRenovacoesMirror(!isNaN(num) ? Math.floor(num) : 0);
     } catch (err) {
       console.error('Erro ao buscar Total de Renovacoes (Apolices!I2):', err);
-      setTotalRenovacoesMirror(0);
+      // Não altera o valor mostrado
     } finally {
       setLoadingTotalRenovacoes(false);
     }
   };
 
-  // --- NOVA FUNÇÃO: Salvar valor em Apolices!I2 via POST
+  // --- NOVA FUNÇÃO: Salvar valor em Apolices!I2 via POST (com mode:no-cors)
   const saveTotalRenovacoesToApolices = async (valueToSave) => {
     setSavingTotalRenovacoes(true);
     try {
-      // envia JSON ao doPost do GAS
       const payload = {
         v: 'setTotalRenovacoes',
         totalRenovacoes: valueToSave
       };
-      const res = await fetch(`${GAS_BASE_URL}
+
+      // Em no-cors a resposta será opaca — ainda assim o GAS executará a lógica server-side.
+      await fetch(GAS_BASE_URL, {
         method: 'POST',
-        mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        mode: 'no-cors'
       });
-      // Mesmo que o GAS retorne vazio para no-cors, em modo cors normalmente teremos resposta.
-      // Após salvar, recarrega o valor espelho
-      await fetchTotalRenovacoesFromApolices();
+
+      // Atualiza otimisticamente o valor exibido (porque não conseguimos ler a resposta em no-cors)
+      const num = Number(String(valueToSave).replace(',', '.'));
+      if (!isNaN(num)) {
+        setTotalRenovacoesMirror(Math.floor(num));
+      } else {
+        setTotalRenovacoesMirror(valueToSave);
+      }
+
       setIsEditingTotalRenovacoes(false);
+
+      // Tenta recarregar (caso o ambiente permita leitura)
+      try {
+        await fetchTotalRenovacoesFromApolices();
+      } catch (e) {
+        // se falhar, já temos valor otimista
+      }
+
     } catch (err) {
       console.error('Erro ao salvar Total de Renovacoes em Apolices!I2:', err);
       // mantem em edição para o usuário tentar novamente
