@@ -185,8 +185,9 @@ const Dashboard = ({ leads, usuarioLogado }) => {
         v: 'setTotalRenovacoes',
         totalRenovacoes: valueToSave
       };
-      const resp = await fetch(GAS_BASE_URL, {
+      const res = await fetch(`${GAS_BASE_URL}
         method: 'POST',
+        mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json'
         },
