@@ -36,7 +36,6 @@ const GOOGLE_SHEETS_RENOVADOS = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_clientes
 const GOOGLE_SHEETS_USERS_AUTH_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?v=pegar_usuario`;
 const SALVAR_AGENDAMENTO_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}?action=salvarAgendamento`;
 const SALVAR_OBSERVACAO_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}`;
-const TOTAL_RENOVACOES_SCRIPT_URL = `${GOOGLE_APPS_SCRIPT_BASE_URL}`; // Usaremos a mesma base para GET e POST
 
 function App() {
   const navigate = useNavigate();
@@ -56,11 +55,6 @@ function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [leadsCount, setLeadsCount] = useState(0);
   const [ultimoFechadoId, setUltimoFechadoId] = useState(null);
-
-  // ✅ NOVOS ESTADOS PARA TOTAL DE RENOVAÇÕES
-  const [totalRenovacoes, setTotalRenovacoes] = useState(0);
-  const [editandoTotalRenovacoes, setEditandoTotalRenovacoes] = useState(false);
-  const [novoTotalRenovacoes, setNovoTotalRenovacoes] = useState(0);
 
   useEffect(() => {
     const img = new Image();
@@ -232,49 +226,6 @@ function App() {
       return () => clearInterval(interval);
     }
   }, [isEditing]);
-
-  // ✅ NOVO useEffect para buscar o total de renovações
-  useEffect(() => {
-    const fetchTotalRenovacoes = async () => {
-      try {
-        // Ajustado para buscar especificamente da célula I2 da planilha "Apolices"
-        // Usando mode: 'no-cors' conforme solicitado — tratar resposta opaca com fallback.
-        const response = await fetch(`${TOTAL_RENOVACOES_SCRIPT_URL}?action=getTotalRenovacoesFromCell`, { mode: 'no-cors' });
-        let data = null;
-        try {
-          // Em mode no-cors a resposta pode ser opaca e não permitir leitura do body; envolvemos em try/catch.
-          data = await response.json();
-        } catch (innerErr) {
-          // Fallback: não foi possível ler resposta (opaca). Mantemos valor atual ou 0.
-          console.warn('Resposta opaca (no-cors) ao buscar total de renovações. Mantendo valor local. Erro interno:', innerErr);
-          data = null;
-        }
-
-        if (data && data.totalRenovacoes !== undefined) {
-          // Garante que o valor é um número
-          setTotalRenovacoes(Number(data.totalRenovacoes));
-          setNovoTotalRenovacoes(Number(data.totalRenovacoes)); // Inicializa o campo de edição
-        } else {
-          // Quando não conseguimos ler a resposta, não sobrescrevemos com undefined — apenas deixar como 0 se for primeira vez
-          if (totalRenovacoes === 0) {
-            setTotalRenovacoes(0);
-            setNovoTotalRenovacoes(0);
-          }
-        }
-      } catch (error) {
-        console.error('Erro ao buscar total de renovações da célula I2:', error);
-        if (totalRenovacoes === 0) {
-          setTotalRenovacoes(0);
-          setNovoTotalRenovacoes(0);
-        }
-      }
-    };
-
-    fetchTotalRenovacoes();
-    const interval = setInterval(fetchTotalRenovacoes, 300000); // Atualiza a cada 5 minutos
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const adicionarUsuario = (usuario) => {
     setUsuarios((prev) => [...prev, { ...usuario, id: prev.length + 1 }]);
@@ -526,55 +477,6 @@ function App() {
     }
   };
 
-  // ✅ NOVA FUNÇÃO PARA SALVAR O TOTAL DE RENOVAÇÕES
-  const handleSaveTotalRenovacoes = async () => {
-    try {
-      // Em mode no-cors a resposta será opaca; assumimos sucesso e atualizamos localmente.
-      await fetch(TOTAL_RENOVACOES_SCRIPT_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'updateTotalRenovacoes',
-          totalRenovacoes: novoTotalRenovacoes,
-        }),
-      });
-
-      // Atualiza localmente mesmo sem ler a resposta (no-cors)
-      console.log('Requisição para salvar total de renovações enviada (no-cors). Atualizando estado local.');
-      setTotalRenovacoes(novoTotalRenovacoes);
-      setEditandoTotalRenovacoes(false);
-
-      // Opcionalmente tentar buscar novamente (mas pode não retornar devido a no-cors)
-      setTimeout(() => {
-        // chama a endpoint GET com no-cors; pode ser opaco, mas tentamos atualizar localmente se possível
-        fetch(`${TOTAL_RENOVACOES_SCRIPT_URL}?action=getTotalRenovacoesFromCell`, { mode: 'no-cors' })
-          .then(async (resp) => {
-            try {
-              const d = await resp.json();
-              if (d && d.totalRenovacoes !== undefined) {
-                setTotalRenovacoes(Number(d.totalRenovacoes));
-                setNovoTotalRenovacoes(Number(d.totalRenovacoes));
-              }
-            } catch (err) {
-              // resposta opaca, ignora
-            }
-          })
-          .catch(() => {});
-      }, 1000);
-
-    } catch (error) {
-      console.error('Erro de rede ao salvar total de renovações:', error);
-    }
-  };
-
-  // ✅ NOVA FUNÇÃO PARA HABILITAR EDIÇÃO DO TOTAL DE RENOVAÇÕES
-  const handleEditTotalRenovacoes = () => {
-    setEditandoTotalRenovacoes(true);
-  };
-
   if (!isAuthenticated) {
     return (
       <div
@@ -650,13 +552,6 @@ function App() {
                 }
                 usuarioLogado={usuarioLogado}
                 setIsEditing={setIsEditing}
-                // ✅ NOVAS PROPS PARA O DASHBOARD
-                totalRenovacoes={totalRenovacoes}
-                editandoTotalRenovacoes={editandoTotalRenovacoes}
-                novoTotalRenovacoes={novoTotalRenovacoes}
-                setNovoTotalRenovacoes={setNovoTotalRenovacoes}
-                handleSaveTotalRenovacoes={handleSaveTotalRenovacoes}
-                handleEditTotalRenovacoes={handleEditTotalRenovacoes}
               />
             }
           />
